@@ -1,10 +1,12 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+// use tokio::net::TcpListener;
+// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use primes;
+use tokio::net::{TcpListener, TcpStream};
+
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
+use primes;
 
 #[derive(Debug, Deserialize, Validate)]
 struct Request {
@@ -31,9 +33,8 @@ fn validate_method(method: &str) -> Result<(), ValidationError> {
 }
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
-    let listener = TcpListener::bind(&addr).await?;
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let listener = TcpListener::bind("127.0.0.1:8080").await?;
 
     while let Ok((stream, addr)) = listener.accept().await {
         println!("New connection from {}", addr);
@@ -42,31 +43,34 @@ async fn main() -> io::Result<()> {
         let (reader, mut writer) = tokio::io::split(stream);
         let mut reader = io::BufReader::new(reader);
 
+
         tokio::spawn(async move {
+            // In a loop, read data from the socket and write the data back.
+            let mut reader = BufReader::new(&mut stream);
             loop {
                 let mut line = String::new();
-                let n = reader.read_line(&mut line).await.unwrap();
-                if n == 0 {
-                    break;
-                }
+
+                // we don't really need to keep the buffer size, only to ensure it's non 0 to proceed
+                let _n = match reader.read_line(&mut line).await {
+                    Ok(n) if n == 0 => return, // socket closed
+                    Ok(n) => println!("Read {} bytes", n),
+                    Err(e) => {
+                        eprintln!("failed to read from socket; err = {:?}", e);
+                        return;
+                    }
+                };
 
                 // attempt to deserialize the payload into JSON
                 let request: Result<Request, _> = serde_json::from_str(&line);
 
                 match request {
                     Ok(request) => {
-                        // Happy path: request is a valid JSON
                         // validate the fields in the Request struct
                         let request_validation = request.validate();
+
                         if let Err(e) = request_validation {
-                            // Validation failed, error out
-                            println!("{}", e);
-                            writer
-                                .write_all("Malformed request".as_bytes())
-                                .await
-                                .unwrap();
+                            println!("{}", e)
                         } else {
-                            // Happy path: request is a valid payload
                             println!("Valid request: {:?}", request);
 
                             // set the prime bool to false by default
@@ -75,41 +79,33 @@ async fn main() -> io::Result<()> {
                                 prime: false,
                             };
 
-                            // check whether the number is prime or not
+                            // check to see if the passed number is prime.
                             if primes::is_prime(request.number as u64) {
                                 // flip the prime bool to true since the number is prime,
                                 // otherwise it stays false
                                 response.prime = true;
+
+                                // encode the JSON response as a vec of bytes,
+                                // we get back a Result<>
+                                let response_bytes = serde_json::to_vec(&response);
+                                match response_bytes {
+                                    Ok(response_bytes) => {
+                                        stream.write_all(&response_bytes).await.unwrap();
+                                    }
+                                    Err(e) => {
+                                        println!("ERROR: {}", e);
+                                        return;
+                                    }
+                                };
                             }
-
-                            // encode the JSON response as a vec of bytes, we get back a Result<> from to_vec
-                            let response_bytes = serde_json::to_vec(&response);
-
-                            match response_bytes {
-                                Ok(response_bytes) => {
-                                    writer.write_all(&response_bytes).await.unwrap();
-                                }
-                                Err(e) => {
-                                    println!("ERROR: {}", e);
-                                    return;
-                                }
-                            };
                         }
                     }
                     Err(e) => {
-                        // request is invalid JSON, send an error response
+                        // request is invalid, send an error response
                         println!("ERROR: JSON parsing failed due to invalid request: {}", e);
-                        writer.write_all("Malformed JSON".as_bytes()).await.unwrap();
                     }
                 }
-
-                println!("Read {} bytes", n);
-                println!("{}", line);
-
-                // Echo the data back to the client
             }
         });
     }
-
-    Ok(())
 }
