@@ -2,7 +2,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use primes;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
@@ -17,9 +16,7 @@ struct Request {
 
 #[derive(Debug, Serialize, Validate)]
 struct Response {
-    #[validate(length(min = 1), custom = "validate_method")]
     method: String,
-
     prime: bool,
 }
 
@@ -32,7 +29,7 @@ fn validate_method(method: &str) -> Result<(), ValidationError> {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(172, 16, 1, 66)), 8080);
     let listener = TcpListener::bind(&addr).await?;
 
     while let Ok((stream, addr)) = listener.accept().await {
@@ -46,9 +43,16 @@ async fn main() -> io::Result<()> {
             loop {
                 let mut line = String::new();
                 let n = reader.read_line(&mut line).await.unwrap();
-                if n == 0 {
-                    break;
-                }
+                
+                // we don't really need to keep the buffer size, only to ensure it's non 0 to proceed
+                match reader.read_line(&mut line).await {
+                    Ok(n) if n == 0 => return, // socket closed
+                    Ok(n) => println!("Read {} bytes", n),
+                    Err(e) => {
+                        eprintln!("failed to read from socket; err = {:?}", e);
+                        return;
+                    }
+                };
 
                 // attempt to deserialize the payload into JSON
                 let request: Result<Request, _> = serde_json::from_str(&line);
@@ -65,6 +69,7 @@ async fn main() -> io::Result<()> {
                                 .write_all("Malformed request".as_bytes())
                                 .await
                                 .unwrap();
+                            return;
                         } else {
                             // Happy path: request is a valid payload
                             println!("Valid request: {:?}", request);
@@ -100,6 +105,7 @@ async fn main() -> io::Result<()> {
                         // request is invalid JSON, send an error response
                         println!("ERROR: JSON parsing failed due to invalid request: {}", e);
                         writer.write_all("Malformed JSON".as_bytes()).await.unwrap();
+                        return;
                     }
                 }
 
