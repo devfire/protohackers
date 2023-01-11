@@ -46,8 +46,10 @@ async fn main() -> io::Result<()> {
                 let mut line = String::new();
                 let n = reader.read_line(&mut line).await.unwrap();
                 if n == 0 {
-                    break;
+                    return;
                 }
+
+                println!("Received: {:?}", line);
 
                 // attempt to deserialize the payload into JSON
                 let request: Result<Request, _> = serde_json::from_str(&line);
@@ -79,6 +81,7 @@ async fn main() -> io::Result<()> {
                                 // flip the prime bool to true since the number is prime,
                                 // otherwise it stays false
                                 response.prime = true;
+                                println!("Number {} is prime", request.number);
                             }
 
                             // encode the JSON response as a vec of bytes, we get back a Result<> from to_vec
@@ -87,6 +90,7 @@ async fn main() -> io::Result<()> {
                             match response_bytes {
                                 Ok(response_bytes) => {
                                     writer.write_all(&response_bytes).await.unwrap();
+                                    println!("Sending back a response");
                                 }
                                 Err(e) => {
                                     println!("ERROR: {}", e);
