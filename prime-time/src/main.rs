@@ -2,7 +2,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use primes;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
