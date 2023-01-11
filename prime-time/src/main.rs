@@ -10,7 +10,7 @@ struct Request {
     #[validate(length(min = 1), custom = "validate_method")]
     method: String,
 
-    #[validate(range(min = 1))]
+    // #[validate(range(min = 1))]
     number: f32,
 }
 
