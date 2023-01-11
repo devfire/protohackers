@@ -16,9 +16,7 @@ struct Request {
 
 #[derive(Debug, Serialize, Validate)]
 struct Response {
-    #[validate(length(min = 1), custom = "validate_method")]
     method: String,
-
     prime: bool,
 }
 
@@ -66,6 +64,7 @@ async fn main() -> io::Result<()> {
                                 .write_all("Malformed request.\n".as_bytes())
                                 .await
                                 .unwrap();
+                                return;
                         } else {
                             // Happy path: request is a valid payload
                             println!("Valid request: {:?}", request);
@@ -102,16 +101,17 @@ async fn main() -> io::Result<()> {
                     }
                     Err(e) => {
                         // request is invalid JSON, send an error response
-                        println!("ERROR: JSON parsing failed due to invalid request: {}", e);
+                        println!("ERROR: {}", e);
                         writer
                             .write_all("Malformed JSON\n".as_bytes())
                             .await
                             .unwrap();
+                            return;
                     }
                 }
 
                 println!("Read {} bytes", n);
-                println!("{}", line);
+                // println!("{}", line);
 
                 // Echo the data back to the client
             }
