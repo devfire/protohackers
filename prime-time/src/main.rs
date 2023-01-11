@@ -63,7 +63,7 @@ async fn main() -> io::Result<()> {
                             // Validation failed, error out
                             println!("{}", e);
                             writer
-                                .write_all("Malformed request".as_bytes())
+                                .write_all("Malformed request.\n".as_bytes())
                                 .await
                                 .unwrap();
                         } else {
@@ -90,9 +90,10 @@ async fn main() -> io::Result<()> {
                             match response_bytes {
                                 Ok(response_bytes) => {
                                     writer.write_all(&response_bytes).await.unwrap();
-                                    println!("Sending back a response");
+                                    println!("Sending back a response.");
                                 }
                                 Err(e) => {
+                                    // this should never happen since we construct the response
                                     println!("ERROR: {}", e);
                                     return;
                                 }
@@ -102,7 +103,10 @@ async fn main() -> io::Result<()> {
                     Err(e) => {
                         // request is invalid JSON, send an error response
                         println!("ERROR: JSON parsing failed due to invalid request: {}", e);
-                        writer.write_all("Malformed JSON".as_bytes()).await.unwrap();
+                        writer
+                            .write_all("Malformed JSON\n".as_bytes())
+                            .await
+                            .unwrap();
                     }
                 }
 
