@@ -29,7 +29,7 @@ fn validate_method(method: &str) -> Result<(), ValidationError> {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(172, 16, 1, 66)), 8080);
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
     let listener = TcpListener::bind(&addr).await?;
 
     while let Ok((stream, addr)) = listener.accept().await {
@@ -43,7 +43,7 @@ async fn main() -> io::Result<()> {
             loop {
                 let mut line = String::new();
                 let n = reader.read_line(&mut line).await.unwrap();
-                
+
                 // we don't really need to keep the buffer size, only to ensure it's non 0 to proceed
                 match reader.read_line(&mut line).await {
                     Ok(n) if n == 0 => return, // socket closed
