@@ -11,7 +11,7 @@ struct Request {
     method: String,
 
     // #[validate(range(min = 1))]
-    number: u64,
+    number: f32,
 }
 
 #[derive(Debug, Serialize, Validate)]
@@ -42,7 +42,10 @@ async fn main() -> io::Result<()> {
         tokio::spawn(async move {
             loop {
                 let mut line = String::new();
-                let n = reader.read_line(&mut line).await.expect("Socket read failed.");
+                let n = reader
+                    .read_line(&mut line)
+                    .await
+                    .expect("Socket read failed.");
                 if n == 0 {
                     break;
                 }
@@ -76,9 +79,31 @@ async fn main() -> io::Result<()> {
                                 prime: false,
                             };
 
+                            // got a floating point, bail
+                            if request.number.fract() != 0.0 {
+                                // encode the JSON response as a vec of bytes, we get back a Result<> from to_vec
+                                let response_bytes = serde_json::to_vec(&response);
+
+                                match response_bytes {
+                                    Ok(response_bytes) => {
+                                        writer
+                                            .write_all(&response_bytes)
+                                            .await
+                                            .expect("Socket write-back failed.");
+                                        writer.write_all(b"\n").await.unwrap();
+                                        println!("Sending back a response.");
+                                    }
+                                    Err(e) => {
+                                        // this should never happen since we construct the response
+                                        println!("ERROR: {}", e);
+                                        return;
+                                    }
+                                };
+                            }
+
                             // check whether the number is prime or not.
                             // NOTE: floating point numbers are never prime.
-                            if primes::is_prime(request.number as u64) && request.number.fract() == 0.0 {
+                            if primes::is_prime(request.number as u64) {
                                 // flip the prime bool to true since the number is prime,
                                 // otherwise it stays false
                                 response.prime = true;
@@ -90,7 +115,10 @@ async fn main() -> io::Result<()> {
 
                             match response_bytes {
                                 Ok(response_bytes) => {
-                                    writer.write_all(&response_bytes).await.expect("Socket write-back failed.");
+                                    writer
+                                        .write_all(&response_bytes)
+                                        .await
+                                        .expect("Socket write-back failed.");
                                     writer.write_all(b"\n").await.unwrap();
                                     println!("Sending back a response.");
                                 }
@@ -105,7 +133,10 @@ async fn main() -> io::Result<()> {
                     Err(e) => {
                         // request is invalid JSON, send an error response
                         println!("ERROR: {}", e);
-                        writer.write_all("Malformed JSON".as_bytes()).await.expect("Socket write failed.");
+                        writer
+                            .write_all("Malformed JSON".as_bytes())
+                            .await
+                            .expect("Socket write failed.");
                         writer.write_all(b"\n").await.unwrap();
                     }
                 }
