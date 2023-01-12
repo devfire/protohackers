@@ -1,4 +1,3 @@
-use core::num;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -12,7 +11,7 @@ struct Request {
     method: String,
 
     // #[validate(range(min = 1))]
-    number: i64,
+    number: f32,
 }
 
 #[derive(Debug, Serialize, Validate)]
@@ -77,8 +76,9 @@ async fn main() -> io::Result<()> {
                                 prime: false,
                             };
 
-                            // check whether the number is prime or not
-                            if primes::is_prime(request.number as u64) {
+                            // check whether the number is prime or not.
+                            // NOTE: floating point numbers are never prime.
+                            if primes::is_prime(request.number as u64) && request.number.fract() == 0.0 {
                                 // flip the prime bool to true since the number is prime,
                                 // otherwise it stays false
                                 response.prime = true;
