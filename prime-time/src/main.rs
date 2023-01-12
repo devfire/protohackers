@@ -11,7 +11,7 @@ struct Request {
     method: String,
 
     // #[validate(range(min = 1))]
-    number: f32,
+    number: u64,
 }
 
 #[derive(Debug, Serialize, Validate)]
