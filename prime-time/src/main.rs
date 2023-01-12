@@ -1,3 +1,4 @@
+use core::num;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -11,7 +12,7 @@ struct Request {
     method: String,
 
     // #[validate(range(min = 1))]
-    number: f32,
+    number: i64,
 }
 
 #[derive(Debug, Serialize, Validate)]
