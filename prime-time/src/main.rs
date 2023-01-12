@@ -64,7 +64,6 @@ async fn main() -> io::Result<()> {
         tokio::spawn(async move {
             loop {
                 let mut line = String::new();
-<<<<<<< HEAD
                 let n = reader
                     .read_line(&mut line)
                     .await
@@ -72,19 +71,6 @@ async fn main() -> io::Result<()> {
                 if n == 0 {
                     break;
                 }
-=======
-                let n = reader.read_line(&mut line).await.unwrap();
-
-                // we don't really need to keep the buffer size, only to ensure it's non 0 to proceed
-                match reader.read_line(&mut line).await {
-                    // Ok(n) if n == 0 => return, // socket closed
-                    Ok(n) => println!("Read {} bytes", n),
-                    Err(e) => {
-                        eprintln!("failed to read from socket; err = {:?}", e);
-                        return;
-                    }
-                };
->>>>>>> origin/main
 
                 println!("Received: {:?}", line);
 
@@ -99,28 +85,12 @@ async fn main() -> io::Result<()> {
                         if let Err(e) = request_validation {
                             // Validation failed, error out
                             println!("{}", e);
-<<<<<<< HEAD
-
-                            // Convert the validation error to String and ship it back
-                            writer.write_all(e.to_string().as_bytes()).await.unwrap();
-
-                            //Flush this output stream, ensuring that all intermediately buffered contents reach their destination.
-                            writer.flush().await.unwrap();
-
-                            // return;
-=======
                             writer
                                 .write_all("Malformed request.".as_bytes())
                                 .await
-<<<<<<< HEAD
                                 .expect("Socket write-back failed.");
 
                             writer.write_all(b"\n").await.unwrap();
-=======
-                                .unwrap();
-                            return;
->>>>>>> origin/main
->>>>>>> testing
                         } else {
                             // Happy path: request is a valid payload
                             println!("Valid request: {:?}", request);
@@ -145,53 +115,29 @@ async fn main() -> io::Result<()> {
 
                             match response_bytes {
                                 Ok(response_bytes) => {
-<<<<<<< HEAD
-                                    writer.write_all(&response_bytes).await.unwrap();
-                                    
-                                    //Flush this output stream, ensuring that all intermediately buffered contents reach their destination.
-                                    writer.flush().await.unwrap();
-=======
                                     writer
                                         .write_all(&response_bytes)
                                         .await
                                         .expect("Socket write-back failed.");
                                     writer.write_all(b"\n").await.unwrap();
                                     println!("Sending back a response.");
->>>>>>> testing
                                 }
                                 Err(e) => {
                                     // this should never happen since we construct the response
                                     println!("ERROR: {}", e);
-                                    // return;
+                                    return;
                                 }
                             };
                         }
                     }
                     Err(e) => {
                         // request is invalid JSON, send an error response
-<<<<<<< HEAD
                         println!("ERROR: {}", e);
                         writer
                             .write_all("Malformed JSON".as_bytes())
                             .await
                             .expect("Socket write failed.");
                         writer.write_all(b"\n").await.unwrap();
-=======
-                        println!("ERROR: JSON parsing failed due to invalid request: {}", e);
-                        writer.write_all("Malformed JSON".as_bytes()).await.unwrap();
-<<<<<<< HEAD
-
-                        //Flush this output stream, ensuring that all intermediately buffered contents reach their destination.
-                        writer.flush().await.unwrap();
-                        // return;
-                    }
-                }
-
-                println!("Read {} bytes", n);
-                println!("{}", line);
-=======
-                        return;
->>>>>>> origin/main
                     }
                 }
 
@@ -199,7 +145,6 @@ async fn main() -> io::Result<()> {
                 // println!("{}", line);
 
                 // Echo the data back to the client
->>>>>>> testing
             }
         });
     }
