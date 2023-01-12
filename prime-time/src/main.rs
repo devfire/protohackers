@@ -42,7 +42,7 @@ async fn main() -> io::Result<()> {
         tokio::spawn(async move {
             loop {
                 let mut line = String::new();
-                let n = reader.read_line(&mut line).await.unwrap();
+                let n = reader.read_line(&mut line).await.expect("Socket read failed.");
                 if n == 0 {
                     break;
                 }
@@ -63,7 +63,7 @@ async fn main() -> io::Result<()> {
                             writer
                                 .write_all("Malformed request.".as_bytes())
                                 .await
-                                .unwrap();
+                                .expect("Socket write-back failed.");
 
                             writer.write_all(b"\n").await.unwrap();
                         } else {
@@ -89,7 +89,7 @@ async fn main() -> io::Result<()> {
 
                             match response_bytes {
                                 Ok(response_bytes) => {
-                                    writer.write_all(&response_bytes).await.unwrap();
+                                    writer.write_all(&response_bytes).await.expect("Socket write-back failed.");
                                     writer.write_all(b"\n").await.unwrap();
                                     println!("Sending back a response.");
                                 }
@@ -104,12 +104,12 @@ async fn main() -> io::Result<()> {
                     Err(e) => {
                         // request is invalid JSON, send an error response
                         println!("ERROR: {}", e);
-                        writer.write_all("Malformed JSON".as_bytes()).await.unwrap();
+                        writer.write_all("Malformed JSON".as_bytes()).await.expect("Socket write failed.");
                         writer.write_all(b"\n").await.unwrap();
                     }
                 }
 
-                println!("Read {} bytes", n);
+                // println!("Read {} bytes", n);
                 // println!("{}", line);
 
                 // Echo the data back to the client
