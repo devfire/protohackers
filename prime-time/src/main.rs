@@ -11,7 +11,7 @@ struct Request {
     method: String,
 
     // #[validate(range(min = 1))]
-    number: f32,
+    number: f64,
 }
 
 #[derive(Debug, Serialize, Validate)]
@@ -25,6 +25,28 @@ fn validate_method(method: &str) -> Result<(), ValidationError> {
         return Err(ValidationError::new("Method must be isPrime"));
     }
     Ok(())
+}
+
+/// From https://docs.rs/primes/latest/src/primes/lib.rs.html
+fn firstfac(x: i64) -> i64 {
+    if x % 2 == 0 {
+        return 2;
+    };
+
+    for n in (1..).map(|m| 2 * m + 1).take_while(|m| m * m <= x) {
+        if x % n == 0 {
+            return n;
+        };
+    }
+    // No factor found. It must be prime.
+    x
+}
+
+fn is_prime(n: i64) -> bool {
+    if n <= 1 {
+        return false;
+    }
+    firstfac(n) == n
 }
 
 #[tokio::main]
@@ -79,31 +101,9 @@ async fn main() -> io::Result<()> {
                                 prime: false,
                             };
 
-                            // got a floating point, bail
-                            if request.number.fract() != 0.0 {
-                                // encode the JSON response as a vec of bytes, we get back a Result<> from to_vec
-                                let response_bytes = serde_json::to_vec(&response);
-
-                                match response_bytes {
-                                    Ok(response_bytes) => {
-                                        writer
-                                            .write_all(&response_bytes)
-                                            .await
-                                            .expect("Socket write-back failed.");
-                                        writer.write_all(b"\n").await.unwrap();
-                                        println!("Sending back a response.");
-                                    }
-                                    Err(e) => {
-                                        // this should never happen since we construct the response
-                                        println!("ERROR: {}", e);
-                                        return;
-                                    }
-                                };
-                            }
-
                             // check whether the number is prime or not.
                             // NOTE: floating point numbers are never prime.
-                            if primes::is_prime(request.number as u64) {
+                            if is_prime(request.number as i64) {
                                 // flip the prime bool to true since the number is prime,
                                 // otherwise it stays false
                                 response.prime = true;
