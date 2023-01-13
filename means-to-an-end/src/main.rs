@@ -18,7 +18,7 @@ async fn main() -> io::Result<()> {
         tokio::spawn(async move {
             loop {
                 let mut buffer = [0; 9];
-                let n = reader.read(&mut buffer).await.expect("Unable to read buffer");
+                let n = reader.read_exact(&mut buffer).await.expect("Unable to read buffer");
                 if n == 0 {
                     break;
                 }
