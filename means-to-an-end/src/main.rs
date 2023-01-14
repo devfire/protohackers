@@ -3,6 +3,11 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, AsyncReadExt};
 use tokio::net::TcpListener;
 
+enum MsgType {
+    I,
+    Q,
+}
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
@@ -23,6 +28,15 @@ async fn main() -> io::Result<()> {
                     break;
                 }
                 println!("The bytes: {:?}", &buffer[..n]);
+                // let msg_type_ascii = buffer[0];
+
+                let msg_type = buffer[0];
+
+                let first_half: String = format!("{}{}{}{}", buffer[1] as i32, buffer[2] as i32, buffer[3] as i32, buffer[4] as i32);
+
+                let second_half: String = format!("{}{}{}{}", buffer[5], buffer[6], buffer[7], buffer[8]);
+
+                println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
             }
         });
     }
