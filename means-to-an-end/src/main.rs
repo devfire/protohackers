@@ -32,9 +32,9 @@ async fn main() -> io::Result<()> {
 
                 let msg_type = buffer[0];
 
-                let first_half: String = format!("{:b}{:b}{:b}{:b}", buffer[1], buffer[2], buffer[3], buffer[4]);
+                let first_half: String = format!("{:b} {:b} {:b} {:b}", buffer[1], buffer[2], buffer[3], buffer[4]);
 
-                let second_half: String = format!("{}{}{}{}", buffer[5], buffer[6], buffer[7], buffer[8]);
+                let second_half: String = format!("{:b} {:b} {:b} {:b}", buffer[5], buffer[6], buffer[7], buffer[8]);
 
                 println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
             }
