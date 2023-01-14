@@ -1,12 +1,20 @@
 // use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, AsyncReadExt};
+// use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, AsyncReadExt};
+use tokio::io::{self, AsyncReadExt};
 use tokio::net::TcpListener;
 
-enum MsgType {
-    I,
-    Q,
+// enum MsgType {
+//     I,
+//     Q,
+// }
+
+fn read_be_i32(input: &mut &[u8]) -> i32 {
+    let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
+    *input = rest;
+    i32::from_be_bytes(int_bytes.try_into().unwrap())
 }
+
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -28,14 +36,11 @@ async fn main() -> io::Result<()> {
                     break;
                 }
                 println!("The bytes: {:?}", &buffer[..n]);
-                // let msg_type_ascii = buffer[0];
 
-                let msg_type = buffer[0];
-
-                let first_half: String = format!("{:b} {:b} {:b} {:b}", buffer[1], buffer[2], buffer[3], buffer[4]);
-
-                let second_half: String = format!("{:b} {:b} {:b} {:b}", buffer[5], buffer[6], buffer[7], buffer[8]);
-
+                let msg_type = &buffer[0];
+                let first_half: i32 = read_be_i32(&mut &buffer[1..4]);
+                let second_half: i32 = read_be_i32(&mut &buffer[5..8]);
+                
                 println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
             }
         });
