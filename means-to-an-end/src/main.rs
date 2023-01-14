@@ -32,6 +32,8 @@ async fn main() -> io::Result<()> {
             loop {
                 let mut buffer = [0; 9];
                 let n = reader.read_exact(&mut buffer).await.expect("Unable to read buffer");
+                println!("Bytes received: {}", n);
+                
                 if n == 0 {
                     break;
                 }
