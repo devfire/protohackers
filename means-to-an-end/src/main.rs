@@ -12,7 +12,7 @@ use tokio::net::TcpListener;
 fn read_be_i32(input: &mut &[u8]) -> i32 {
     let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
     *input = rest;
-    i32::from_be_bytes(int_bytes.try_into().unwrap())
+    i32::from_be_bytes(int_bytes.try_into().expect("Failed to convert from slice to array"))
 }
 
 
@@ -33,7 +33,6 @@ async fn main() -> io::Result<()> {
                 let mut buffer = [0; 9];
                 let n = reader.read_exact(&mut buffer).await.expect("Unable to read buffer");
                 println!("Bytes received: {}", n);
-                
                 if n == 0 {
                     break;
                 }
