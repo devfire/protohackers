@@ -9,11 +9,11 @@ use tokio::net::TcpListener;
 //     Q,
 // }
 
-// fn read_be_i32(input: &mut &[u8]) -> i32 {
-//     let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
-//     *input = rest;
-//     i32::from_be_bytes(int_bytes.try_into().expect("Failed to convert from slice to array"))
-// }
+fn read_be_i32(input: &mut &[u8]) -> i32 {
+    let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
+    *input = rest;
+    i32::from_be_bytes(int_bytes.try_into().expect("Failed to convert from slice to array"))
+}
 
 
 #[tokio::main]
@@ -39,13 +39,13 @@ async fn main() -> io::Result<()> {
                 println!("The bytes: {:?}", &buffer[..n]);
 
                 let msg_type = buffer[0];
-                // let first_half: i32 = read_be_i32(&mut &buffer[1..4]);
+                let first_half: i32 = read_be_i32(&mut &buffer[1..]);
                 // let second_half: i32 = read_be_i32(&mut &buffer[5..8]);
                 
-                let first_half = i32::from_be_bytes(buffer[1..4].try_into().expect("from slice to array failed"));
-                let second_half = i32::from_be_bytes(buffer[5..].try_into().expect("from slice to array failed"));
+                // let first_half = i32::from_be_bytes(buffer[1..4].try_into().expect("from slice to array failed"));
+                // let second_half = i32::from_be_bytes(buffer[5..].try_into().expect("from slice to array failed"));
 
-                println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
+                println!("Type: {}, first_half: {}", msg_type, first_half);
             }
         });
     }
