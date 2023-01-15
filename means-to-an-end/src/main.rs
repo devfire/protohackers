@@ -38,7 +38,7 @@ async fn main() -> io::Result<()> {
                 }
 
                 (0..9).for_each(|i| {
-                    print!("{:b} ", &buffer[i]);
+                    print!("{:#8b} ", &buffer[i]);
                 });
                 // println!("The bytes: {:b}", &buffer[..n]);
 
