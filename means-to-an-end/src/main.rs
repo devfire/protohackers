@@ -36,7 +36,11 @@ async fn main() -> io::Result<()> {
                 if n == 0 {
                     break;
                 }
-                println!("The bytes: {:?}", &buffer[..n]);
+
+                (0..9).for_each(|i| {
+                    print!("{:b} ", &buffer[i]);
+                });
+                // println!("The bytes: {:b}", &buffer[..n]);
 
                 let msg_type = buffer[0];
                 let first_half: i32 = read_be_i32(&mut &buffer[1..]);
