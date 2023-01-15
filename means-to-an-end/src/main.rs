@@ -5,15 +5,9 @@ use tokio::io::{self, AsyncReadExt};
 use tokio::net::TcpListener;
 
 // https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
-fn read_be_i32(input: &mut &[u8]) -> i32 {
-    let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
-    *input = rest;
-    i32::from_be_bytes(int_bytes.try_into().expect("Failed in read_be_i32 to convert from slice to array"))
+fn read_be_i32(input: &[u8]) -> i32 {
+    i32::from_be_bytes(input[..4].try_into().unwrap())
 }
-
-// fn make_array(input: &[u8]) -> [u8;4] {
-//     input.try_into().expect("slice with incorrect length")
-// }
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -36,9 +30,9 @@ async fn main() -> io::Result<()> {
                     break;
                 }
 
-                (0..9).for_each(|i| {
-                    print!("byte #{}, {:#010b} ",i, &buffer[i]);
-                });
+                // (0..9).for_each(|i| {
+                //     print!("byte #{}, {:#010b} ",i, &buffer[i]);
+                // });
 
                 let msg_type = &buffer[0];
 
