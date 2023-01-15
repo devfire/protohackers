@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 //     i32::from_be_bytes(int_bytes.try_into().expect("Failed in read_be_i32 to convert from slice to array"))
 // }
 
-fn get_integer(input: &[u8]) -> [u8;4] {
+fn make_array(input: &[u8]) -> [u8;4] {
     input.try_into().expect("slice with incorrect length")
 }
 
@@ -41,8 +41,8 @@ async fn main() -> io::Result<()> {
                 });
 
                 let msg_type = &buffer[0];
-                let first_half_decoded = i32::from_be_bytes(get_integer(&buffer[1..4]));
-                let second_half_decoded = i32::from_be_bytes(get_integer(&buffer[5..8]));
+                let first_half_decoded = i32::from_be_bytes(make_array(&buffer[1..4]));
+                let second_half_decoded = i32::from_be_bytes(make_array(&buffer[5..8]));
 
                 // let first_half_decoded = read_be_i32(&mut &buffer[1..4]);
                 // let second_half_decoded = read_be_i32(&mut &buffer[5..8]);
