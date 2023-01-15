@@ -3,6 +3,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 // use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, AsyncReadExt};
 use tokio::io::{self, AsyncReadExt};
 use tokio::net::TcpListener;
+use sqlite::State;
+
+
 
 // https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
 fn read_be_i32(input: &[u8]) -> i32 {
@@ -41,6 +44,12 @@ async fn main() -> io::Result<()> {
                 let second_half_decoded = read_be_i32(&buffer[5..n]);
 
                 println!("Type: {}, first: {}, second: {}", msg_type, first_half_decoded, second_half_decoded);
+
+                match msg_type {
+                    73 => insert_data(first_half_decoded, second_half_decoded),
+                    81 => query_data(first_half_decoded, second_half_decoded),
+                    _ => println!("Got something weird, ignoring.")
+                }
             }
         });
     }
