@@ -30,7 +30,7 @@ async fn main() -> io::Result<()> {
 
         tokio::spawn(async move {
             loop {
-                let mut buffer = [0; 9];
+                let mut buffer = [0;9];
                 let n = reader.read_exact(&mut buffer).await.expect("Unable to read buffer");
                 println!("Bytes received: {}", n);
                 if n == 0 {
@@ -43,7 +43,7 @@ async fn main() -> io::Result<()> {
                 // let second_half: i32 = read_be_i32(&mut &buffer[5..8]);
                 
                 let first_half: i32 = i32::from_be_bytes(buffer[1..4].try_into().expect("from slice to array failed"));
-                let second_half: i32 = i32::from_be_bytes(buffer[5..9].try_into().expect("from slice to array failed"));
+                let second_half: i32 = i32::from_be_bytes(buffer[5..8].try_into().expect("from slice to array failed"));
 
                 println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
             }
