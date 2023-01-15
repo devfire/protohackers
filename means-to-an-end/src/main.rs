@@ -42,7 +42,7 @@ async fn main() -> io::Result<()> {
                 // let first_half: i32 = read_be_i32(&mut &buffer[1..4]);
                 // let second_half: i32 = read_be_i32(&mut &buffer[5..8]);
                 
-                let first_half = i32::from_be_bytes(buffer[..4].try_into().expect("from slice to array failed"));
+                let first_half = i32::from_be_bytes(buffer[1..4].try_into().expect("from slice to array failed"));
                 let second_half = i32::from_be_bytes(buffer[5..].try_into().expect("from slice to array failed"));
 
                 println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
