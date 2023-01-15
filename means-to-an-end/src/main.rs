@@ -4,11 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncReadExt};
 use tokio::net::TcpListener;
 
-// enum MsgType {
-//     I,
-//     Q,
-// }
-
+// https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
 fn read_be_i32(input: &mut &[u8]) -> i32 {
     let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
     *input = rest;
@@ -41,23 +37,9 @@ async fn main() -> io::Result<()> {
                     print!("byte #{}, {:#010b} ",i, &buffer[i]);
                 });
 
-                println!();
-
-
-                // println!("The bytes: {:b}", &buffer[..n]);
-
                 let msg_type = &buffer[0];
-                let mut first_half = &buffer[1..4];
-                let mut second_half = &buffer[5..8];
-
-                // let second_half: i32 = read_be_i32(&mut &buffer[5..8]);
-                
-                // let first_half_decoded = i32::from_be_bytes(first_half.try_into().expect("from slice to array failed"));
-                // let second_half_decoded = i32::from_be_bytes(second_half.try_into().expect("from slice to array failed"));
-
-                let first_half_decoded = read_be_i32(&mut first_half);
-                let second_half_decoded = read_be_i32(&mut second_half);
-
+                let first_half_decoded = read_be_i32(&mut &buffer[1..4]);
+                let second_half_decoded = read_be_i32(&mut &buffer[5..8]);
 
                 println!("Type: {}, first: {}, second: {}", msg_type, first_half_decoded, second_half_decoded);
             }
