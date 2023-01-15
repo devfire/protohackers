@@ -32,7 +32,7 @@ async fn main() -> io::Result<()> {
             loop {
                 let mut buffer = [0;9];
                 let n = reader.read_exact(&mut buffer).await.expect("Unable to read buffer");
-                println!("Bytes received: {}", n);
+                println!("Bytes received: {} buffer length: {}", n, buffer.len());
                 if n == 0 {
                     break;
                 }
@@ -40,6 +40,7 @@ async fn main() -> io::Result<()> {
                 (0..9).for_each(|i| {
                     print!("{:#010b} ", &buffer[i]);
                 });
+                println!();
                 // println!("The bytes: {:b}", &buffer[..n]);
 
                 let msg_type = buffer[0];
