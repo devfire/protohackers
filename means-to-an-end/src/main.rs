@@ -38,14 +38,14 @@ async fn main() -> io::Result<()> {
                 }
                 println!("The bytes: {:?}", &buffer[..n]);
 
-                let msg_type = &buffer[0];
+                // let msg_type = &buffer[0];
                 // let first_half: i32 = read_be_i32(&mut &buffer[1..4]);
                 // let second_half: i32 = read_be_i32(&mut &buffer[5..8]);
                 
                 let first_half: i32 = i32::from_be_bytes(buffer[1..4].try_into().expect("from slice to array failed"));
                 let second_half: i32 = i32::from_be_bytes(buffer[5..8].try_into().expect("from slice to array failed"));
 
-                println!("Type: {}, first_half: {}, second_half {}", msg_type, first_half, second_half);
+                println!("first_half: {}, second_half {}", first_half, second_half);
             }
         });
     }
