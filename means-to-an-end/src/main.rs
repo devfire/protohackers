@@ -37,8 +37,8 @@ async fn main() -> io::Result<()> {
                 let msg_type = &buffer[0];
 
                 // read slices 1,2,3,4
-                let first_half_decoded = read_be_i32(&mut &buffer[1..=4]);
-                let second_half_decoded = read_be_i32(&mut &buffer[5..n]);
+                let first_half_decoded = read_be_i32(&buffer[1..=4]);
+                let second_half_decoded = read_be_i32(&buffer[5..n]);
 
                 println!("Type: {}, first: {}, second: {}", msg_type, first_half_decoded, second_half_decoded);
             }
