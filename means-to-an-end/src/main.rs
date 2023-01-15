@@ -5,12 +5,15 @@ use tokio::io::{self, AsyncReadExt};
 use tokio::net::TcpListener;
 
 // https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
-fn read_be_i32(input: &mut &[u8]) -> i32 {
-    let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
-    *input = rest;
-    i32::from_be_bytes(int_bytes.try_into().expect("Failed in read_be_i32 to convert from slice to array"))
-}
+// fn read_be_i32(input: &mut &[u8]) -> i32 {
+//     let (int_bytes, rest) = input.split_at(std::mem::size_of::<i32>());
+//     *input = rest;
+//     i32::from_be_bytes(int_bytes.try_into().expect("Failed in read_be_i32 to convert from slice to array"))
+// }
 
+fn get_integer(input: &[u8]) -> [u8;4] {
+    input.try_into().expect("slice with incorrect length")
+}
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -21,7 +24,7 @@ async fn main() -> io::Result<()> {
         println!("New connection from {}", addr);
 
         let stream = stream;
-        let (reader, mut writer) = tokio::io::split(stream);
+        let (reader, mut _writer) = tokio::io::split(stream);
         let mut reader = io::BufReader::new(reader);
 
         tokio::spawn(async move {
@@ -38,8 +41,11 @@ async fn main() -> io::Result<()> {
                 });
 
                 let msg_type = &buffer[0];
-                let first_half_decoded = read_be_i32(&mut &buffer[1..4]);
-                let second_half_decoded = read_be_i32(&mut &buffer[5..8]);
+                let first_half_decoded = i32::from_be_bytes(get_integer(&buffer[1..4]));
+                let second_half_decoded = i32::from_be_bytes(get_integer(&buffer[5..8]));
+
+                // let first_half_decoded = read_be_i32(&mut &buffer[1..4]);
+                // let second_half_decoded = read_be_i32(&mut &buffer[5..8]);
 
                 println!("Type: {}, first: {}, second: {}", msg_type, first_half_decoded, second_half_decoded);
             }
