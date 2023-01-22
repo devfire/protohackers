@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.68"
-log = "0.4.17"
 rusqlite = "0.28.0"
 tokio = { version = "1.24.1", features = ["full"] }

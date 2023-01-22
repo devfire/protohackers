@@ -1,7 +1,7 @@
 // use std::error;
 // use std::io;
 use anyhow::Result;
-use log::{error, info};
+
 use rusqlite::Connection;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::io::{self, AsyncReadExt};
@@ -21,9 +21,9 @@ async fn main() -> Result<()> {
         "CREATE TABLE messages (id INTEGER PRIMARY KEY, timestamp INTEGER, price INTEGER)";
 
     while let Ok((stream, addr)) = listener.accept().await {
-        info!("New connection from {}", addr);
+        println!("New connection from {}", addr);
 
-        info!("Creating the table.");
+        println!("Creating the table.");
 
         let connection = Connection::open_in_memory()?;
 
@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
                         )
                         .expect("Unable to query data"),
                 ),
-                _ => error!("Fail"),
+                _ => println!("Bad message type, ignoring."),
             }
         }
     }
