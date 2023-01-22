@@ -35,59 +35,61 @@ async fn main() -> Result<()> {
         let (reader, mut _writer) = tokio::io::split(stream);
         let mut reader = io::BufReader::new(reader);
 
-        loop {
-            let mut buffer = [0; 9];
-            let n = reader
-                .read_exact(&mut buffer)
-                .await
-                .expect("Unable to read from buffer");
-            println!("Bytes received: {} buffer length: {}", n, buffer.len());
-            if n == 0 {
-                break;
+        tokio::spawn(async move {
+            loop {
+                let mut buffer = [0; 9];
+                let n = reader
+                    .read_exact(&mut buffer)
+                    .await
+                    .expect("Unable to read from buffer");
+                // println!("Bytes received: {} buffer length: {}", n, buffer.len());
+                if n == 0 {
+                    break;
+                }
+
+                // (0..9).for_each(|i| {
+                //     print!("byte #{}, {:#010b} ",i, &buffer[i]);
+                // });
+
+                // The message format is:
+                // Byte:  |  0  |  1     2     3     4  |  5     6     7     8  |
+                // Type:  |char |         int32         |         int32         |
+                // Value: | 'I' |       timestamp       |         price         |
+                //
+
+                let msg_type = &buffer[0];
+
+                // Read slices 1,2,3,4.
+                // Since we have a slice rather than an array, fallible conversion APIs can be used
+                let first_half_decoded = read_be_i32(&buffer[1..=4]);
+                let second_half_decoded = read_be_i32(&buffer[5..n]);
+
+                println!(
+                    "Type: {}, first: {}, second: {}",
+                    msg_type, first_half_decoded, second_half_decoded
+                );
+
+                match msg_type {
+                    73 => drop(
+                        connection
+                            .execute(
+                                "INSERT INTO messages (timestamp, price) VALUES (?1, ?2)",
+                                (first_half_decoded, second_half_decoded),
+                            )
+                            .expect("Unable to insert data"),
+                    ),
+                    81 => drop(
+                        connection
+                            .execute(
+                                "SELECT AVG(price) FROM messages WHERE timestamp BETWEEN ?1 AND ?2",
+                                (first_half_decoded, second_half_decoded),
+                            )
+                            .expect("Unable to query data"),
+                    ),
+                    _ => println!("Bad message type, ignoring."),
+                }
             }
-
-            // (0..9).for_each(|i| {
-            //     print!("byte #{}, {:#010b} ",i, &buffer[i]);
-            // });
-
-            // The message format is:
-            // Byte:  |  0  |  1     2     3     4  |  5     6     7     8  |
-            // Type:  |char |         int32         |         int32         |
-            // Value: | 'I' |       timestamp       |         price         |
-            //
-
-            let msg_type = &buffer[0];
-
-            // Read slices 1,2,3,4.
-            // Since we have a slice rather than an array, fallible conversion APIs can be used
-            let first_half_decoded = read_be_i32(&buffer[1..=4]);
-            let second_half_decoded = read_be_i32(&buffer[5..n]);
-
-            println!(
-                "Type: {}, first: {}, second: {}",
-                msg_type, first_half_decoded, second_half_decoded
-            );
-
-            match msg_type {
-                73 => drop(
-                    connection
-                        .execute(
-                            "INSERT INTO messages (timestamp, price) VALUES (?1, ?2)",
-                            (first_half_decoded, second_half_decoded),
-                        )
-                        .expect("Unable to insert data"),
-                ),
-                81 => drop(
-                    connection
-                        .execute(
-                            "SELECT AVG(price) FROM messages WHERE timestamp BETWEEN ?1 AND ?2",
-                            (first_half_decoded, second_half_decoded),
-                        )
-                        .expect("Unable to query data"),
-                ),
-                _ => println!("Bad message type, ignoring."),
-            }
-        }
+        });
     }
 
     Ok(())
