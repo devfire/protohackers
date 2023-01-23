@@ -1,13 +1,7 @@
-// use std::error;
-// use std::io;
-// use anyhow::Result;
-
-use rusqlite::{params, Result};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
-
-use tokio_rusqlite::Connection;
+use tokio::{
+    io::AsyncReadExt,
+    net::{TcpListener, TcpStream},
+};
 
 // https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
 fn read_be_i32(input: &[u8]) -> i32 {
@@ -15,107 +9,56 @@ fn read_be_i32(input: &[u8]) -> i32 {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
-    let listener = TcpListener::bind(&addr).await.expect("Failed to bind TCP");
+async fn main() {
+    // Bind the listener to the address
+    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
 
-    let create_table_query =
-        "CREATE TABLE messages (id INTEGER PRIMARY KEY, timestamp INTEGER, price INTEGER)";
+    loop {
+        // The second item contains the ip and port of the new connection.
+        let (stream, addr) = listener.accept().await.unwrap();
 
-    while let Ok((stream, addr)) = listener.accept().await {
         println!("New connection from {}", addr);
 
-        println!("Creating the table.");
-
-        let connection = Connection::open_in_memory().await?;
-
-        let messages = connection
-            .call(|conn| {
-                conn.execute(create_table_query, [])
-                    .expect("Failed to create table");
-            })
-            .await;
-
-        // let stream = stream;
-        let (reader, mut writer) = tokio::io::split(stream);
-        let mut reader = io::BufReader::new(reader);
-
+        // A new task is spawned for each inbound socket.  The socket is
+        // moved to the new task and processed there.
         tokio::spawn(async move {
-            loop {
-                let mut buffer = [0; 9];
-                let n = reader
-                    .read_exact(&mut buffer)
-                    .await
-                    .expect("Unable to read from buffer");
-                // println!("Bytes received: {} buffer length: {}", n, buffer.len());
-                if n == 0 {
-                    break;
-                }
-
-                // (0..9).for_each(|i| {
-                //     print!("byte #{}, {:#010b} ",i, &buffer[i]);
-                // });
-
-                // The message format is:
-                // Byte:  |  0  |  1     2     3     4  |  5     6     7     8  |
-                // Type:  |char |         int32         |         int32         |
-                // Value: | 'I' |       timestamp       |         price         |
-                //
-
-                let msg_type = &buffer[0];
-
-                // Read slices 1,2,3,4.
-                // Since we have a slice rather than an array, fallible conversion APIs can be used
-                let first_half_decoded = read_be_i32(&buffer[1..=4]);
-                let second_half_decoded = read_be_i32(&buffer[5..n]);
-
-                println!(
-                    "Type: {}, first: {}, second: {}",
-                    msg_type, first_half_decoded, second_half_decoded
-                );
-
-                match msg_type {
-                    73 => drop(
-                        connection
-                            .execute(
-                                "INSERT INTO messages (timestamp, price) VALUES (?1, ?2)",
-                                (first_half_decoded, second_half_decoded),
-                            )
-                            .expect("Unable to insert data"),
-                    ),
-                    81 => {
-                        let mut avg_stmt = connection
-                            .prepare(
-                                "SELECT avg(price) FROM messages WHERE 
-                            timestamp between :first AND :second",
-                            )
-                            .expect("Failed to prepare query");
-
-                        // let mut stmt = conn.prepare("SELECT * FROM test where name = :name")?;
-                        let mut rows = avg_stmt
-                            .query(named_params! {
-                            ":first": first_half_decoded,
-                            ":second": second_half_decoded})
-                            .expect("Failed to execute query.");
-
-                        let mut value = 0;
-                        while let Some(row) = rows.next().expect("Failed to fetch rows.") {
-                            value = row.get(0).expect("Get 0 row failed");
-                        }
-
-                        let avg_value = vec![value];
-                        writer
-                            .write_all(&avg_value)
-                            .await
-                            .expect("Socket write-back failed.");
-                        writer.write_all(b"\n");
-                        println!("Sending back a response.");
-                    }
-                    _ => println!("Bad message type, ignoring."),
-                }
-            }
+            process(stream).await;
         });
     }
+}
 
-    Ok(())
+async fn process(stream: TcpStream) {
+    use std::collections::HashMap;
+
+    let (reader, mut writer) = tokio::io::split(stream);
+
+    // A hashmap is used to store data
+    let mut db = HashMap::new();
+
+    loop {
+        let mut buffer = [0; 9];
+        let n = reader
+            .read_exact(&mut buffer)
+            .await
+            .expect("Unable to read from buffer");
+        // println!("Bytes received: {} buffer length: {}", n, buffer.len());
+        if n == 0 {
+            break;
+        }
+
+        let msg_type = &buffer[0];
+
+        // Read slices 1,2,3,4.
+        // Since we have a slice rather than an array, fallible conversion APIs can be used
+        let first_half_decoded = read_be_i32(&buffer[1..=4]);
+        let second_half_decoded = read_be_i32(&buffer[5..n]);
+
+        println!(
+            "Type: {}, first: {}, second: {}",
+            msg_type, first_half_decoded, second_half_decoded
+        );
+
+        // Write the response to the client
+        connection.write_frame(&response).await.unwrap();
+    }
 }
