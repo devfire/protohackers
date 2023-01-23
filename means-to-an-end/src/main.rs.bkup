@@ -1,14 +1,11 @@
 // use std::error;
 // use std::io;
-// use anyhow::Result;
+use anyhow::Result;
 
-use rusqlite::{params, Result};
+use rusqlite::{named_params, Connection};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, AsyncReadExt};
 use tokio::net::TcpListener;
-
-use tokio_rusqlite::Connection;
-
 // https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
 fn read_be_i32(input: &[u8]) -> i32 {
     i32::from_be_bytes(input[..4].try_into().unwrap())
@@ -17,7 +14,7 @@ fn read_be_i32(input: &[u8]) -> i32 {
 #[tokio::main]
 async fn main() -> Result<()> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
-    let listener = TcpListener::bind(&addr).await.expect("Failed to bind TCP");
+    let listener = TcpListener::bind(&addr).await?;
 
     let create_table_query =
         "CREATE TABLE messages (id INTEGER PRIMARY KEY, timestamp INTEGER, price INTEGER)";
@@ -27,16 +24,13 @@ async fn main() -> Result<()> {
 
         println!("Creating the table.");
 
-        let connection = Connection::open_in_memory().await?;
+        let connection = Connection::open_in_memory()?;
 
-        let messages = connection
-            .call(|conn| {
-                conn.execute(create_table_query, [])
-                    .expect("Failed to create table");
-            })
-            .await;
+        connection
+            .execute(create_table_query, ())
+            .expect("Failed to create table");
 
-        // let stream = stream;
+        let stream = stream;
         let (reader, mut writer) = tokio::io::split(stream);
         let mut reader = io::BufReader::new(reader);
 
@@ -97,7 +91,7 @@ async fn main() -> Result<()> {
                             ":first": first_half_decoded,
                             ":second": second_half_decoded})
                             .expect("Failed to execute query.");
-
+                        
                         let mut value = 0;
                         while let Some(row) = rows.next().expect("Failed to fetch rows.") {
                             value = row.get(0).expect("Get 0 row failed");
@@ -108,9 +102,17 @@ async fn main() -> Result<()> {
                             .write_all(&avg_value)
                             .await
                             .expect("Socket write-back failed.");
-                        writer.write_all(b"\n");
+                        writer.write_all(b"\n").await.unwrap();
                         println!("Sending back a response.");
                     }
+                    // drop(
+                    //     connection
+                    //         .execute(
+                    //             "SELECT AVG(price) FROM messages WHERE timestamp BETWEEN ?1 AND ?2",
+                    //             (first_half_decoded, second_half_decoded),
+                    //         )
+                    //         .expect("Unable to query data"),
+                    // ),
                     _ => println!("Bad message type, ignoring."),
                 }
             }

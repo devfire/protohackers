@@ -9,3 +9,4 @@ edition = "2021"
 anyhow = "1.0.68"
 rusqlite = "0.28.0"
 tokio = { version = "1.24.1", features = ["full"] }
+tokio-rusqlite = "0.3.0"
