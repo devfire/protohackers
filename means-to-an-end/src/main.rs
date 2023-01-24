@@ -1,11 +1,27 @@
 use tokio::{
-    io::AsyncReadExt,
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
+
+use std::collections::BTreeMap;
 
 // https://doc.rust-lang.org/std/primitive.i32.html#method.from_be_bytes
 fn read_be_i32(input: &[u8]) -> i32 {
     i32::from_be_bytes(input[..4].try_into().unwrap())
+}
+
+fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i32 {
+    use std::ops::Bound::Included;
+    let mut total = 0; // sum of prices
+    let mut final_count = 0; // number of entries
+
+    // https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html#method.range
+    for (count, (_, value)) in btree_db.range((Included(start), Included(end))).enumerate() {
+        total += value;
+        final_count = count;
+    }
+    // average is total / count
+    total / final_count as i32
 }
 
 #[tokio::main]
@@ -28,20 +44,20 @@ async fn main() {
 }
 
 async fn process(stream: TcpStream) {
-    use std::collections::HashMap;
-
-    let (reader, mut writer) = tokio::io::split(stream);
+    let (mut reader, mut writer) = tokio::io::split(stream);
 
     // A hashmap is used to store data
-    let mut db = HashMap::new();
+    let mut db: BTreeMap<i32, i32> = BTreeMap::new();
 
     loop {
+        //declare a buffer precisely 9 bytes long
         let mut buffer = [0; 9];
+
         let n = reader
             .read_exact(&mut buffer)
             .await
             .expect("Unable to read from buffer");
-        // println!("Bytes received: {} buffer length: {}", n, buffer.len());
+
         if n == 0 {
             break;
         }
@@ -58,7 +74,23 @@ async fn process(stream: TcpStream) {
             msg_type, first_half_decoded, second_half_decoded
         );
 
-        // Write the response to the client
-        connection.write_frame(&response).await.unwrap();
+        match msg_type {
+            73 => {
+                db.insert(first_half_decoded, second_half_decoded);
+            }
+            81 => {
+                let avg = calculate_average(&db, &first_half_decoded, &second_half_decoded);
+                writer
+                    .write_all(avg.to_string().as_bytes())
+                    .await
+                    .expect("Writing avg failed");
+
+                writer
+                    .write_all(b"\n")
+                    .await
+                    .expect("Failed ending buffer write");
+            }
+            _ => panic!("unknown msg type"),
+        }
     }
 }
