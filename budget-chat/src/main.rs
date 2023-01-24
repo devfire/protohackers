@@ -1,7 +1,10 @@
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-};
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::{TcpListener, TcpStream};
+
+struct Users {
+    username: String,
+    joined: bool,
+}
 
 #[tokio::main]
 async fn main() {
@@ -19,12 +22,21 @@ async fn main() {
     }
 }
 
-async fn process(stream: TcpStream) {
-    let (mut reader, mut writer) = tokio::io::split(stream);
+fn get_username(mut reader: io::BufReader<io::ReadHalf<TcpStream>>) -> String {
+    let mut line = String::new();
+    let _n = reader.read_line(&mut line);
 
-    // get_username
+    println!("Received: {:?}", line);
+    line
+}
+async fn process(stream: TcpStream) {
+    let (reader, mut writer) = tokio::io::split(stream);
+
+    let reader: io::BufReader<io::ReadHalf<TcpStream>> = io::BufReader::new(reader);
+
+    let mut users: Vec<Users>;
+
+    let new_username = get_username(reader);
 
     // notify_presence
-
-    
 }
