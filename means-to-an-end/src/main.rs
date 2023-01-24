@@ -23,6 +23,9 @@ fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i
         total += value;
         final_count = count;
     }
+
+    final_count += 1;
+
     // average is total / count
     println!("Total: {} count: {}", total, final_count);
 
@@ -85,6 +88,8 @@ async fn process(stream: TcpStream) {
             }
             81 => {
                 let avg = calculate_average(&db, &first_half_decoded, &second_half_decoded);
+                println!("Sending average {} back", avg);
+                
                 writer
                     .write_all(avg.to_string().as_bytes())
                     .await
