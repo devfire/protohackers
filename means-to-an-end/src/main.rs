@@ -15,8 +15,11 @@ fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i
     let mut total = 0; // sum of prices
     let mut final_count = 0; // number of entries
 
+    println!("Calculating average between {} and {}", start, end);
+    
     // https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html#method.range
-    for (count, (_, value)) in btree_db.range((Included(start), Included(end))).enumerate() {
+    for (count, (key, value)) in btree_db.range((Included(start), Included(end))).enumerate() {
+        println!("{key}: {value}");
         total += value;
         final_count = count;
     }
