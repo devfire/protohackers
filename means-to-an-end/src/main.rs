@@ -16,15 +16,17 @@ fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i
     }
 
     use std::ops::Bound::Included;
-    let mut total = 0; // sum of prices
+    let mut total: i64 = 0; // sum of prices
     let mut final_count = 0; // number of entries
 
     println!("Calculating average between {} and {}", start, end);
 
     // https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html#method.range
-    for (count, (key, value)) in btree_db.range((Included(start), Included(end))).enumerate() {
-        println!("{key}: {value}");
-        total += value;
+    for (count, (_, value)) in btree_db.range((Included(start), Included(end))).enumerate() {
+        // println!("{key}: {value}");
+
+        // need * otherwise casting fails
+        total += *value as i64;
         final_count = count;
     }
 
@@ -33,7 +35,7 @@ fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i
     // average is total / count
     println!("Total: {} count: {}", total, final_count);
 
-    total / final_count as i32
+    (total / final_count as i64) as i32
 }
 
 #[tokio::main]
