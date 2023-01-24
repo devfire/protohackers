@@ -12,7 +12,7 @@ fn read_be_i32(input: &[u8]) -> i32 {
 
 fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i32 {
     if start > end {
-        return 0
+        return 0;
     }
 
     use std::ops::Bound::Included;
@@ -99,12 +99,12 @@ async fn process(stream: TcpStream) {
                     .await
                     .expect("Writing avg failed");
 
-                writer
-                    .write_all(b"\n")
-                    .await
-                    .expect("Failed ending buffer write");
+                // writer
+                //     .write_all(b"\n")
+                //     .await
+                //     .expect("Failed ending buffer write");
             }
             _ => panic!("unknown msg type"),
-        } 
+        }
     } //end of loop
 }
