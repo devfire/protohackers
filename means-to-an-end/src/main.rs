@@ -11,6 +11,10 @@ fn read_be_i32(input: &[u8]) -> i32 {
 }
 
 fn calculate_average(btree_db: &BTreeMap<i32, i32>, start: &i32, end: &i32) -> i32 {
+    if start > end {
+        return 0
+    }
+
     use std::ops::Bound::Included;
     let mut total = 0; // sum of prices
     let mut final_count = 0; // number of entries
@@ -89,9 +93,9 @@ async fn process(stream: TcpStream) {
             81 => {
                 let avg = calculate_average(&db, &first_half_decoded, &second_half_decoded);
                 println!("Sending average {} back", avg);
-                
+
                 writer
-                    .write_all(avg.to_string().as_bytes())
+                    .write_all(&avg.to_be_bytes())
                     .await
                     .expect("Writing avg failed");
 
