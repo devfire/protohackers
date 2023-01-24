@@ -83,10 +83,10 @@ async fn process(stream: TcpStream) {
         let first_half_decoded = read_be_i32(&buffer[1..=4]);
         let second_half_decoded = read_be_i32(&buffer[5..n]);
 
-        println!(
-            "Type: {}, first: {}, second: {}",
-            msg_type, first_half_decoded, second_half_decoded
-        );
+        // println!(
+        //     "Type: {}, first: {}, second: {}",
+        //     msg_type, first_half_decoded, second_half_decoded
+        // );
 
         match msg_type {
             73 => {
@@ -100,11 +100,6 @@ async fn process(stream: TcpStream) {
                     .write_all(&avg.to_be_bytes())
                     .await
                     .expect("Writing avg failed");
-
-                // writer
-                //     .write_all(b"\n")
-                //     .await
-                //     .expect("Failed ending buffer write");
             }
             _ => panic!("unknown msg type"),
         }
