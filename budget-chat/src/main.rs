@@ -93,7 +93,7 @@ async fn process(
     {
         let mut state = state.lock().await;
         let user_details = state.peers.values();
-        let msg = format!("* The room contains: {:?}", user_details);
+        let msg = format!("* The room contains: {:?}", );
         info!("{}", msg);
         state.broadcast(addr, &msg).await;
     }
