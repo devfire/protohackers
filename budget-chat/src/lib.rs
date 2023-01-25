@@ -12,6 +12,10 @@ pub type Tx = mpsc::UnboundedSender<String>;
 /// Shorthand for the receive half of the message channel.
 pub type Rx = mpsc::UnboundedReceiver<String>;
 
+pub struct UserDetails {
+    username: String,
+    tx: Tx,
+}
 /// Data that is shared between all peers in the chat server.
 ///
 /// This is the set of `Tx` handles for all connected clients. Whenever a
@@ -19,7 +23,7 @@ pub type Rx = mpsc::UnboundedReceiver<String>;
 /// iterating over the `peers` entries and sending a copy of the message on each
 /// `Tx`.
 pub struct Shared {
-    pub peers: HashMap<SocketAddr, Tx>,
+    pub peers: HashMap<SocketAddr, UserDetails>,
 }
 
 /// The state for each connected client.
@@ -59,7 +63,7 @@ impl Shared {
     pub async fn broadcast(&mut self, sender: SocketAddr, message: &str) {
         for peer in self.peers.iter_mut() {
             if *peer.0 != sender {
-                let _ = peer.1.send(message.into());
+                let _ = peer.1.tx.send(message.into());
             }
         }
     }
@@ -70,6 +74,7 @@ impl Peer {
     pub async fn new(
         state: Arc<Mutex<Shared>>,
         lines: Framed<TcpStream, LinesCodec>,
+        username: String,
     ) -> io::Result<Peer> {
         // Get the client socket address
         let addr = lines.get_ref().peer_addr()?;
@@ -78,7 +83,7 @@ impl Peer {
         let (tx, rx) = mpsc::unbounded_channel();
 
         // Add an entry for this `Peer` in the shared state map.
-        state.lock().await.peers.insert(addr, tx);
+        state.lock().await.peers.insert(addr, UserDetails {tx, username});
 
         Ok(Peer { lines, rx })
     }

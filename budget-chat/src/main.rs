@@ -79,7 +79,7 @@ async fn process(
     };
 
     // Register our peer with state which internally sets up some channels.
-    let mut peer = Peer::new(state.clone(), lines).await?;
+    let mut peer = Peer::new(state.clone(), lines, username.clone()).await?;
 
     // A client has connected, let's let everyone know.
     {
