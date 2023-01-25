@@ -69,6 +69,14 @@ impl Shared {
         }
     }
 
+    pub fn send_to_sender(&mut self, sender: SocketAddr, message: &str) {
+        for peer in self.peers.iter_mut() {
+            if *peer.0 == sender {
+                let _ = peer.1.tx.send(message.into());
+            }
+        }
+    }
+
     pub fn get_everyone(&mut self, sender: SocketAddr) -> Vec<String> {
         let mut everyone = vec![];
         for peer in self.peers.iter() {

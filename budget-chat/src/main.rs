@@ -1,16 +1,16 @@
 // heavily borrowed from https://raw.githubusercontent.com/tokio-rs/tokio/master/examples/chat.rs
 #![warn(rust_2018_idioms)]
 
-use tokio::net::{TcpListener, TcpStream};
-use tokio_stream::StreamExt;
-use tokio::sync::Mutex;
-use tokio_util::codec::{Framed, LinesCodec};
-use std::net::SocketAddr;
 use futures::SinkExt;
+use std::net::SocketAddr;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Mutex;
+use tokio_stream::StreamExt;
+use tokio_util::codec::{Framed, LinesCodec};
 
 use std::{error::Error, sync::Arc};
 
-use budget_chat::{Shared,Peer};
+use budget_chat::{Peer, Shared};
 
 use env_logger::Env;
 use log::{error, info};
@@ -96,7 +96,7 @@ async fn process(
 
         let msg = format!("* The room contains: {:?}", everyone_else);
         info!("{}", msg);
-        state.broadcast(addr, &msg).await;
+        state.send_to_sender(addr, &msg);
     }
 
     // Process incoming messages until our stream is exhausted by a disconnect.
@@ -112,7 +112,7 @@ async fn process(
                 Some(Ok(msg)) => {
                     let mut state = state.lock().await;
                     let msg = format!("[{}] {}", username, msg);
-
+                    info!("{}", msg);
                     state.broadcast(addr, &msg).await;
                 }
                 // An error occurred.
