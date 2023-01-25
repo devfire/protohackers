@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 // and consists of alphanumeric chars only.
 // Return FALSE if username is empty OR not alphanumeric.
 fn valid_username(username: &String) -> bool {
-    username.is_empty() || !username.chars().all(char::is_alphanumeric)
+    !username.is_empty() && username.chars().all(char::is_alphanumeric)
 }
 
 /// Process an individual chat client
