@@ -68,6 +68,17 @@ impl Shared {
             }
         }
     }
+
+    pub async fn get_everyone(&mut self, sender: SocketAddr) -> Vec<String> {
+        let mut everyone = vec![];
+        for peer in self.peers.iter_mut() {
+            if *peer.0 != sender {
+                everyone.push(peer.1.username.clone());
+            }
+        }
+        everyone
+    }
+    
 }
 
 impl Peer {

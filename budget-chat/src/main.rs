@@ -92,7 +92,8 @@ async fn process(
     // Publish all present users' names
     {
         let mut state = state.lock().await;
-        let msg = format!("* The room contains: {:?}", state.peers.values());
+        let user_details = state.peers.values();
+        let msg = format!("* The room contains: {:?}", user_details);
         info!("{}", msg);
         state.broadcast(addr, &msg).await;
     }
