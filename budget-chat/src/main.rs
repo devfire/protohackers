@@ -55,6 +55,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
+// make sure the username is at least 1 char,
+// and consists of alphanumeric chars only.
+// Return FALSE if username is empty OR not alphanumeric.
+fn valid_username(username: &String) -> bool {
+    username.is_empty() || !username.chars().all(char::is_alphanumeric)
+}
+
 /// Process an individual chat client
 async fn process(
     state: Arc<Mutex<Shared>>,
@@ -77,6 +84,11 @@ async fn process(
             return Ok(());
         }
     };
+
+    if !valid_username(&username) {
+        error!("Invalid username: {}", username);
+        return Ok(());
+    }
 
     // Register our peer with state which internally sets up some channels.
     let mut peer = Peer::new(state.clone(), lines, username.clone()).await?;
