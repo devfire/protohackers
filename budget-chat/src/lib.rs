@@ -12,6 +12,7 @@ pub type Tx = mpsc::UnboundedSender<String>;
 /// Shorthand for the receive half of the message channel.
 pub type Rx = mpsc::UnboundedReceiver<String>;
 
+#[derive(Debug)]
 pub struct UserDetails {
     username: String,
     tx: Tx,
@@ -83,7 +84,11 @@ impl Peer {
         let (tx, rx) = mpsc::unbounded_channel();
 
         // Add an entry for this `Peer` in the shared state map.
-        state.lock().await.peers.insert(addr, UserDetails {tx, username});
+        state
+            .lock()
+            .await
+            .peers
+            .insert(addr, UserDetails { username, tx });
 
         Ok(Peer { lines, rx })
     }

@@ -89,6 +89,14 @@ async fn process(
         state.broadcast(addr, &msg).await;
     }
 
+    // Publish all present users' names
+    {
+        let mut state = state.lock().await;
+        let msg = format!("* The room contains: {:?}", state.peers.values());
+        info!("{}", msg);
+        state.broadcast(addr, &msg).await;
+    }
+
     // Process incoming messages until our stream is exhausted by a disconnect.
     loop {
         tokio::select! {
