@@ -61,7 +61,7 @@ impl Shared {
 
     /// Send a `LineCodec` encoded message to every peer, except
     /// for the sender.
-    pub async fn broadcast(&mut self, sender: SocketAddr, message: &str) {
+    pub fn broadcast(&mut self, sender: SocketAddr, message: &str) {
         for peer in self.peers.iter_mut() {
             if *peer.0 != sender {
                 let _ = peer.1.tx.send(message.into());
@@ -69,7 +69,7 @@ impl Shared {
         }
     }
 
-    pub async fn get_everyone(&mut self, sender: SocketAddr) -> Vec<String> {
+    pub fn get_everyone(&mut self, sender: SocketAddr) -> Vec<String> {
         let mut everyone = vec![];
         for peer in self.peers.iter_mut() {
             if *peer.0 != sender {
@@ -92,7 +92,7 @@ impl Peer {
         let addr = lines.get_ref().peer_addr()?;
 
         // Create a channel for this peer
-        let (tx, rx) = mpsc::unbounded_channel();
+        x, rx) = mpsc::unbounded_channel();
 
         // Add an entry for this `Peer` in the shared state map.
         state
