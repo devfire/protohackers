@@ -69,7 +69,7 @@ impl Shared {
         }
     }
 
-    pub async fn get_everyone(self, sender: SocketAddr) -> Vec<String> {
+    pub fn get_everyone(&mut self, sender: SocketAddr) -> Vec<String> {
         let mut everyone = vec![];
         for peer in self.peers.iter() {
             if *peer.0 != sender {
