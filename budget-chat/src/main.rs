@@ -1,18 +1,19 @@
 // heavily borrowed from https://raw.githubusercontent.com/tokio-rs/tokio/master/examples/chat.rs
 #![warn(rust_2018_idioms)]
 
+use tokio::net::{TcpListener, TcpStream};
 use tokio_stream::StreamExt;
-use tokio::net::TcpListener;
-
+use tokio::sync::Mutex;
+use tokio_util::codec::{Framed, LinesCodec};
+use std::net::SocketAddr;
 use futures::SinkExt;
 
-use std::error::Error;
-use std::net::SocketAddr;
+use std::{error::Error, sync::Arc};
+
+use budget_chat::{Shared,Peer};
 
 use env_logger::Env;
 use log::{error, info};
-
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -54,7 +55,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-
 /// Process an individual chat client
 async fn process(
     state: Arc<Mutex<Shared>>,
@@ -64,7 +64,9 @@ async fn process(
     let mut lines = Framed::new(stream, LinesCodec::new());
 
     // Send a prompt to the client to enter their username.
-    lines.send("Welcome to budgetchat! What shall I call you? ").await?;
+    lines
+        .send("Welcome to budgetchat! What shall I call you? ")
+        .await?;
 
     // Read the first line from the `LineCodec` stream to get the username.
     let username = match lines.next().await {
@@ -82,7 +84,7 @@ async fn process(
     // A client has connected, let's let everyone know.
     {
         let mut state = state.lock().await;
-        let msg = format!("{} has joined the chat", username);
+        let msg = format!("* {} has entered the room.", username);
         info!("{}", msg);
         state.broadcast(addr, &msg).await;
     }
@@ -99,7 +101,7 @@ async fn process(
                 // broadcast this message to the other users.
                 Some(Ok(msg)) => {
                     let mut state = state.lock().await;
-                    let msg = format!("{}: {}", username, msg);
+                    let msg = format!("[{}] {}", username, msg);
 
                     state.broadcast(addr, &msg).await;
                 }
@@ -123,7 +125,7 @@ async fn process(
         let mut state = state.lock().await;
         state.peers.remove(&addr);
 
-        let msg = format!("{} has left the chat", username);
+        let msg = format!("* {} has left the room", username);
         info!("{}", msg);
         state.broadcast(addr, &msg).await;
     }

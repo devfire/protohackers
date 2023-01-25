@@ -1,15 +1,16 @@
-use tokio::sync::{mpsc, Mutex};
 use std::collections::HashMap;
-use tokio_util::codec::{Framed, LinesCodec};
-use tokio::net::TcpStream;
-use std::sync::Arc;
 use std::io;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::net::TcpStream;
+use tokio::sync::{mpsc, Mutex};
+use tokio_util::codec::{Framed, LinesCodec};
 
 /// Shorthand for the transmit half of the message channel.
-type Tx = mpsc::UnboundedSender<String>;
+pub type Tx = mpsc::UnboundedSender<String>;
 
 /// Shorthand for the receive half of the message channel.
-type Rx = mpsc::UnboundedReceiver<String>;
+pub type Rx = mpsc::UnboundedReceiver<String>;
 
 /// Data that is shared between all peers in the chat server.
 ///
@@ -17,29 +18,37 @@ type Rx = mpsc::UnboundedReceiver<String>;
 /// message is received from a client, it is broadcasted to all peers by
 /// iterating over the `peers` entries and sending a copy of the message on each
 /// `Tx`.
-struct Shared {
-    peers: HashMap<String, Tx>,
+pub struct Shared {
+    pub peers: HashMap<SocketAddr, Tx>,
 }
 
 /// The state for each connected client.
-struct Peer {
+pub struct Peer {
     /// The TCP socket wrapped with the `Lines` codec, defined below.
     ///
     /// This handles sending and receiving data on the socket. When using
     /// `Lines`, we can work at the line level instead of having to manage the
     /// raw byte operations.
-    lines: Framed<TcpStream, LinesCodec>,
+    pub lines: Framed<TcpStream, LinesCodec>,
 
     /// Receive half of the message channel.
     ///
     /// This is used to receive messages from peers. When a message is received
     /// off of this `Rx`, it will be written to the socket.
-    rx: Rx,
+    pub rx: Rx,
+}
+
+// The user might expect to be able to use Default as the type can be constructed without arguments.
+// https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+impl Default for Shared {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Shared {
     /// Create a new, empty, instance of `Shared`.
-    fn new() -> Self {
+    pub fn new() -> Self {
         Shared {
             peers: HashMap::new(),
         }
@@ -47,7 +56,7 @@ impl Shared {
 
     /// Send a `LineCodec` encoded message to every peer, except
     /// for the sender.
-    async fn broadcast(&mut self, sender: String, message: &str) {
+    pub async fn broadcast(&mut self, sender: SocketAddr, message: &str) {
         for peer in self.peers.iter_mut() {
             if *peer.0 != sender {
                 let _ = peer.1.send(message.into());
@@ -58,7 +67,7 @@ impl Shared {
 
 impl Peer {
     /// Create a new instance of `Peer`.
-    async fn new(
+    pub async fn new(
         state: Arc<Mutex<Shared>>,
         lines: Framed<TcpStream, LinesCodec>,
     ) -> io::Result<Peer> {
