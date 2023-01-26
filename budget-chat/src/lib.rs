@@ -69,6 +69,7 @@ impl Shared {
         }
     }
 
+    /// Send a message to one sender only
     pub fn send_to_sender(&mut self, sender: SocketAddr, message: &str) {
         let _ = self.peers[&sender].tx.send(message.into());
     }
