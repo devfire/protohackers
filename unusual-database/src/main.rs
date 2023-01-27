@@ -17,6 +17,8 @@ use std::net::SocketAddr;
 use std::{env, io};
 use tokio::net::UdpSocket;
 
+use log::info;
+
 struct Server {
     socket: UdpSocket,
     buf: Vec<u8>,
@@ -36,9 +38,9 @@ impl Server {
             // If so then we try to send it back to the original source, waiting
             // until it's writable and we're able to do so.
             if let Some((size, peer)) = to_send {
-                let amt = socket.send_to(&buf[..size], &peer).await?;
+                // let amt = socket.send_to(&buf[..size], &peer).await?;
 
-                println!("Echoed {}/{} bytes to {}", amt, size, peer);
+                info!("Echoed {} bytes to {}", size, peer);
             }
 
             // If we're here then `to_send` is `None`, so we take a look for the
