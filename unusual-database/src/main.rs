@@ -15,7 +15,7 @@ fn main() {
         match socket.recv_from(&mut buf) {
             Ok((_, src)) => {
                 thread::spawn(move || {
-                    info!("Handling connection from {}", src);
+                    info!("Received {:?} from {}", &buf, src);
                     // sock.send_to(&buf, &src)
                     //     .expect("Failed to send a response");
                 });
