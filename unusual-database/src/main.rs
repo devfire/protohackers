@@ -6,7 +6,7 @@ use std::net::UdpSocket;
 use log::{info, error};
 
 fn main() {
-    let socket = UdpSocket::bind("0.0.0.0:8888")
+    let socket = UdpSocket::bind("0.0.0.0:8080")
                            .expect("Could not bind socket");
 
     loop {
