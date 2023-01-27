@@ -1,33 +1,21 @@
+//! An UDP echo server that just sends back everything that it receives.
+//!
+//! If you're on Unix you can test this out by in one terminal executing:
+//!
+//!     cargo run --example echo-udp
+//!
+//! and in another terminal you can run:
+//!
+//!     cargo run --example connect -- --udp 127.0.0.1:8080
+//!
+//! Each line you type in to the `nc` terminal should be echo'd back to you!
+
 #![warn(rust_2018_idioms)]
 
-use anyhow::{Context, Ok, Result};
-
+use std::error::Error;
 use std::net::SocketAddr;
 use std::{env, io};
 use tokio::net::UdpSocket;
-
-
-use log::{error, info};
-
-/// There are only two types of requests: insert and retrieve.
-/// Insert allows a client to insert a value for a key,
-/// and retrieve allows a client to retrieve the value for a key.
-enum MessageType {
-    Insert,
-    Retrieve,
-}
-
-fn get_message_type(msg: &[u8]) -> MessageType {
-    for ch in msg.iter() {
-        if char::from(*ch) == '=' {
-            info!("Received an insert message");
-            return MessageType::Insert
-        }
-    }
-    info!("Received a retrieve message");
-
-    MessageType::Retrieve
-}
 
 struct Server {
     socket: UdpSocket,
@@ -48,12 +36,9 @@ impl Server {
             // If so then we try to send it back to the original source, waiting
             // until it's writable and we're able to do so.
             if let Some((size, peer)) = to_send {
-                // let amt = socket.send_to(&buf[..size], &peer).await?;
-                
-                info!("Received {:?} from {}", buf, peer);
-                let message_type = get_message_type(&buf);
+                let amt = socket.send_to(&buf[..size], &peer).await?;
 
-                // println!("Echoed {}/{} bytes to {}", amt, size, peer);
+                println!("Echoed {}/{} bytes to {}", amt, size, peer);
             }
 
             // If we're here then `to_send` is `None`, so we take a look for the
@@ -64,10 +49,10 @@ impl Server {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let addr = env::args()
         .nth(1)
-        .unwrap_or_else(|| "0.0.0.0:8080".to_string());
+        .unwrap_or_else(|| "127.0.0.1:8080".to_string());
 
     let socket = UdpSocket::bind(&addr).await?;
     println!("Listening on: {}", socket.local_addr()?);
