@@ -23,13 +23,13 @@ impl Server {
         } = self;
 
         loop {
-            // First we check to see if there's a message we need to echo back.
+            // First we check to see if there's a message we need to process.
             // If so then we try to send it back to the original source, waiting
             // until it's writable and we're able to do so.
             if let Some((size, peer)) = received {
                 // let amt = socket.send_to(&buf[..size], &peer).await?;
 
-                info!("Echoed {} bytes to {}", size, peer);
+                info!("Received {} bytes from {}", size, peer);
             }
 
             /*
