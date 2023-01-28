@@ -25,6 +25,7 @@ enum MessageType {
 fn get_message_type(msg: &[u8]) -> MessageType {
     for ch in msg.iter() {
         if char::from(*ch) == '=' {
+            print!("{}",ch);
             return MessageType::Insert;
         }
     }
@@ -45,7 +46,7 @@ impl Server {
             // If so then we try to send it back to the original source, waiting
             // until it's writable and we're able to do so.
             if let Some((size, peer)) = received {
-                info!("Received {:?} from {}", &buf[..size].to_ascii_lowercase(), peer);
+                info!("Received {} from {}", &buf[..size]., peer);
                 match get_message_type(&buf[..size]) {
                     MessageType::Insert => info!("Received an insert message"),
                     MessageType::Retrieve => info!("Received a retrieve message"),
