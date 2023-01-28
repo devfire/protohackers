@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 use std::{env, io};
 use tokio::net::UdpSocket;
 
+use env_logger::Env;
 use log::info;
 
 struct Server {
@@ -52,12 +53,19 @@ impl Server {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Setup the logging framework
+    let env = Env::default()
+        .filter_or("LOG_LEVEL", "info")
+        .write_style_or("LOG_STYLE", "always");
+
+    env_logger::init_from_env(env);
+
     let addr = env::args()
         .nth(1)
         .unwrap_or_else(|| "0.0.0.0:8080".to_string());
 
     let socket = UdpSocket::bind(&addr).await?;
-    println!("Listening on: {}", socket.local_addr()?);
+    info!("Listening on: {}", socket.local_addr()?);
 
     let server = Server {
         socket,
