@@ -14,6 +14,26 @@ struct Server {
     received: Option<(usize, SocketAddr)>,
 }
 
+/// There are only two types of requests: insert and retrieve.
+/// Insert allows a client to insert a value for a key,
+/// and retrieve allows a client to retrieve the value for a key.
+enum MessageType {
+    Insert,
+    Retrieve,
+}
+
+fn get_message_type(msg: &[u8]) -> MessageType {
+    for ch in msg.iter() {
+        if char::from(*ch) == '=' {
+            info!("Received an insert message");
+            return MessageType::Insert
+        }
+    }
+    info!("Received a retrieve message");
+
+    MessageType::Retrieve
+}
+
 impl Server {
     async fn run(self) -> Result<(), io::Error> {
         let Server {
@@ -28,7 +48,7 @@ impl Server {
             // until it's writable and we're able to do so.
             if let Some((size, peer)) = received {
                 // let amt = socket.send_to(&buf[..size], &peer).await?;
-
+                get_message_type(&buf);
                 info!("Received {} bytes from {}", size, peer);
             }
 
