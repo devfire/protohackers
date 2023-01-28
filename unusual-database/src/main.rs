@@ -44,8 +44,8 @@ impl Server {
             // First we check to see if there's a message we need to process.
             // If so then we try to send it back to the original source, waiting
             // until it's writable and we're able to do so.
-            if let Some((size, peer)) = received {
-                info!("Received {} bytes from {}", size, peer);
+            if let Some((_size, peer)) = received {
+                info!("Received {:?} from {}", buf, peer);
                 match get_message_type(&buf) {
                     MessageType::Insert => info!("Received an insert message"),
                     MessageType::Retrieve => info!("Received a retrieve message"),
