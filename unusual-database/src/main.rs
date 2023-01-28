@@ -46,7 +46,7 @@ impl Server {
             // If so then we try to send it back to the original source, waiting
             // until it's writable and we're able to do so.
             if let Some((size, peer)) = received {
-                info!("Received {} from {}", &buf[..size]., peer);
+                info!("Received {:#?} from {}", &buf[..size], peer);
                 match get_message_type(&buf[..size]) {
                     MessageType::Insert => info!("Received an insert message"),
                     MessageType::Retrieve => info!("Received a retrieve message"),
