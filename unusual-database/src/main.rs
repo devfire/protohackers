@@ -77,33 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 info!("Sent version {} bytes back to {}.", amt, peer);
             }
         }
-        // If this comes back with something, that means this was an Insert,
-        // so we just add it to hashmap
-        match get_kv_pair(msg) {
-            Some((k, v)) => {
-                info!("Insert message type detected, adding {}={}", k, v);
-                db.insert(k, v);
-            }
-            None => {
-                // OK, it's either a Retrieve type or a Version, let's see if it's a version.
-
-                // let's convert the message to a String
-                // and pull the value from the HashMap. If we fail, it's a
-                let key_as_string =
-                    String::from_utf8(msg.to_vec()).expect("utf8 to String conversion failed");
-
-                // if this k,v exists, we send it back. If not, we go silent and ignore.
-                if let Some(reply) = db.get(&key_as_string) {
-                    info!("Retrieve message type detected, replying with {}", reply);
-                    // let amt = socket.send_to(reply.as_bytes(), &peer).await?;
-                    let amt = socket.send_to(&buf[..size], &peer).await?;
-
-                    info!("Sent {} bytes back to {}.", amt, peer);
-                }
-            }
-        }
-
-        let amt = socket.send_to(&buf[..size], &peer).await?;
-        println!("Echoed {} bytes to {}", amt, peer);
+        // let amt = socket.send_to(&buf[..size], &peer).await?;
+        // println!("Echoed {} bytes to {}", amt, peer);
     }
 }
