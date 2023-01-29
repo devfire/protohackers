@@ -5,6 +5,7 @@ use tokio::net::UdpSocket;
 use env_logger::Env;
 use log::info;
 
+/// All possible request types are here
 enum RequestType {
     Insert,
     Retrieve,
@@ -19,6 +20,9 @@ fn get_kv_pair(msg: &str) -> Option<(String, String)> {
         .map(|(key, value)| -> (String, String) { (key.to_string(), value.to_string()) })
 }
 
+///The function parse_request takes in a message of type &str 
+/// and returns an enumeration of RequestType which can be Insert, Retrieve or Version. 
+/// It checks the message for keywords "version", or "=" and returns the corresponding RequestType.
 fn parse_request(msg: &str) -> RequestType {
     if msg.starts_with("version") {
         RequestType::Version
@@ -40,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = UdpSocket::bind("0.0.0.0:8080").await?;
     info!("Listening on {}", socket.local_addr()?);
 
-    // main storage object for all the messages
+    // The main storage object for all the messages is a HashMap where the key and value are both of type String.
     let mut db: std::collections::HashMap<String, String> = HashMap::new();
 
     loop {
@@ -49,6 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let msg = String::from_utf8_lossy(&buf[..size]).to_string();
         info!("Received {} from {}", msg, peer);
 
+        // first we figure out what type of a request this was
         match parse_request(&msg) {
             RequestType::Insert => {
                 if let Some((k, v)) = get_kv_pair(&msg) {
