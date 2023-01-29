@@ -16,14 +16,6 @@ struct Server {
     db: HashMap<String, String>,
 }
 
-/// There are only two types of requests: insert and retrieve.
-/// Insert allows a client to insert a value for a key,
-/// and retrieve allows a client to retrieve the value for a key.
-// enum MessageType {
-//     Insert,
-//     Retrieve,
-// }
-
 /// This function returns the key & value pair
 /// if this is an INSERT op, or None if this is a RETRIEVE op
 /// https://doc.rust-lang.org/std/primitive.str.html#method.split_once
@@ -52,7 +44,7 @@ impl Server {
                 // so we just add it to hashmap
                 match get_kv_pair(msg) {
                     Some((k, v)) => {
-                        info!("Insert message type detected, adding {} {}", k, v);
+                        info!("Insert message type detected, adding {}={}", k, v);
                         db.insert(k, v);
                     }
                     None => {
@@ -62,7 +54,7 @@ impl Server {
 
                         // if this k,v exists, we send it back. If not, we go silent and ignore.
                         if let Some(reply) = db.get(&key_as_string){
-                            info!("Retreive message type detected, replying.");
+                            info!("Retrieve message type detected, replying with {}", reply);
                             let _amt = socket.send_to(reply.as_bytes(), &peer).await?;    
                         }
                     }
