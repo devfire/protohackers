@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::hash::Hash;
 use std::net::SocketAddr;
 use std::{env, io};
 use tokio::net::UdpSocket;
@@ -51,11 +50,20 @@ impl Server {
 
                 // If this comes back with something, that means this was an Insert,
                 // so we just add it to hashmap
-                if let Some((k, v)) = get_kv_pair(msg) {
-                    info!("Insert message type detected, adding.");
-                    db.insert(k, v);
-                } else {
-                    info!("Retreive message type detected, replying.");
+                match get_kv_pair(msg) {
+                    Some((k, v)) => {
+                        info!("Insert message type detected, adding {} {}", k, v);
+                        db.insert(k, v);
+                    }
+                    None => {
+                        // OK, it's a Retrieve type, let's convert the message to a String
+                        // and pull the value from the HashMap
+                        let key_as_string = String::from_utf8(msg.to_vec()).unwrap();
+                        if let Some(reply) = db.get(&key_as_string){
+                            info!("Retreive message type detected, replying.");
+                            let _amt = socket.send_to(reply.as_bytes(), &peer).await?;    
+                        }
+                    }
                 }
             }
 
