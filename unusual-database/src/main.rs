@@ -55,7 +55,8 @@ impl Server {
                         // if this k,v exists, we send it back. If not, we go silent and ignore.
                         if let Some(reply) = db.get(&key_as_string){
                             info!("Retrieve message type detected, replying with {}", reply);
-                            let _amt = socket.send_to(reply.as_bytes(), &peer).await?;    
+                            let amt = socket.send_to(reply.as_bytes(), &peer).await?;    
+                            info!("Send {} bytes back.", amt);
                         }
                     }
                 }
