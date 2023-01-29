@@ -59,6 +59,8 @@ impl Server {
                         // OK, it's a Retrieve type, let's convert the message to a String
                         // and pull the value from the HashMap
                         let key_as_string = String::from_utf8(msg.to_vec()).unwrap();
+
+                        // if this k,v exists, we send it back. If not, we go silent and ignore.
                         if let Some(reply) = db.get(&key_as_string){
                             info!("Retreive message type detected, replying.");
                             let _amt = socket.send_to(reply.as_bytes(), &peer).await?;    
