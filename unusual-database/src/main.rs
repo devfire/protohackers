@@ -14,16 +14,15 @@ enum RequestType {
 /// This function returns the key & value pair
 /// if this is an INSERT op, or None otherwise
 /// https://doc.rust-lang.org/std/primitive.str.html#method.split_once
-fn get_kv_pair(msg: &[u8]) -> Option<(String, String)> {
-    String::from_utf8_lossy(msg)
-        .split_once('=')
+fn get_kv_pair(msg: &str) -> Option<(String, String)> {
+    msg.split_once('=')
         .map(|(key, value)| -> (String, String) { (key.to_string(), value.to_string()) })
 }
 
-fn parse_request(msg: &[u8]) -> RequestType {
-    if String::from_utf8_lossy(msg).starts_with("version") {
+fn parse_request(msg: &str) -> RequestType {
+    if msg.starts_with("version") {
         RequestType::Version
-    } else if String::from_utf8_lossy(msg).contains('=') {
+    } else if msg.contains('=') {
         RequestType::Insert
     } else {
         RequestType::Retrieve
@@ -47,25 +46,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         let mut buf = vec![0u8; 1024];
         let (size, peer) = socket.recv_from(&mut buf).await?;
-        info!("Received message from {}", peer);
+        let msg = String::from_utf8_lossy(&buf[..size]).to_string();
+        info!("Received {} from {}", msg, peer);
 
-        let msg = &buf[..size];
-
-        match parse_request(msg) {
+        match parse_request(&msg) {
             RequestType::Insert => {
-                if let Some((k, v)) = get_kv_pair(msg) {
+                if let Some((k, v)) = get_kv_pair(&msg) {
                     info!("Insert message type detected, adding {}={}", k, v);
                     db.insert(k, v);
                 }
             }
             RequestType::Retrieve => {
-                // OK, it's a Retrieve type, let's convert the message to a String
-                // and pull the value from the HashMap
-                let key_as_string =
-                    String::from_utf8(msg.to_vec()).expect("utf8 to String conversion failed");
-
                 // if this k,v exists, we send it back. If not, we go silent and ignore.
-                if let Some(reply) = db.get(&key_as_string) {
+                if let Some(reply) = db.get(&msg) {
                     info!("Retrieve message type detected, replying with {}", reply);
                     let amt = socket.send_to(reply.as_bytes(), &peer).await?;
                     info!("Sent {} bytes back to {}.", amt, peer);
