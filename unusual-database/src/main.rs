@@ -56,7 +56,7 @@ impl Server {
                         if let Some(reply) = db.get(&key_as_string){
                             info!("Retrieve message type detected, replying with {}", reply);
                             let amt = socket.send_to(reply.as_bytes(), &peer).await?;    
-                            info!("Send {} bytes back.", amt);
+                            info!("Sent {} bytes back to {}.", amt, peer);
                         }
                     }
                 }
