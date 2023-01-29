@@ -58,7 +58,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             RequestType::Retrieve => {
                 // if this k,v exists, we send it back. If not, we go silent and ignore.
-                if let Some(reply) = db.get(&msg) {
+                if let Some(value) = db.get(&msg) {
+                    // join the k,v pair backup with = separator
+                    let reply = format!("{}={}",&msg,value);
+
                     info!("Retrieve message type detected, replying with {}", reply);
                     let amt = socket.send_to(reply.as_bytes(), &peer).await?;
                     info!("Sent {} bytes back to {}.", amt, peer);
