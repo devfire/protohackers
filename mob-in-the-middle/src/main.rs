@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use regex::Regex;
 
 use env_logger::Env;
@@ -31,15 +33,15 @@ async fn main() -> Result<()> {
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("accepted connection from {}", addr);
-            if let Err(e) = process(client_facing_stream).await {
+            if let Err(e) = process(client_facing_stream, addr).await {
                 error!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(to_client_stream: TcpStream) -> Result<()> {
-    info!("Establishing a connection to the upstream server.");
+async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
+    info!("Establishing a connection to the upstream server on behalf of {}.", addr);
     let to_server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
     info!("Connection established.");
 
@@ -65,11 +67,11 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
 
         // but what we get from the client...
         let bytes_from_client = client_reader.read_line(&mut line_from_client).await?;
-        info!("From client: {}", line_from_client);
+        info!("From {}: {}",addr, line_from_client);
 
         // ...we check if we can alter the crypto address
         let altered_line = steal_crypto(&line_from_client);
-        info!("To server: {}", altered_line);
+        info!("To server from {}: {}", altered_line, addr);
 
         // and then we pass the altered line
         server_writer.write_all(altered_line.as_bytes()).await?;
