@@ -1,11 +1,10 @@
-
 use regex::Regex;
 
 use env_logger::Env;
 use log::{error, info};
 
 use tokio::{
-    io::{self, AsyncBufReadExt, AsyncWriteExt, AsyncReadExt},
+    io::{self, AsyncBufReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
@@ -39,17 +38,21 @@ async fn main() -> Result<()> {
     }
 }
 
-// fn replace_substring(s: &str, old: &str, new: &str) -> String {
-//     s.replace(old, new)
-// }
+fn replace_substring(s: &str, old: &str, new: &str) -> String {
+    s.replace(old, new)
+}
 
-fn steal_crypto(line: &str) -> Option<String> {
-    let altered_line = String::from("");
-    let re = regex::Regex::new(r"^ 7[a-zA-Z0-9]{25,34} $").unwrap();
-    if re.is_match(s) {
-        line
+fn get_substring(s: &str) -> Option<&str> {
+    let re = Regex::new(r"^ 7[a-zA-Z0-9]{25,34} $").unwrap();
+    re.find(s).map(|m| m.as_str())
+}
+
+fn steal_crypto(line: &str) -> String {
+    if let Some(boguscoin_address) = get_substring(line) {
+        replace_substring(line, boguscoin_address, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+    } else {
+        String::from(line)
     }
-    Some(altered_line)
 }
 
 async fn process(to_client_stream: TcpStream) -> Result<()> {
@@ -75,13 +78,9 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
 
         info!("From client: {:?}", line_from_client);
 
-        if let Some(new_line) = steal_crypto(&line_from_client) {
-            info!("Sent altered: {}", new_line);
-            server_writer.write_all(new_line.as_bytes()).await?;
-        } else {
-            info!("Sent original: {}", line_from_client);
-            server_writer.write_all(line_from_client.as_bytes()).await?;
-        }
+        server_writer
+            .write_all(steal_crypto(&line_from_client).as_bytes())
+            .await?;
 
         server_reader.read_line(&mut line_from_server).await?;
 
