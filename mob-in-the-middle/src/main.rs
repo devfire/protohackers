@@ -42,24 +42,22 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
     info!("Establishing a connection to the upstream server.");
     let to_server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
     info!("Connection established.");
+    
+    // what we get from the real chat server
+    let mut line_from_server = String::new();
 
-    let (client_reader, mut client_writer) = tokio::io::split(to_client_stream);
     let (server_reader, mut server_writer) = tokio::io::split(to_server_stream);
-
-    let mut client_reader = io::BufReader::new(client_reader);
     let mut server_reader = io::BufReader::new(server_reader);
 
-    // first, ask their name
-    info!("Asking client for name to bootstrap the exchange.");
-    client_writer
-        .write_all(b"Welcome to budgetchat! What shall I call you?")
-        .await?;
-        
+    let _: usize = server_reader.read_line(&mut line_from_server).await?;
+
+    info!("From server: {}", line_from_server);
+
+    let (client_reader, mut client_writer) = tokio::io::split(to_client_stream);
+    let mut client_reader = io::BufReader::new(client_reader);
     // what we get from the client
     let mut line_from_client = String::new();
 
-    // what we get from the real chat server
-    let mut line_from_server = String::new();
     loop {
         let bytes_from_client = client_reader.read_line(&mut line_from_client).await?;
 
