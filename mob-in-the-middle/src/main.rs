@@ -42,41 +42,42 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
     info!("Establishing a connection to the upstream server.");
     let to_server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
     info!("Connection established.");
-    
+
     // what we get from the real chat server
     let mut line_from_server = String::new();
 
     let (server_reader, mut server_writer) = tokio::io::split(to_server_stream);
     let mut server_reader = io::BufReader::new(server_reader);
 
-    let _: usize = server_reader.read_line(&mut line_from_server).await?;
-
-    info!("From server: {}", line_from_server);
-
     let (client_reader, mut client_writer) = tokio::io::split(to_client_stream);
     let mut client_reader = io::BufReader::new(client_reader);
+
     // what we get from the client
     let mut line_from_client = String::new();
 
     loop {
+        // whatever we get from the server...
+        let _: usize = server_reader.read_line(&mut line_from_server).await?;
+        info!("From server: {}", line_from_server);
+
+        //... we send back to client
+        client_writer.write_all(line_from_server.as_bytes()).await?;
+
+        // but what we get from the client...
         let bytes_from_client = client_reader.read_line(&mut line_from_client).await?;
+        info!("From client: {:?}", line_from_client);
+
+        // ...we check if we can alter the crypto address
+        let altered_line = steal_crypto(&line_from_client);
+        info!("To server: {}", altered_line);
+
+        // and then we pass the altered line
+        server_writer.write_all(altered_line.as_bytes()).await?;
 
         // Nothing more to read, let's bail
         if bytes_from_client == 0 {
             break;
         }
-
-        info!("From client: {:?}", line_from_client);
-
-        let altered_line = steal_crypto(&line_from_client);
-        info!("To server: {}", altered_line);
-
-        server_writer.write_all(altered_line.as_bytes()).await?;
-
-        server_reader.read_line(&mut line_from_server).await?;
-
-        // send the server response back to client
-        client_writer.write_all(line_from_server.as_bytes()).await?;
     }
     Ok(())
 }
