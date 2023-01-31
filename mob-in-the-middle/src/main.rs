@@ -66,9 +66,13 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
     let mut server_reader = io::BufReader::new(server_reader);
 
     loop {
+        // what we get from the client
         let mut line_from_client = String::new();
+
+        // what we get from the real chat server
         let mut line_from_server = String::new();
 
+        // first, ask their name
         client_writer
             .write_all("Welcome to budgetchat! What shall I call you?".as_bytes())
             .await?;
