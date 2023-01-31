@@ -38,27 +38,11 @@ async fn main() -> Result<()> {
     }
 }
 
-fn replace_substring(s: &str, old: &str, new: &str) -> String {
-    s.replace(old, new)
-}
-
-fn get_substring(s: &str) -> Option<&str> {
-    let re = Regex::new(r"^ 7[a-zA-Z0-9]{25,34} $").unwrap();
-    re.find(s).map(|m| m.as_str())
-}
-
-fn steal_crypto(line: &str) -> String {
-    if let Some(boguscoin_address) = get_substring(line) {
-        replace_substring(line, boguscoin_address, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
-    } else {
-        String::from(line)
-    }
-}
-
 async fn process(to_client_stream: TcpStream) -> Result<()> {
     info!("Establishing a connection to the upstream server.");
     let to_server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
-
+    info!("Connection established.");
+    
     let (client_reader, mut client_writer) = tokio::io::split(to_client_stream);
     let (server_reader, mut server_writer) = tokio::io::split(to_server_stream);
 
@@ -97,4 +81,21 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
         client_writer.write_all(line_from_server.as_bytes()).await?;
     }
     Ok(())
+}
+
+fn replace_substring(s: &str, old: &str, new: &str) -> String {
+    s.replace(old, new)
+}
+
+fn get_substring(s: &str) -> Option<&str> {
+    let re = Regex::new(r"^ 7[a-zA-Z0-9]{25,34} $").unwrap();
+    re.find(s).map(|m| m.as_str())
+}
+
+fn steal_crypto(line: &str) -> String {
+    if let Some(boguscoin_address) = get_substring(line) {
+        replace_substring(line, boguscoin_address, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+    } else {
+        String::from(line)
+    }
 }
