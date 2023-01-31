@@ -78,8 +78,11 @@ async fn process(to_client_stream: TcpStream) -> Result<()> {
 
         info!("From client: {:?}", line_from_client);
 
+        let altered_line = steal_crypto(&line_from_client);
+        info!("To server: {}", altered_line);
+        
         server_writer
-            .write_all(steal_crypto(&line_from_client).as_bytes())
+            .write_all(altered_line.as_bytes())
             .await?;
 
         server_reader.read_line(&mut line_from_server).await?;
