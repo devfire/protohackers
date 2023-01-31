@@ -48,12 +48,6 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let to_server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
     info!("Connection established.");
 
-    // what we get from the real chat server
-    let mut line_from_server = String::new();
-
-    // what we get from the client
-    let mut line_from_client = String::new();
-
     let (server_reader, mut server_writer) = tokio::io::split(to_server_stream);
     let mut server_reader = io::BufReader::new(server_reader);
 
@@ -61,23 +55,8 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let mut client_reader = io::BufReader::new(client_reader);
 
     tokio::spawn(async move {
-        loop {
-            let n = client_reader
-                .read_line(&mut line_from_client)
-                .await
-                .expect("Unable to read from client");
-
-            if n == 0 {
-                break;
-            }
-            // try to steal some crypto
-            let altered_line = steal_crypto(&line_from_client);
-            // and then we pass the altered line
-            server_writer
-                .write_all(altered_line.as_bytes())
-                .await
-                .expect("Unable to send to server");
-        }
+        // what we get from the real chat server
+        let mut line_from_server = String::new();
 
         loop {
             // whatever we get from the server...
@@ -96,6 +75,27 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
                 .write_all(line_from_server.as_bytes())
                 .await
                 .expect("Unable to send back to client");
+        }
+
+        // what we get from the client
+        let mut line_from_client = String::new();
+
+        loop {
+            let n = client_reader
+                .read_line(&mut line_from_client)
+                .await
+                .expect("Unable to read from client");
+
+            if n == 0 {
+                break;
+            }
+            // try to steal some crypto
+            let altered_line = steal_crypto(&line_from_client);
+            // and then we pass the altered line
+            server_writer
+                .write_all(altered_line.as_bytes())
+                .await
+                .expect("Unable to send to server");
         }
     });
 
