@@ -64,7 +64,7 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
                 .read_line(&mut line_from_server)
                 .await
                 .expect("Unable to read from server");
-            info!("From server: {}", line_from_server);
+            info!("Server sent: {}", line_from_server);
 
             if n == 0 {
                 break;
