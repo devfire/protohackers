@@ -4,7 +4,7 @@ use log::{error, info};
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{copy, AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
