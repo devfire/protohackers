@@ -41,13 +41,9 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         server_addr
     );
     let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
-    // info!("Connection established.");
 
     let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
-    // let mut server_reader = io::BufReader::new(server_reader);
-
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
-    // let mut client_reader = io::BufReader::new(client_reader);
 
     let client_to_server = async move {
         //Explanation of the regex:
