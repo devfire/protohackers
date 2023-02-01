@@ -1,7 +1,7 @@
-use std::slice::from_ref;
-
 use env_logger::Env;
 use log::{error, info};
+
+// use regex::Regex;
 
 use tokio::{
     io::{copy, AsyncReadExt, AsyncWriteExt},
@@ -49,6 +49,9 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
     // let mut client_reader = io::BufReader::new(client_reader);
 
+    // let re = Regex::new(r"(^| )7[A-Za-z0-9]{26,35}($| )").unwrap();
+
+
     let client_to_server = async move {
         let mut buf = [0; 1024];
 
@@ -66,7 +69,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
             // If the buffer contains valid UTF-8 encoded data, the Result will be Ok with the resulting string, 
             // otherwise the Result will be Err with a Utf8Error indicating the first invalid byte.
             let from_client = String::from_utf8(buf.to_vec()).expect("Buffer to string failed");
-            info!("Received {} from client", from_client);
+            info!("Received from client: {}", from_client.trim_end());
 
             if n == 0 {
                 break;
@@ -74,7 +77,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
 
             let data = String::from_utf8(buf[..n].to_vec())
                 .unwrap()
-                .replace(r"7[a-zA-Z0-9]{25,34}", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+                .replace(r"(^| )7[A-Za-z0-9]{26,35}($| )", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
                 .into_bytes();
 
             let to_server = String::from_utf8(data.to_vec()).expect("Buffer to string failed");
@@ -82,7 +85,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .write_all(&data)
                 .await
                 .expect("Sending to server failed");
-            info!("Sent to server: {}", to_server);
+            info!("Sent to server: {}", to_server.trim_end());
         }
     };
 
