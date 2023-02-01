@@ -49,9 +49,8 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
     // let mut client_reader = io::BufReader::new(client_reader);
 
-    let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-
     let client_to_server = async move {
+        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
         let mut buf = [0; 1024];
 
         loop {
@@ -63,21 +62,14 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 }
             };
 
-            // Convert a buffer to a string by using the String::from_utf8 function.
-            // This function takes a Vec<u8> as its argument and returns a Result<String, Utf8Error>.
-            // If the buffer contains valid UTF-8 encoded data, the Result will be Ok with the resulting string,
-            // otherwise the Result will be Err with a Utf8Error indicating the first invalid byte.
-            let from_client = String::from_utf8(buf.to_vec()).expect("Buffer to string failed");
-            info!("Received from client: {}", from_client.trim_end());
-
             if n == 0 {
                 break;
             }
 
             let data = String::from_utf8(buf[..n].to_vec()).unwrap();
 
-            // re.replace method takes two arguments: 
-            // the original string and the string to replace the match with. 
+            // re.replace method takes two arguments:
+            // the original string and the string to replace the match with.
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
@@ -92,7 +84,38 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         }
     };
 
-    let server_to_client = copy(&mut server_reader, &mut client_writer);
+    let server_to_client = async move {
+        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
+        let mut buf = [0; 1024];
+
+        loop {
+            let n = match server_reader.read(&mut buf).await {
+                Ok(n) => n,
+                Err(e) => {
+                    error!("Error forwarding data from client: {}", e);
+                    break;
+                }
+            };
+
+            if n == 0 {
+                break;
+            }
+
+            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+
+            // re.replace method takes two arguments:
+            // the original string and the string to replace the match with.
+            // The method returns a new string with the matches replaced.
+            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+
+            info!("Replaced: {}", replaced);
+
+            client_writer
+                .write_all(replaced.as_bytes())
+                .await
+                .expect("Sending to server failed");
+        }
+    };
 
     let (_, _) = tokio::join!(client_to_server, server_to_client);
 
