@@ -58,6 +58,8 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                     break;
                 }
             };
+            info!("Received {} bytes from client", n);
+
             if n == 0 {
                 break;
             }
