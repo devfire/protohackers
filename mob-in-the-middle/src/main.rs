@@ -6,8 +6,8 @@ use env_logger::Env;
 use log::{error, info};
 
 use tokio::{
-    io::{self, copy, AsyncBufReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
+    io::copy,
 };
 
 use anyhow::Result;
@@ -57,24 +57,24 @@ async fn process(to_client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let client_to_server = copy(&mut client_reader, &mut server_writer);
     let server_to_client = copy(&mut server_reader, &mut client_writer);
 
-    tokio::join!(client_to_server, server_to_client);
+    let (_,_) = tokio::join!(client_to_server, server_to_client);
 
     Ok(())
 }
 
-fn replace_substring(s: &str, old: &str, new: &str) -> String {
-    s.replace(old, new)
-}
+// fn replace_substring(s: &str, old: &str, new: &str) -> String {
+//     s.replace(old, new)
+// }
 
-fn get_substring(s: &str) -> Option<&str> {
-    let re = Regex::new(r"^ 7[a-zA-Z0-9]{25,34} $").unwrap();
-    re.find(s).map(|m| m.as_str())
-}
+// fn get_substring(s: &str) -> Option<&str> {
+//     let re = Regex::new(r"^ 7[a-zA-Z0-9]{25,34} $").unwrap();
+//     re.find(s).map(|m| m.as_str())
+// }
 
-fn steal_crypto(line: &str) -> String {
-    if let Some(boguscoin_address) = get_substring(line) {
-        replace_substring(line, boguscoin_address, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
-    } else {
-        String::from(line)
-    }
-}
+// fn steal_crypto(line: &str) -> String {
+//     if let Some(boguscoin_address) = get_substring(line) {
+//         replace_substring(line, boguscoin_address, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+//     } else {
+//         String::from(line)
+//     }
+// }
