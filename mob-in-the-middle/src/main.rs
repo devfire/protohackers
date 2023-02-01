@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     // Accept incoming connections
     while let Ok((client, _)) = listener.accept().await {
         // Spawn a task to handle each client
-        tokio::spawn(process(client, "chat.protohackers.com:16963"));
+        process(client, "chat.protohackers.com:16963").await?;
     }
 
     Ok(())
