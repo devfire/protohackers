@@ -1,7 +1,7 @@
 use env_logger::Env;
 use log::{error, info};
 
-// use regex::Regex;
+use regex::Regex;
 
 use tokio::{
     io::{copy, AsyncReadExt, AsyncWriteExt},
@@ -49,8 +49,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
     // let mut client_reader = io::BufReader::new(client_reader);
 
-    // let re = Regex::new(r"(^| )7[A-Za-z0-9]{26,35}($| )").unwrap();
-
+    let re = Regex::new(r"(^| )7[A-Za-z0-9]{26,35}($| )").unwrap();
 
     let client_to_server = async move {
         let mut buf = [0; 1024];
@@ -64,9 +63,9 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 }
             };
 
-            // Convert a buffer to a string by using the String::from_utf8 function. 
-            // This function takes a Vec<u8> as its argument and returns a Result<String, Utf8Error>. 
-            // If the buffer contains valid UTF-8 encoded data, the Result will be Ok with the resulting string, 
+            // Convert a buffer to a string by using the String::from_utf8 function.
+            // This function takes a Vec<u8> as its argument and returns a Result<String, Utf8Error>.
+            // If the buffer contains valid UTF-8 encoded data, the Result will be Ok with the resulting string,
             // otherwise the Result will be Err with a Utf8Error indicating the first invalid byte.
             let from_client = String::from_utf8(buf.to_vec()).expect("Buffer to string failed");
             info!("Received from client: {}", from_client.trim_end());
@@ -75,17 +74,24 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec())
-                .unwrap()
-                .replace(r" 7[A-Za-z0-9]{26,35} ", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
-                .into_bytes();
+            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
 
-            let to_server = String::from_utf8(data.to_vec()).expect("Buffer to string failed");
+            // re.replace method takes two arguments: 
+            // the original string and the string to replace the match with. 
+            // The method returns a new string with the matches replaced.
+            let replaced = re.replace(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+
+            // info!("Replaced: {}", replaced);
+
+            // // .replace(r" 7[A-Za-z0-9]{26,35} ", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+            // // .into_bytes();
+
+            // let to_server = String::from_utf8(replaced.as_bytes().to_vec()).expect("Buffer to string failed");
+
             server_writer
-                .write_all(&data)
+                .write_all(replaced.as_bytes())
                 .await
                 .expect("Sending to server failed");
-            info!("Sent to server: {}", to_server.trim_end());
         }
     };
 
