@@ -77,7 +77,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
 
             let data = String::from_utf8(buf[..n].to_vec())
                 .unwrap()
-                .replace(r"(^| )7[A-Za-z0-9]{26,35}($| )", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+                .replace(r" 7[A-Za-z0-9]{26,35} ", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
                 .into_bytes();
 
             let to_server = String::from_utf8(data.to_vec()).expect("Buffer to string failed");
