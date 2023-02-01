@@ -45,7 +45,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
 
-    let client_to_server = async move {
+    let client_to_server = tokio::spawn(async move {
         //Explanation of the regex:
         // (?<=\A| ): Matches either the start of the message (\A) or a space character ( ), lookbehind assertion
         // 7: Matches the character 7 literally
@@ -82,11 +82,11 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .await
                 .expect("Sending to server failed");
         }
-    };
+    });
 
-    let server_to_client = async move {
+    let server_to_client = tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        
+
         let mut buf = [0; 1024];
 
         loop {
@@ -117,7 +117,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .await
                 .expect("Sending to server failed");
         }
-    };
+    });
 
     let (_, _) = tokio::join!(client_to_server, server_to_client);
 
