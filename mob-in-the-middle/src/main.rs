@@ -1,3 +1,5 @@
+use std::slice::from_ref;
+
 use env_logger::Env;
 use log::{error, info};
 
@@ -58,7 +60,13 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                     break;
                 }
             };
-            info!("Received {} bytes from client", n);
+
+            // Convert a buffer to a string by using the String::from_utf8 function. 
+            // This function takes a Vec<u8> as its argument and returns a Result<String, Utf8Error>. 
+            // If the buffer contains valid UTF-8 encoded data, the Result will be Ok with the resulting string, 
+            // otherwise the Result will be Err with a Utf8Error indicating the first invalid byte.
+            let from_client = String::from_utf8(buf.to_vec()).expect("Buffer to string failed");
+            info!("Received {} from client", from_client);
 
             if n == 0 {
                 break;
@@ -69,7 +77,12 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .replace(r"7[a-zA-Z0-9]{25,34}", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
                 .into_bytes();
 
-            server_writer.write_all(&data).await.unwrap();
+            let to_server = String::from_utf8(data.to_vec()).expect("Buffer to string failed");
+            server_writer
+                .write_all(&data)
+                .await
+                .expect("Sending to server failed");
+            info!("Sent to server: {}", to_server);
         }
     };
 
