@@ -79,7 +79,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
             // re.replace method takes two arguments: 
             // the original string and the string to replace the match with. 
             // The method returns a new string with the matches replaced.
-            let replaced = re.replace(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
             info!("Replaced: {}", replaced);
 
