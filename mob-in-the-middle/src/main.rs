@@ -20,14 +20,16 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(env);
 
     info!("Starting the proxy server.");
-    // Bind the listener to the address
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
     info!("Ready to steal crypto!");
 
     // Accept incoming connections
     while let Ok((client, _)) = listener.accept().await {
+        info!("Establishing a connection to the upstream server.",);
+        let server = TcpStream::connect("chat.protohackers.com:16963").await?;
+
         // Spawn a task to handle each client
-        process(client, "chat.protohackers.com:16963").await?;
+        process(client, server).await?;
     }
 
     Ok(())
@@ -35,17 +37,11 @@ async fn main() -> Result<()> {
 
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
-async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
-    info!(
-        "Establishing a connection to the upstream server on behalf of {}.",
-        server_addr
-    );
-    let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
-
+async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<()> {
     let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
 
-    let client_to_server = tokio::spawn(async move {
+    tokio::spawn(async move {
         //Explanation of the regex:
         // (?<=\A| ): Matches either the start of the message (\A) or a space character ( ), lookbehind assertion
         // 7: Matches the character 7 literally
@@ -84,7 +80,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         }
     });
 
-    let server_to_client = tokio::spawn(async move {
+    tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
 
         let mut buf = [0; 1024];
@@ -118,8 +114,6 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .expect("Sending to server failed");
         }
     });
-
-    let (_, _) = tokio::join!(client_to_server, server_to_client);
 
     Ok(())
 }
