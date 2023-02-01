@@ -56,7 +56,6 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
 
         // let mut buf = [0; 1024];
 
-
         loop {
             let mut data = String::new();
             let n = match client_reader.read_line(&mut data).await {
@@ -119,7 +118,8 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
             client_writer
                 .write_all(replaced.as_bytes())
                 .await
-                .expect("Sending to server failed");
+                .expect("Sending to client failed");
+            client_writer.write_all(b"\n").await.unwrap();
         }
     });
 
