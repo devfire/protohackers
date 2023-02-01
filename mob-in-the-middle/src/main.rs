@@ -49,7 +49,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
     // let mut client_reader = io::BufReader::new(client_reader);
 
-    let re = Regex::new(r"(^| )7[A-Za-z0-9]{26,35}($| )").unwrap();
+    let re = Regex::new(r"(^|\s)7\w{25,35}(\s|$)").unwrap();
 
     let client_to_server = async move {
         let mut buf = [0; 1024];
