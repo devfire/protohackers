@@ -66,7 +66,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
 
             let data = String::from_utf8(buf[..n].to_vec())
                 .unwrap()
-                .replace(r"^ 7[a-zA-Z0-9]{25,34} $", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
+                .replace(r"7[a-zA-Z0-9]{25,34}", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
                 .into_bytes();
 
             server_writer.write_all(&data).await.unwrap();
