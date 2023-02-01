@@ -41,7 +41,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         server_addr
     );
     let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
-    info!("Connection established.");
+    // info!("Connection established.");
 
     let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
     // let mut server_reader = io::BufReader::new(server_reader);
@@ -81,10 +81,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
             // The method returns a new string with the matches replaced.
             let replaced = re.replace(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            // info!("Replaced: {}", replaced);
-
-            // // .replace(r" 7[A-Za-z0-9]{26,35} ", "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
-            // // .into_bytes();
+            info!("Replaced: {}", replaced);
 
             // let to_server = String::from_utf8(replaced.as_bytes().to_vec()).expect("Buffer to string failed");
 
