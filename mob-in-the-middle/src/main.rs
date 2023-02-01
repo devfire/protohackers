@@ -4,7 +4,7 @@ use log::{error, info};
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncBufReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
@@ -38,10 +38,12 @@ async fn main() -> Result<()> {
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
 async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<()> {
-    let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
-    let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
+    let (server_reader, mut server_writer) = tokio::io::split(server_stream);
+    let (client_reader, mut client_writer) = tokio::io::split(client_stream);
 
-    
+    let mut client_reader = tokio::io::BufReader::new(client_reader);
+    let mut server_reader = tokio::io::BufReader::new(server_reader);
+
     tokio::spawn(async move {
         //Explanation of the regex:
         // (?<=\A| ): Matches either the start of the message (\A) or a space character ( ), lookbehind assertion
@@ -50,10 +52,11 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
         // (?=\z| ): Matches either the end of the message (\z) or a space character ( ), lookahead assertion
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
 
-        let mut buf = [0; 1024];
+        // let mut buf = [0; 1024];
+        let mut data = String::new();
 
         loop {
-            let n = match client_reader.read(&mut buf).await {
+            let n = match client_reader.read_line(&mut data).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from client: {}", e);
@@ -65,7 +68,7 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+            // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
 
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
@@ -84,10 +87,11 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
     tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
 
-        let mut buf = [0; 1024];
+        // let mut buf = [0; 1024];
+        let mut data = String::new();
 
         loop {
-            let n = match server_reader.read(&mut buf).await {
+            let n = match server_reader.read_line(&mut data).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from server: {}", e);
@@ -99,7 +103,7 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+            // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
 
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
