@@ -8,6 +8,8 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
+use tokio_util::codec::{Framed, LinesCodec};
+
 use anyhow::Result;
 
 #[tokio::main]
@@ -53,9 +55,10 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
 
         // let mut buf = [0; 1024];
-        let mut data = String::new();
+
 
         loop {
+            let mut data = String::new();
             let n = match client_reader.read_line(&mut data).await {
                 Ok(n) => n,
                 Err(e) => {
