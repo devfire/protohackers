@@ -4,10 +4,11 @@ use tokio::io::{copy, AsyncReadExt, AsyncWriteExt};
 // use tokio::net::TcpStream as AsyncTcpStream;
 // use tokio::task::futures;
 // use tokio::prelude::*;
+use anyhow::Result;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let listener = TcpListener::bind("0.0.0.0:8080").await?;
+async fn main() -> Result<()> {
+    let listener = TcpListener::bind("0.0.0.0:8080").await;
 
     loop {
         let (client, _) = listener.accept().await?;
