@@ -4,7 +4,7 @@ use log::{error, info};
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, self, AsyncBufReadExt},
+    io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
@@ -46,7 +46,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let (server_reader, mut server_writer) = tokio::io::split(server_stream);
     let mut server_reader = io::BufReader::new(server_reader);
 
-    let ( client_reader, mut client_writer) = tokio::io::split(client_stream);
+    let (client_reader, mut client_writer) = tokio::io::split(client_stream);
     let mut client_reader = io::BufReader::new(client_reader);
 
     let client_to_server = async move {
@@ -74,7 +74,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&buf, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("Replaced client to server: {}", replaced);
+            info!("Client to server: {}", replaced);
 
             // let to_server = String::from_utf8(replaced.as_bytes().to_vec()).expect("Buffer to string failed");
 
@@ -82,6 +82,8 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .write_all(replaced.as_bytes())
                 .await
                 .expect("Sending to server failed");
+
+            server_writer.write_all(b"\n").await.unwrap();
         }
     };
 
@@ -109,12 +111,13 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&buf, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("Replaced server to client: {}", replaced);
+            info!("Server to client: {}", replaced);
 
             client_writer
                 .write_all(replaced.as_bytes())
                 .await
                 .expect("Sending to server failed");
+            client_writer.write_all(b"\n").await.unwrap();
         }
     };
 
