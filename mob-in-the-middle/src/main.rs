@@ -4,7 +4,7 @@ use log::{error, info};
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt, self, AsyncBufReadExt},
     net::{TcpListener, TcpStream},
 };
 
@@ -43,18 +43,19 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
     // info!("Connection established.");
 
-    let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
-    // let mut server_reader = io::BufReader::new(server_reader);
+    let (server_reader, mut server_writer) = tokio::io::split(server_stream);
+    let mut server_reader = io::BufReader::new(server_reader);
 
-    let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
-    // let mut client_reader = io::BufReader::new(client_reader);
+    let ( client_reader, mut client_writer) = tokio::io::split(client_stream);
+    let mut client_reader = io::BufReader::new(client_reader);
 
     let client_to_server = async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut buf = [0; 1024];
+        // let mut buf = [0; 1024];
+        let mut buf = String::new();
 
         loop {
-            let n = match client_reader.read(&mut buf).await {
+            let n = match client_reader.read_line(&mut buf).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from client: {}", e);
@@ -66,14 +67,14 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+            // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
 
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
             // The method returns a new string with the matches replaced.
-            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+            let replaced = re.replace_all(&buf, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("Replaced: {}", replaced);
+            info!("Replaced client to server: {}", replaced);
 
             // let to_server = String::from_utf8(replaced.as_bytes().to_vec()).expect("Buffer to string failed");
 
@@ -86,13 +87,13 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
 
     let server_to_client = async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut buf = [0; 1024];
+        let mut buf = String::new();
 
         loop {
-            let n = match server_reader.read(&mut buf).await {
+            let n = match server_reader.read_line(&mut buf).await {
                 Ok(n) => n,
                 Err(e) => {
-                    error!("Error forwarding data from client: {}", e);
+                    error!("Error forwarding data from server: {}", e);
                     break;
                 }
             };
@@ -101,14 +102,14 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+            // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
 
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
             // The method returns a new string with the matches replaced.
-            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+            let replaced = re.replace_all(&buf, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("Replaced: {}", replaced);
+            info!("Replaced server to client: {}", replaced);
 
             client_writer
                 .write_all(replaced.as_bytes())
