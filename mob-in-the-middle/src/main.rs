@@ -59,7 +59,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                 Ok(message) => {
                     if !message.contains('\n') {
                         error!("Missing newline, exiting");
-                        return Err("Missing newline");
+                        // return Err("Missing newline");
                     }
                     let replaced = re.replace_all(&message, TONYCOIN);
                     info!("Client {} to server: {}", client_addr, replaced);
