@@ -8,9 +8,11 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use tokio_util::codec::{Framed, LinesCodec};
+// use tokio_util::codec::{FramedRead, FramedWrite, LinesCodec};
 
 use anyhow::Result;
+
+const TONYCOIN: &str = "7YWHMfk9JZe0LM0g1ZauHuiSxhI";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -28,10 +30,9 @@ async fn main() -> Result<()> {
     // Accept incoming connections
     while let Ok((client, _)) = listener.accept().await {
         info!("Establishing a connection to the upstream server.",);
-        let server = TcpStream::connect("chat.protohackers.com:16963").await?;
 
         // Spawn a task to handle each client
-        process(client, server).await?;
+        process(client).await?;
     }
 
     Ok(())
@@ -39,7 +40,9 @@ async fn main() -> Result<()> {
 
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
-async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<()> {
+async fn process(client_stream: TcpStream) -> Result<()> {
+    let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
+
     let (server_reader, mut server_writer) = tokio::io::split(server_stream);
     let (client_reader, mut client_writer) = tokio::io::split(client_stream);
 
@@ -75,7 +78,7 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
             // The method returns a new string with the matches replaced.
-            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+            let replaced = re.replace_all(&data, TONYCOIN);
 
             info!("Client to server: {}", replaced);
 
@@ -111,7 +114,7 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
             // the original string and the string to replace the match with.
             // The method returns a new string with the matches replaced.
             // If no match, the string is returned intact.
-            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+            let replaced = re.replace_all(&data, TONYCOIN);
 
             info!("Server to client: {}", replaced);
 
@@ -119,7 +122,6 @@ async fn process(client_stream: TcpStream, server_stream: TcpStream) -> Result<(
                 .write_all(replaced.as_bytes())
                 .await
                 .expect("Sending to client failed");
-            client_writer.write_all(b"\n").await.unwrap();
         }
     });
 
