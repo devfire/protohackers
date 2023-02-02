@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use env_logger::Env;
 use log::{error, info};
 
@@ -32,7 +34,7 @@ async fn main() -> Result<()> {
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("accepted connection from {}", addr);
-            if let Err(e) = process(client).await {
+            if let Err(e) = process(client, addr).await {
                 error!("an error occurred; error = {:?}", e);
             }
         });
@@ -43,7 +45,7 @@ async fn main() -> Result<()> {
 
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
-async fn process(client_stream: TcpStream) -> Result<()> {
+async fn process(client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
 
     let (server_reader, mut server_writer) = tokio::io::split(server_stream);
@@ -76,7 +78,7 @@ async fn process(client_stream: TcpStream) -> Result<()> {
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&data, TONYCOIN);
 
-            info!("Client to server: {}", replaced);
+            info!("Client {} to server: {}",addr, replaced);
 
             server_writer
                 .write_all(replaced.as_bytes())
@@ -105,7 +107,7 @@ async fn process(client_stream: TcpStream) -> Result<()> {
             // If no match, the string is returned intact.
             let replaced = re.replace_all(&data, TONYCOIN);
 
-            info!("Server to client: {}", replaced);
+            info!("Server to client {}: {}", addr, replaced);
 
             client_writer
                 .write_all(replaced.as_bytes())
