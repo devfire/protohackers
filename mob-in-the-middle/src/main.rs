@@ -4,7 +4,7 @@ use env_logger::Env;
 use log::{error, info};
 
 use fancy_regex::Regex;
-use futures::{SinkExt, StreamExt, TryFutureExt};
+use futures::{SinkExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 
