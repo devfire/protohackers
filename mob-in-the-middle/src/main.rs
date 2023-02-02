@@ -57,7 +57,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
     let mut server_writer = FramedWrite::new(server_writer, LinesCodec::new());
 
     let _client_task = tokio::spawn(async move {
-        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
+        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
         while let Some(message) = client_reader.next().await {
             match message {
                 Ok(message) => {
@@ -75,7 +75,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
     });
 
     let _server_task = tokio::spawn(async move {
-        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
+        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
         while let Some(message) = server_reader.next().await {
             match message {
                 Ok(message) => {
