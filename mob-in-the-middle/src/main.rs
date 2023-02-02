@@ -66,7 +66,6 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                     server_writer.send(&replaced).await?;
                 }
                 Err(err) => {
-                    // TODO: Abort server task
                     return Err(err);
                 }
             }
@@ -85,7 +84,6 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                     client_writer.send(&replaced).await?;
                 }
                 Err(err) => {
-                    // TODO: Abort server task
                     return Err(err);
                 }
             }
