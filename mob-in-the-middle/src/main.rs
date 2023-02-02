@@ -67,7 +67,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                 }
             }
         } // end of while
-    
+        info!("Client {} disconnected from client task.", client_addr);
         Ok(())
     });
 
@@ -86,7 +86,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                 }
             }
         }
-
+        info!("Client {} disconnected from server task.", client_addr);
         Ok(())
     });
 
