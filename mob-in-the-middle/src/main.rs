@@ -4,7 +4,7 @@ use env_logger::Env;
 use log::{error, info};
 
 use fancy_regex::Regex;
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, TryFutureExt};
 
 use tokio::net::{TcpListener, TcpStream};
 
@@ -29,8 +29,6 @@ async fn main() -> Result<()> {
 
     // Accept incoming connections
     while let Ok((client, addr)) = listener.accept().await {
-        // Spawn our handler to be run asynchronously.
-
         info!("accepted connection from {}", addr);
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
@@ -40,12 +38,9 @@ async fn main() -> Result<()> {
             }
         });
     }
-
     Ok(())
 }
 
-/// Defines a new asynchronous function `process` that takes two arguments:
-/// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
 async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()> {
     let (client_reader, client_writer) = client_stream.into_split();
     let mut client_reader = FramedRead::new(client_reader, LinesCodec::new());
@@ -56,6 +51,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
     let mut server_reader = FramedRead::new(server_reader, LinesCodec::new());
     let mut server_writer = FramedWrite::new(server_writer, LinesCodec::new());
 
+    
     let _client_task = tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
         while let Some(message) = client_reader.next().await {
@@ -66,11 +62,12 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                     server_writer.send(&replaced).await?;
                 }
                 Err(err) => {
+                    error!("Client codec error: {}", err);
                     return Err(err);
                 }
             }
-        }
-
+        } // end of while
+    
         Ok(())
     });
 
@@ -84,6 +81,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                     client_writer.send(&replaced).await?;
                 }
                 Err(err) => {
+                    error!("Server codec error: {}", err);
                     return Err(err);
                 }
             }
