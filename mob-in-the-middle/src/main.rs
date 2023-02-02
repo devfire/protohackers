@@ -4,13 +4,11 @@ use env_logger::Env;
 use log::{error, info};
 
 use fancy_regex::Regex;
+use futures::{SinkExt, StreamExt};
 
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-};
+use tokio::net::{TcpListener, TcpStream};
 
-// use tokio_util::codec::{FramedRead, FramedWrite, LinesCodec};
+use tokio_util::codec::{FramedRead, FramedWrite, LinesCodec};
 
 use anyhow::Result;
 
@@ -32,6 +30,9 @@ async fn main() -> Result<()> {
     // Accept incoming connections
     while let Ok((client, addr)) = listener.accept().await {
         // Spawn our handler to be run asynchronously.
+
+        info!("accepted connection from {}", addr);
+        // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("accepted connection from {}", addr);
             if let Err(e) = process(client, addr).await {
@@ -45,75 +46,52 @@ async fn main() -> Result<()> {
 
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
-async fn process(client_stream: TcpStream, addr: SocketAddr) -> Result<()> {
+async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()> {
+    let (client_reader, client_writer) = client_stream.into_split();
+    let mut client_reader = FramedRead::new(client_reader, LinesCodec::new());
+    let mut client_writer = FramedWrite::new(client_writer, LinesCodec::new());
+
     let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
+    let (server_reader, server_writer) = server_stream.into_split();
+    let mut server_reader = FramedRead::new(server_reader, LinesCodec::new());
+    let mut server_writer = FramedWrite::new(server_writer, LinesCodec::new());
 
-    let (server_reader, mut server_writer) = tokio::io::split(server_stream);
-    let (client_reader, mut client_writer) = tokio::io::split(client_stream);
-
-    let mut client_reader = tokio::io::BufReader::new(client_reader);
-    let mut server_reader = tokio::io::BufReader::new(server_reader);
-
-    tokio::spawn(async move {
-        //Explanation of the regex:
-        // (?<=\A| ): Matches either the start of the message (\A) or a space character ( ), lookbehind assertion
-        // 7: Matches the character 7 literally
-        // [A-Za-z0-9]{26,35}: Matches 25 to 35 alphanumeric characters (A-Za-z0-9)
-        // (?=\z| ): Matches either the end of the message (\z) or a space character ( ), lookahead assertion
+    let _client_task = tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut data = String::new();
-        loop {
-            let n = match client_reader.read_line(&mut data).await {
-                Ok(n) => n,
-                Err(e) => {
-                    error!("Error forwarding data from client: {}", e);
-                    break;
+        while let Some(message) = client_reader.next().await {
+            match message {
+                Ok(message) => {
+                    let replaced = re.replace_all(&message, TONYCOIN);
+                    info!("Client {} to server: {}", client_addr, replaced);
+                    server_writer.send(&replaced).await?;
                 }
-            };
-
-            if n == 0 {
-                break;
+                Err(err) => {
+                    // TODO: Abort server task
+                    return Err(err);
+                }
             }
-
-            // The method returns a new string with the matches replaced.
-            let replaced = re.replace_all(&data, TONYCOIN);
-
-            info!("Client {} to server: {}",addr, replaced);
-
-            server_writer
-                .write_all(replaced.as_bytes())
-                .await
-                .expect("Sending to server failed");
         }
+
+        Ok(())
     });
 
-    
-    tokio::spawn(async move {
+    let _server_task = tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut data = String::new();
-        loop {
-            let n = match server_reader.read_line(&mut data).await {
-                Ok(n) => n,
-                Err(e) => {
-                    error!("Error forwarding data from server: {}", e);
-                    break;
+        while let Some(message) = server_reader.next().await {
+            match message {
+                Ok(message) => {
+                    let replaced = re.replace_all(&message, TONYCOIN);
+                    info!("Message: {} to client: {}", replaced, client_addr);
+                    client_writer.send(&replaced).await?;
                 }
-            };
-
-            if n == 0 {
-                break;
+                Err(err) => {
+                    // TODO: Abort server task
+                    return Err(err);
+                }
             }
-
-            // If no match, the string is returned intact.
-            let replaced = re.replace_all(&data, TONYCOIN);
-
-            info!("Server to client {}: {}", addr, replaced);
-
-            client_writer
-                .write_all(replaced.as_bytes())
-                .await
-                .expect("Sending to client failed");
         }
+
+        Ok(())
     });
 
     Ok(())
