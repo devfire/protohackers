@@ -57,7 +57,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
         while let Some(message) = client_reader.next().await {
             match message {
                 Ok(message) => {
-                    if !message.ends_with('\n') {
+                    if !message.contains('\n') {
                         error!("Missing newline, exiting");
                         return Err("Missing newline");
                     }
