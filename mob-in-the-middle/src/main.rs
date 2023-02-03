@@ -57,17 +57,12 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
         while let Some(message) = client_reader.next().await {
             match message {
                 Ok(message) => {
-                    if !message.contains('\n') {
-                        error!("Missing newline, exiting");
-                        // return Err("Missing newline");
-                    }
                     let replaced = re.replace_all(&message, TONYCOIN);
                     info!("Client {} to server: {}", client_addr, replaced);
                     server_writer.send(&replaced).await.expect("Unable to send to client");
                 }
                 Err(err) => {
-                    error!("Client codec error: {}", err);
-                    return Err("Bad codec");
+                    return Err(err);
                 }
             }
         } // end of while
@@ -85,7 +80,6 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr) -> Result<()
                     client_writer.send(&replaced).await?;
                 }
                 Err(err) => {
-                    error!("Server codec error: {}", err);
                     return Err(err);
                 }
             }
