@@ -77,7 +77,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("From {}: {}",client_addr, replaced);
+            info!("From {} -> {}",client_addr, replaced.trim_end());
 
             server_writer
                 .write_all(replaced.as_bytes())
@@ -112,7 +112,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
             // If no match, the string is returned intact.
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("From server: {}", replaced);
+            info!("To: {} ->{}",client_addr, replaced.trim_end());
             client_writer
                 .write_all(replaced.as_bytes())
                 .await
