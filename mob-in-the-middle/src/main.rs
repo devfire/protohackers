@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use env_logger::Env;
 use log::{error, info};
 
@@ -25,9 +27,9 @@ async fn main() -> Result<()> {
     info!("Ready to steal crypto!");
 
     // Accept incoming connections
-    while let Ok((client, _)) = listener.accept().await {
+    while let Ok((client_stream, client_addr)) = listener.accept().await {
         // Spawn a task to handle each client
-        tokio::spawn(process(client, "chat.protohackers.com:16963"));
+        tokio::spawn(process(client_stream, client_addr, "chat.protohackers.com:16963"));
     }
 
     Ok(())
@@ -35,7 +37,7 @@ async fn main() -> Result<()> {
 
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
-async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
+async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr: &str) -> Result<()> {
     info!(
         "Establishing a connection to the upstream server on behalf of {}.",
         server_addr
