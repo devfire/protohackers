@@ -49,9 +49,9 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
 
     let client_to_server = async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut buf = [0; 1024];
+        let mut client_buf = [0; 1024];
         loop {
-            let n = match client_reader.read(&mut buf).await {
+            let n = match client_reader.read(&mut client_buf).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from client: {}", e);
@@ -63,10 +63,10 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
                 break;
             }
 
-            let data = String::from_utf8(buf.to_vec()).unwrap();
+            let data = String::from_utf8(client_buf[..n].to_vec()).unwrap();
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("From {} -> {}",client_addr, replaced.trim_end());
+            info!("{} -> {}",client_addr, replaced.trim_end());
 
             server_writer
                 .write_all(replaced.as_bytes())
@@ -77,11 +77,10 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
 
     let server_to_client = async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        
-        let mut buf = [0; 1024];
+        let mut server_buf = [0; 1024];
 
         loop {
-            let n = match server_reader.read(&mut buf).await {
+            let n = match server_reader.read(&mut server_buf).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from server: {}", e);
@@ -93,7 +92,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
                 break;
             }
 
-            let data = String::from_utf8(buf.to_vec()).unwrap();
+            let data = String::from_utf8(server_buf[..n].to_vec()).unwrap();
 
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
