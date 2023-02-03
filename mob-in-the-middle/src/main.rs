@@ -4,7 +4,7 @@ use log::{error, info};
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt},
+    io::{ AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
@@ -42,13 +42,13 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
     );
     let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
 
-    let (server_reader, mut server_writer) = tokio::io::split(server_stream);
-    let (client_reader, mut client_writer) = tokio::io::split(client_stream);
+    let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
+    let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
 
-    let mut server_reader = io::BufReader::new(server_reader);
-    let mut client_reader = io::BufReader::new(client_reader);
+    // let mut server_reader = io::BufReader::new(server_reader);
+    // let mut client_reader = io::BufReader::new(client_reader);
 
-    let client_to_server = async move {
+    let client_to_server = tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
         let mut buf = String::new();
         loop {
@@ -71,9 +71,9 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .await
                 .expect("Sending to server failed");
         }
-    };
+    });
 
-    let server_to_client = async move {
+    let server_to_client = tokio::spawn(async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
         let mut buf = String::new();
 
@@ -97,9 +97,9 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
                 .await
                 .expect("Sending to server failed");
         }
-    };
+    });
 
-    // let (_, _) = tokio::join!(client_to_server, server_to_client);
+    let (_, _) = tokio::join!(client_to_server, server_to_client);
 
     Ok(())
 }
