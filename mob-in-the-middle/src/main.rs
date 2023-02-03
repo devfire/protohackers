@@ -52,7 +52,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
         let mut buf = String::new();
         loop {
-            let n = match client_reader.read_line(&mut buf).await {
+            let n = match client_reader.read_to_string(&mut buf).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from client: {}", e);
@@ -78,7 +78,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         let mut buf = String::new();
 
         loop {
-            let n = match server_reader.read_line(&mut buf).await {
+            let n = match server_reader.read_to_string(&mut buf).await {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Error forwarding data from server: {}", e);
@@ -99,7 +99,7 @@ async fn process(client_stream: TcpStream, server_addr: &str) -> Result<()> {
         }
     };
 
-    let (_, _) = tokio::join!(client_to_server, server_to_client);
+    // let (_, _) = tokio::join!(client_to_server, server_to_client);
 
     Ok(())
 }
