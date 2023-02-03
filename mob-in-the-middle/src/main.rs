@@ -48,15 +48,8 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
 
     let client_to_server = async move {
-        //Explanation of the regex:
-        // (?<=\A| ): Matches either the start of the message (\A) or a space character ( ), lookbehind assertion
-        // 7: Matches the character 7 literally
-        // [A-Za-z0-9]{26,35}: Matches 25 to 35 alphanumeric characters (A-Za-z0-9)
-        // (?=\z| ): Matches either the end of the message (\z) or a space character ( ), lookahead assertion
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-
         let mut buf = [0; 1024];
-
         loop {
             let n = match client_reader.read(&mut buf).await {
                 Ok(n) => n,
@@ -70,11 +63,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
-
-            // re.replace method takes two arguments:
-            // the original string and the string to replace the match with.
-            // The method returns a new string with the matches replaced.
+            let data = String::from_utf8(buf.to_vec()).unwrap();
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
             info!("From {} -> {}",client_addr, replaced.trim_end());
@@ -104,7 +93,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
                 break;
             }
 
-            let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+            let data = String::from_utf8(buf.to_vec()).unwrap();
 
             // re.replace method takes two arguments:
             // the original string and the string to replace the match with.
