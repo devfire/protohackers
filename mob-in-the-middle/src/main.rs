@@ -42,7 +42,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
         "Establishing a connection to the upstream server on behalf of {}.",
         server_addr
     );
-    let server_stream = TcpStream::connect("chat.protohackers.com:16963").await?;
+    let server_stream = TcpStream::connect(server_addr).await?;
 
     let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
     let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
@@ -77,7 +77,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
             // The method returns a new string with the matches replaced.
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("Client to server: {}", replaced);
+            info!("From {}: {}",client_addr, replaced);
 
             server_writer
                 .write_all(replaced.as_bytes())
@@ -112,8 +112,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
             // If no match, the string is returned intact.
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("Server to client: {}", replaced);
-
+            info!("From server: {}", replaced);
             client_writer
                 .write_all(replaced.as_bytes())
                 .await
