@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 
 use env_logger::Env;
-use log::{error, info};
+use log::{error, info, warn};
 
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::{TcpListener, TcpStream},
 };
 
@@ -42,83 +42,93 @@ async fn main() -> Result<()> {
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
 async fn process(
-    client_stream: TcpStream,
+    mut client_stream: TcpStream,
     client_addr: SocketAddr,
     server_addr: &str,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     info!(
         "Establishing a connection to the upstream server on behalf of {}.",
         server_addr
     );
-    let server_stream = TcpStream::connect(server_addr).await?;
+    let mut server_stream: TcpStream = TcpStream::connect(server_addr).await?;
 
-    let (server_reader, server_writer) = tokio::io::split(server_stream);
-    let (client_reader, client_writer) = tokio::io::split(client_stream);
+    let (server_reader, server_writer) = server_stream.split();
+    let (client_reader, client_writer) = client_stream.split();
 
     let (mut server_reader, mut server_writer) =
         (BufReader::new(server_reader), BufWriter::new(server_writer));
-        let (mut client_reader, mut client_writer) =
+    let (mut client_reader, mut client_writer) =
         (BufReader::new(client_reader), BufWriter::new(client_writer));
 
-    let client_to_server = async move {
+    let client_to_server = async {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut client_buf = [0; 1024];
+        let mut client_line = String::with_capacity(1024);
         loop {
-            let n = match client_reader.read(&mut client_buf).await {
-                Ok(n) => n,
-                Err(e) => {
-                    error!("Error forwarding data from client: {}", e);
-                    break;
-                }
-            };
+            client_line.clear();
+            let bytes_read = client_reader
+                .read_line(&mut client_line)
+                .await
+                .expect("Unable to read from client");
 
-            if n == 0 {
+            if bytes_read <= 1 {
+                warn!("EOF");
                 break;
             }
 
-            let data = String::from_utf8(client_buf[..n].to_vec()).unwrap();
-            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+            if !client_line.ends_with('\n') {
+                warn!("Disconnected without sending \\n");
+                break;
+            }
 
-            info!("{} -> {}", client_addr, replaced.trim_end());
+            // let data = String::from_utf8(client_buf[..n].to_vec()).unwrap();
+            let client_line = re.replace_all(&client_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+
+            info!("{} -> {}", client_addr, client_line);
 
             server_writer
-                .write_all(replaced.as_bytes())
+                .write_all(format!("{}\n", client_line).as_bytes())
                 .await
                 .expect("Sending to server failed");
+            server_writer.flush().await.expect("Unable to flush");
         }
+        info!("Client {} disconnected.", client_addr);
+        Ok::<(), anyhow::Error>(())
     };
 
     let server_to_client = async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
-        let mut server_buf = [0; 1024];
+        let mut server_line = String::with_capacity(1024);
 
         loop {
-            let n = match server_reader.read(&mut server_buf).await {
-                Ok(n) => n,
-                Err(e) => {
-                    error!("Error forwarding data from server: {}", e);
-                    break;
-                }
-            };
+            server_line.clear();
+            let bytes_read = server_reader
+                .read_line(&mut server_line)
+                .await
+                .expect("Unable to read server");
 
-            if n == 0 {
+            if bytes_read == 0 {
+                warn!("EOF");
+                break;
+            }
+            if !server_line.ends_with('\n') {
+                warn!("Disconnected without sending \\n");
                 break;
             }
 
-            let data = String::from_utf8(server_buf[..n].to_vec()).unwrap();
+            let server_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            // re.replace method takes two arguments:
-            // the original string and the string to replace the match with.
-            // The method returns a new string with the matches replaced.
-            // If no match, the string is returned intact.
-            let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
-
-            info!("To: {} ->{}", client_addr, replaced.trim_end());
+            info!("To: {} ->{}", client_addr, server_line);
             client_writer
-                .write_all(replaced.as_bytes())
+                .write_all(format!("{}\n", server_line).as_bytes())
                 .await
                 .expect("Sending to server failed");
+            client_writer
+                .flush()
+                .await
+                .expect("Unable to flush to client");
         }
+        info!("Server to client disconnected.");
+        Ok::<(), anyhow::Error>(())
     };
 
     let (_, _) = tokio::join!(client_to_server, server_to_client);
