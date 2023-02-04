@@ -68,7 +68,7 @@ async fn process(
                 .await
                 .expect("Unable to read from client");
 
-            if bytes_read <= 1 {
+            if bytes_read == 0 {
                 warn!("EOF");
                 break;
             }
@@ -104,7 +104,7 @@ async fn process(
                 .await
                 .expect("Unable to read server");
 
-            if bytes_read <= 1 {
+            if bytes_read == 0 {
                 warn!("EOF");
                 break;
             }
