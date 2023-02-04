@@ -16,6 +16,7 @@ async fn read_next_line(r: &mut (impl AsyncBufReadExt + Unpin)) -> Result<String
     if 0 == r.read_line(&mut line).await? {
         bail!("no message");
     }
+    line = hack_coins(&line);
     Ok(line)
 }
 
@@ -81,9 +82,7 @@ async fn process(
             loop {
                 if let Ok(server_line) = read_next_line(&mut server_reader).await {
                     info!("From {}->{}", client_addr, server_line);
-                    let new_line = hack_coins(&server_line);
-                    info!("New line: {}", new_line);
-                    let _ = write_next_line(&mut client_writer, &new_line).await;
+                    let _ = write_next_line(&mut client_writer, &server_line).await;
                 }
             }
         }
@@ -91,7 +90,6 @@ async fn process(
     
     loop {
         let client_line = read_next_line(&mut client_reader).await?;
-        let client_line = hack_coins(&client_line);
         info!("To {}->{}", client_addr, client_line);
         write_next_line(&mut server_writer, &client_line).await?;
     }
