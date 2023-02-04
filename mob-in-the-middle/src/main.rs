@@ -1,4 +1,4 @@
-use std::{borrow::Cow, net::SocketAddr};
+use std::net::SocketAddr;
 
 use lazy_static::lazy_static;
 
@@ -18,17 +18,16 @@ async fn read_next_line(r: &mut (impl AsyncBufReadExt + Unpin)) -> Result<String
     if 0 == r.read_line(&mut line).await? {
         bail!("no message");
     }
-    // line = hack_coins(&line).to_string();
-    line = scan_and_update_line(&line);
+    line = hack_line(&line);
     Ok(line)
 }
 
-fn scan_and_update_line(line: &String) -> String {
+fn hack_line(line: &str) -> String {
     lazy_static! {
         static ref RE: Regex = Regex::new(r#"(\b7[[:alnum:]]{25,34})(\s|$)"#).unwrap();
     }
 
-    RE.replace_all(line.as_str(), |caps: &regex::Captures| {
+    RE.replace_all(line, |caps: &regex::Captures| {
         format!("{}{}", "7YWHMfk9JZe0LM0g1ZauHuiSxhI", &caps[2])
     })
     .to_string()
@@ -39,10 +38,6 @@ async fn write_next_line(w: &mut (impl AsyncWriteExt + Unpin), msg: &str) -> Res
     Ok(w.flush().await?)
 }
 
-fn hack_coins(input: &str) -> Cow<'_, str> {
-    let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
-    re.replace_all(input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
