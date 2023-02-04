@@ -6,7 +6,7 @@ use log::{error, info};
 use fancy_regex::Regex;
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::{TcpListener, TcpStream},
 };
 
@@ -29,7 +29,11 @@ async fn main() -> Result<()> {
     // Accept incoming connections
     while let Ok((client_stream, client_addr)) = listener.accept().await {
         // Spawn a task to handle each client
-        tokio::spawn(process(client_stream, client_addr, "chat.protohackers.com:16963"));
+        tokio::spawn(process(
+            client_stream,
+            client_addr,
+            "chat.protohackers.com:16963",
+        ));
     }
 
     Ok(())
@@ -37,15 +41,24 @@ async fn main() -> Result<()> {
 
 /// Defines a new asynchronous function `process` that takes two arguments:
 /// `client`, a mutable reference to a TcpStream, and `server_addr`, a string slice of the remote server.
-async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr: &str) -> Result<()> {
+async fn process(
+    client_stream: TcpStream,
+    client_addr: SocketAddr,
+    server_addr: &str,
+) -> Result<()> {
     info!(
         "Establishing a connection to the upstream server on behalf of {}.",
         server_addr
     );
     let server_stream = TcpStream::connect(server_addr).await?;
 
-    let (mut server_reader, mut server_writer) = tokio::io::split(server_stream);
-    let (mut client_reader, mut client_writer) = tokio::io::split(client_stream);
+    let (server_reader, server_writer) = tokio::io::split(server_stream);
+    let (client_reader, client_writer) = tokio::io::split(client_stream);
+
+    let (mut server_reader, mut server_writer) =
+        (BufReader::new(server_reader), BufWriter::new(server_writer));
+        let (mut client_reader, mut client_writer) =
+        (BufReader::new(client_reader), BufWriter::new(client_writer));
 
     let client_to_server = async move {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
@@ -66,7 +79,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
             let data = String::from_utf8(client_buf[..n].to_vec()).unwrap();
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("{} -> {}",client_addr, replaced.trim_end());
+            info!("{} -> {}", client_addr, replaced.trim_end());
 
             server_writer
                 .write_all(replaced.as_bytes())
@@ -100,7 +113,7 @@ async fn process(client_stream: TcpStream, client_addr: SocketAddr ,server_addr:
             // If no match, the string is returned intact.
             let replaced = re.replace_all(&data, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
 
-            info!("To: {} ->{}",client_addr, replaced.trim_end());
+            info!("To: {} ->{}", client_addr, replaced.trim_end());
             client_writer
                 .write_all(replaced.as_bytes())
                 .await
