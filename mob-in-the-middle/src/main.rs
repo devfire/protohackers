@@ -75,22 +75,19 @@ async fn process(
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
         async move {
             loop {
-                match read_next_line(&mut server_reader).await {
-                    Ok(query) => {
-                        info!("From {}->{}", client_addr, query);
-                        let query = re.replace_all(&query, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
-                        let _ = write_next_line(&mut client_writer, &query).await;
-                    }
-                    Err(_) => break,
+                if let Ok(server_line) = read_next_line(&mut server_reader).await {
+                    info!("From {}->{}", client_addr, server_line);
+                    let server_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+                    let _ = write_next_line(&mut client_writer, &server_line).await;
                 }
             }
         }
     });
     let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
     loop {
-        let server_line = read_next_line(&mut client_reader).await?;
-        let server_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
-        info!("To {}->{}", client_addr, server_line);
-        write_next_line(&mut server_writer, &server_line).await?;
+        let client_line = read_next_line(&mut client_reader).await?;
+        let client_line = re.replace_all(&client_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+        info!("To {}->{}", client_addr, client_line);
+        write_next_line(&mut server_writer, &client_line).await?;
     }
 }
