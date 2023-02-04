@@ -76,9 +76,9 @@ async fn process(
             loop {
                 if let Ok(server_line) = read_next_line(&mut server_reader).await {
                     info!("From {}->{}", client_addr, server_line);
-                    let server_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
-                    info!("New line: {}",server_line);
-                    let _ = write_next_line(&mut client_writer, &server_line).await;
+                    let new_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
+                    info!("New line: {}",new_line);
+                    let _ = write_next_line(&mut client_writer, &new_line).await;
                 }
             }
         }
