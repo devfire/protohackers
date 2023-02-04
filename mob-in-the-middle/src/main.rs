@@ -52,13 +52,11 @@ async fn process(
     );
     let mut server_stream: TcpStream = TcpStream::connect(server_addr).await?;
 
-    let (server_reader, server_writer) = server_stream.split();
-    let (client_reader, client_writer) = client_stream.split();
+    let (server_reader, mut server_writer) = server_stream.split();
+    let (client_reader, mut client_writer) = client_stream.split();
 
-    let (mut server_reader, mut server_writer) =
-        (BufReader::new(server_reader), BufWriter::new(server_writer));
-    let (mut client_reader, mut client_writer) =
-        (BufReader::new(client_reader), BufWriter::new(client_writer));
+    let mut server_reader = BufReader::new(server_reader);
+    let mut client_reader = BufReader::new(client_reader);
 
     let client_to_server = async {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
