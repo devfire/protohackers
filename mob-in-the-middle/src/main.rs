@@ -26,7 +26,7 @@ async fn write_next_line(w: &mut (impl AsyncWriteExt + Unpin), msg: &str) -> Res
 
 fn hack_coins (input: &str) -> String {
     let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
-    re.replace_all(&input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI").to_string()
+    re.replace_all(input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI").to_string()
 }
 
 #[tokio::main]
