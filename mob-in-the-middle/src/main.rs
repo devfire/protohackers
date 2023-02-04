@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, borrow::Cow};
 
 use env_logger::Env;
 use fancy_regex::Regex;
@@ -16,7 +16,7 @@ async fn read_next_line(r: &mut (impl AsyncBufReadExt + Unpin)) -> Result<String
     if 0 == r.read_line(&mut line).await? {
         bail!("no message");
     }
-    line = hack_coins(&line);
+    line = hack_coins(&line).to_string();
     Ok(line)
 }
 
@@ -25,9 +25,9 @@ async fn write_next_line(w: &mut (impl AsyncWriteExt + Unpin), msg: &str) -> Res
     Ok(w.flush().await?)
 }
 
-fn hack_coins (input: &str) -> String {
+fn hack_coins (input: &str) -> Cow<'_, str> {
     let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
-    re.replace_all(input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI").to_string()
+    re.replace_all(input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
 }
 
 #[tokio::main]
