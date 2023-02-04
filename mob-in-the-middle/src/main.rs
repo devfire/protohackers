@@ -71,13 +71,13 @@ async fn process(
     let mut client_reader = BufReader::new(client_reader);
 
     tokio::spawn({
-        let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
         async move {
+            let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
             loop {
                 if let Ok(server_line) = read_next_line(&mut server_reader).await {
                     info!("From {}->{}", client_addr, server_line);
                     let new_line = re.replace_all(&server_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
-                    info!("New line: {}",new_line);
+                    info!("New line: {}", new_line);
                     let _ = write_next_line(&mut client_writer, &new_line).await;
                 }
             }
