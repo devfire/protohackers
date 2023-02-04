@@ -104,10 +104,10 @@ async fn process(
                 .await
                 .expect("Unable to read server");
 
-            if bytes_read == 0 {
-                warn!("EOF");
-                break;
-            }
+            // if bytes_read == 0 {
+            //     warn!("EOF");
+            //     break;
+            // }
             if !server_line.ends_with('\n') {
                 warn!("Disconnected without sending \\n");
                 break;
