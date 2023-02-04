@@ -71,7 +71,7 @@ async fn process(
     let mut client_reader = BufReader::new(client_reader);
 
     tokio::spawn({
-        let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
+        let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
         async move {
             loop {
                 if let Ok(server_line) = read_next_line(&mut server_reader).await {
@@ -83,7 +83,7 @@ async fn process(
             }
         }
     });
-    let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,34}(?=\z| )").unwrap();
+    let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
     loop {
         let client_line = read_next_line(&mut client_reader).await?;
         let client_line = re.replace_all(&client_line, "7YWHMfk9JZe0LM0g1ZauHuiSxhI");
