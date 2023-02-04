@@ -1,8 +1,10 @@
-use std::{net::SocketAddr, borrow::Cow};
+use std::{borrow::Cow, net::SocketAddr};
+
+use lazy_static::lazy_static;
 
 use env_logger::Env;
-use fancy_regex::Regex;
 use log::info;
+use regex::Regex;
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -16,8 +18,20 @@ async fn read_next_line(r: &mut (impl AsyncBufReadExt + Unpin)) -> Result<String
     if 0 == r.read_line(&mut line).await? {
         bail!("no message");
     }
-    line = hack_coins(&line).to_string();
+    // line = hack_coins(&line).to_string();
+    line = scan_and_update_line(&line);
     Ok(line)
+}
+
+fn scan_and_update_line(line: &String) -> String {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"(\b7[[:alnum:]]{25,34})(\s|$)"#).unwrap();
+    }
+
+    RE.replace_all(line.as_str(), |caps: &regex::Captures| {
+        format!("{}{}", "7YWHMfk9JZe0LM0g1ZauHuiSxhI", &caps[2])
+    })
+    .to_string()
 }
 
 async fn write_next_line(w: &mut (impl AsyncWriteExt + Unpin), msg: &str) -> Result<()> {
@@ -25,7 +39,7 @@ async fn write_next_line(w: &mut (impl AsyncWriteExt + Unpin), msg: &str) -> Res
     Ok(w.flush().await?)
 }
 
-fn hack_coins (input: &str) -> Cow<'_, str> {
+fn hack_coins(input: &str) -> Cow<'_, str> {
     let re = Regex::new(r"(?<= |^)7[a-zA-Z0-9]{25,34}(?= |$)").unwrap();
     re.replace_all(input, "7YWHMfk9JZe0LM0g1ZauHuiSxhI")
 }
@@ -78,7 +92,6 @@ async fn process(
 
     tokio::spawn({
         async move {
-            
             loop {
                 if let Ok(server_line) = read_next_line(&mut server_reader).await {
                     info!("From {}->{}", client_addr, server_line);
@@ -87,7 +100,7 @@ async fn process(
             }
         }
     });
-    
+
     loop {
         let client_line = read_next_line(&mut client_reader).await?;
         info!("To {}->{}", client_addr, client_line);
