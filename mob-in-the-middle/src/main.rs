@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 
 use env_logger::Env;
-use log::{error, info, warn};
-
 use fancy_regex::Regex;
+use log::{info, warn};
+use tokio::select;
 
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::{TcpListener, TcpStream},
 };
 
@@ -131,7 +131,12 @@ async fn process(
         Ok::<(), anyhow::Error>(())
     };
 
-    let (_, _) = tokio::join!(client_to_server, server_to_client);
+    select! {
+        _ = client_to_server => {},
+        _ = server_to_client => {},
+    }
+
+    info!("Disconnect");
 
     Ok(())
 }
