@@ -95,7 +95,7 @@ async fn process(
         Ok::<(), anyhow::Error>(())
     };
 
-    let server_to_client = async move {
+    let server_to_client = async {
         let re = Regex::new(r"(?<=\A| )7[A-Za-z0-9]{25,35}(?=\z| )").unwrap();
         let mut server_line = String::with_capacity(1024);
 
@@ -106,7 +106,7 @@ async fn process(
                 .await
                 .expect("Unable to read server");
 
-            if bytes_read == 0 {
+            if bytes_read <= 1 {
                 warn!("EOF");
                 break;
             }
