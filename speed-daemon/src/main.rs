@@ -1,3 +1,6 @@
+
+mod message_types;
+
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -22,23 +25,27 @@ async fn main() -> Result<()> {
 
     loop {
         // The second item contains the ip and port of the new connection.
-        let (client_stream, addr) = listener.accept().await?;
+        let (client_stream, client_addr) = listener.accept().await?;
 
-        info!("New connection from {}", addr);
+        info!("New connection from {}", client_addr);
 
         // A new task is spawned for each inbound socket.  The socket is
         // moved to the new task and processed there.
         tokio::spawn(async move {
-            process(client_stream).await;
+            process(client_stream)
+                .await
+                .expect("Failed to spawn a new processor");
         });
     }
 }
 
-async fn process(stream: TcpStream) {
+async fn process(stream: TcpStream) -> anyhow::Result<()> {
     let (mut reader, mut writer) = tokio::io::split(stream);
 
     loop {
-        //declare a buffer precisely 9 bytes long
-        let mut msg_type: u8 = 0x0;
+        //Each message starts with a single u8 specifying the message type.
+        let mut msg_type = [1];
+
+        let n = reader.read_exact(&mut msg_type).await?;
     }
 }
