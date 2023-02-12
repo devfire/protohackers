@@ -1,3 +1,4 @@
+use speed_daemon::types::MessageType;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -6,7 +7,7 @@ use tokio::{
 use env_logger::Env;
 use log::{error, info};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,8 +42,18 @@ async fn process(stream: TcpStream) -> anyhow::Result<()> {
 
     loop {
         //Each message starts with a single u8 specifying the message type.
-        let mut msg_type = [1];
+        let mut read_buffer = [1];
 
-        let n = reader.read_exact(&mut msg_type).await?;
+        let n = reader.read_exact(&mut read_buffer).await?;
+
+        if n == 0 {
+            break;
+        }
+
+        if let Ok(msg_type) = MessageType::get_message_type(read_buffer[0]){
+
+        };
     }
+
+    Ok(())
 }
