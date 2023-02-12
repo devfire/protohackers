@@ -30,19 +30,19 @@ pub enum MessageType {
     },
 }
 
-impl MessageType {
-    // returns client->server message type.
-    // NOTE: message types not listed are server->client types.
-    pub fn get_message_type(msg_id: u8) -> Result<Self, SpeedDaemonError> {
-        match msg_id {
-            0x20 => Ok(Self::Plate {
-                plate: (),
-                timestamp: (),
-            }),
-            0x40 => Ok(Self::WantHeartbeat),
-            0x80 => Ok(Self::IAmCamera),
-            0x81 => Ok(Self::IAmDispatcher),
-            _ => Err(SpeedDaemonError::InvalidMessage),
-        }
-    }
-}
+// impl MessageType {
+//     // returns client->server message type.
+//     // NOTE: message types not listed are server->client types.
+//     pub fn get_message_type(msg_id: u8) -> Result<Self, SpeedDaemonError> {
+//         match msg_id {
+//             0x20 => Ok(Self::Plate {
+//                 plate: (),
+//                 timestamp: (),
+//             }),
+//             0x40 => Ok(Self::WantHeartbeat),
+//             0x80 => Ok(Self::IAmCamera),
+//             0x81 => Ok(Self::IAmDispatcher),
+//             _ => Err(SpeedDaemonError::InvalidMessage),
+//         }
+//     }
+// }
