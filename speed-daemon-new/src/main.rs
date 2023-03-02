@@ -3,7 +3,7 @@ use std::{env, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
-use anyhow::Error;
+use anyhow;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
