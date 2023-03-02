@@ -63,6 +63,6 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr) -> Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     Ok(())
 }
