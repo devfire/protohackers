@@ -1,7 +1,9 @@
-use std::env;
 use std::sync::Arc;
+use std::{env, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
+
+use anyhow::Error;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -59,4 +61,8 @@ async fn main() -> anyhow::Result<()> {
             }
         });
     }
+}
+
+async fn process(stream: TcpStream, addr: SocketAddr) -> Result<()> {
+    Ok(())
 }
