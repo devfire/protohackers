@@ -1,31 +1,23 @@
-use std::sync::Arc;
-use std::{env, net::SocketAddr};
+// use std::sync::Arc;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_util::codec::Framed;
 
-use anyhow;
+
+use env_logger::Env;
+use log::info;
+use tokio_util::codec::FramedRead;
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-    // Configure a `tracing` subscriber that logs traces emitted by the chat
-    // server.
-    tracing_subscriber::fmt()
-        // Filter what traces are displayed based on the RUST_LOG environment
-        // variable.
-        //
-        // Traces emitted by the example code will always be displayed. You
-        // can set `RUST_LOG=tokio=trace` to enable additional traces emitted by
-        // Tokio itself.
-        .with_env_filter(EnvFilter::from_default_env().add_directive("chat=info".parse()?))
-        // Log events when `tracing` spans are created, entered, exited, or
-        // closed. When Tokio's internal tracing support is enabled (as
-        // described above), this can be used to track the lifecycle of spawned
-        // tasks on the Tokio runtime.
-        .with_span_events(FmtSpan::FULL)
-        // Set this subscriber as the default, to collect all traces emitted by
-        // the program.
-        .init();
+    // Setup the logging framework
+    let env = Env::default()
+        .filter_or("LOG_LEVEL", "info")
+        .write_style_or("LOG_STYLE", "always");
+
+    env_logger::init_from_env(env);
+
+    info!("Starting the speed daemon server.");
 
     // Create the shared state. This is how all the peers communicate.
     //
@@ -34,16 +26,14 @@ async fn main() -> anyhow::Result<()> {
     // client connection.
     // let state = Arc::new(tokio::sync::Mutex::new(Shared::new()));
 
-    let addr = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "127.0.0.1:6142".to_string());
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
     // Bind a TCP listener to the socket address.
     //
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    tracing::info!("server running on {}", addr);
+    info!("server running on {}", addr);
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
@@ -54,15 +44,19 @@ async fn main() -> anyhow::Result<()> {
 
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
-            tracing::debug!("accepted connection");
+            info!("accepted connection from {}", addr);
             // if let Err(e) = process(state, stream, addr).await {
             if let Err(e) = process(stream, addr).await {
-                tracing::info!("an error occurred; error = {:?}", e);
+                info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
 async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
+    info!("Processing stream from {}", addr);
+    let (client_reader, mut client_writer) = stream.into_split();
+
+    let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
     Ok(())
 }
