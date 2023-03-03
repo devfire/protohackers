@@ -1,14 +1,11 @@
 // use std::sync::Arc;
+use speed_daemon::{codec::MessageCodec, message::MessageType};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use speed_daemon::codec::MessageCodec;
 use tokio::net::{TcpListener, TcpStream};
-
 
 use env_logger::Env;
 use log::info;
 use tokio_util::codec::FramedRead;
-
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -60,5 +57,16 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     let (client_reader, mut client_writer) = stream.into_split();
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
+
+    while let Some(message) = client_reader.next().await {
+        info!("From {}: {}", addr, message);
+
+        match message {
+            Ok(MessageType::Plate { plate, timestamp }) => handle_plate(MessageType::Plate {
+                plate: (),
+                timestamp: (),
+            }),
+        }
+    }
     Ok(())
 }

@@ -22,14 +22,11 @@ impl Decoder for MessageCodec {
     type Item = MessageType;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        todo!()
-    }
+        // if src.is_empty() {
+        //     return Ok(None);
+        // }
 
-    fn framed<T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Sized>(self, io: T) -> tokio_util::codec::Framed<T, Self>
-    where
-        Self: Sized,
-    {
-        tokio_util::codec::Framed::new(io, self)
+        
     }
 }
 
