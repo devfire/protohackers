@@ -7,5 +7,5 @@ pub enum SpeedDaemonError {
     /// the server must send the client an appropriate Error message,
     /// and immediately disconnect that client.
     #[error("Invalid message type")]
-    InvalidMessage,
+    InvalidMessage(#[from] std::io::Error),
 }
