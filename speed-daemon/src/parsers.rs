@@ -37,13 +37,17 @@ fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
 
 pub fn parse_want_heartbeat (input: &[u8]) -> IResult<&[u8], MessageType> {
     //0x40: WantHeartbeat (Client->Server)
-    let (input, _) = tag([0x20])(input)?;
+    let (input, _) = tag([0x40])(input)?;
     let (input, interval) = be_u32(input)?;
     Ok((input, MessageType::WantHeartbeat{interval}))
 }
 
 pub fn parse_i_am_camera (input: &[u8]) -> IResult<&[u8], MessageType> {
-    todo!()
+    //0x80: IAmCamera (Client->Server)
+    let (input, road) = be_u16(input)?;
+    let (input, mile) = be_u16(input)?;
+    let (input, limit) = be_u16(input)?;
+    Ok((input, MessageType::IAmCamera { road, mile, limit}))
 }
 
 pub fn parse_i_am_dispatcher (input: &[u8]) -> IResult<&[u8], MessageType> {
