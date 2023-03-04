@@ -21,7 +21,7 @@ fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     let (input, string_bytes) = take(length)(input)?;
 
     // Convert the bytes to a String
-    let string = String::from_utf8(string_bytes.to_vec()).map_err(|_| {
+    let plate = String::from_utf8(string_bytes.to_vec()).map_err(|_| {
         nom::Err::Failure(nom::error::Error::new(
             input,
             nom::error::ErrorKind::Char,
@@ -29,8 +29,8 @@ fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     })?;
 
     // timestamp: u32
-    let (input, ts) = be_u32(input)?;
+    let (input, timestamp) = be_u32(input)?;
 
     // Return the plate and the timestamp
-    Ok((input, MessageType::Plate { plate: string, timestamp: ts }))
+    Ok((input, MessageType::Plate { plate, timestamp }))
 }
