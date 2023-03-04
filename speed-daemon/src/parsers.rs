@@ -34,3 +34,29 @@ fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     // Return the plate and the timestamp
     Ok((input, MessageType::Plate { plate, timestamp }))
 }
+
+pub fn parse_want_heartbeat (input: &[u8]) -> IResult<&[u8], MessageType> {
+    //0x40: WantHeartbeat (Client->Server)
+    let (input, _) = tag([0x20])(input)?;
+    let (input, interval) = be_u32(input)?;
+    Ok((input, MessageType::WantHeartbeat{interval}))
+}
+
+pub fn parse_i_am_camera (input: &[u8]) -> IResult<&[u8], MessageType> {
+    todo!()
+}
+
+pub fn parse_i_am_dispatcher (input: &[u8]) -> IResult<&[u8], MessageType> {
+    todo!()
+}
+
+
+pub fn parse_message(input: &[u8]) -> IResult<&[u8], MessageType> {
+    let (input, message) = alt((
+        parse_plate,
+        parse_want_heartbeat,
+        parse_i_am_camera,
+        parse_i_am_dispatcher,
+    ))(input)?;
+    Ok((input, message))
+}

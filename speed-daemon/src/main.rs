@@ -1,5 +1,5 @@
 // use std::sync::Arc;
-use speed_daemon::{codec::MessageCodec, message::MessageType};
+use speed_daemon::{codec::MessageCodec, message::MessageType, errors::SpeedDaemonError};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -66,6 +66,8 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 plate: (),
                 timestamp: (),
             }),
+
+            _ => Err(SpeedDaemonError::InvalidMessage(()))
         }
     }
     Ok(())
