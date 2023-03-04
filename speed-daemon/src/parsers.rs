@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::streaming::{tag, take},
     error::{Error, ErrorKind},
-    multi::{length_count, length_data},
+    multi::{length_count, length_data, count},
     number::streaming::{be_u16, be_u32, be_u8, u8},
     sequence::delimited,
     Err, IResult,
@@ -44,6 +44,7 @@ pub fn parse_want_heartbeat (input: &[u8]) -> IResult<&[u8], MessageType> {
 
 pub fn parse_i_am_camera (input: &[u8]) -> IResult<&[u8], MessageType> {
     //0x80: IAmCamera (Client->Server)
+    let (input, _) = tag([0x80])(input)?;
     let (input, road) = be_u16(input)?;
     let (input, mile) = be_u16(input)?;
     let (input, limit) = be_u16(input)?;
@@ -51,7 +52,11 @@ pub fn parse_i_am_camera (input: &[u8]) -> IResult<&[u8], MessageType> {
 }
 
 pub fn parse_i_am_dispatcher (input: &[u8]) -> IResult<&[u8], MessageType> {
-    todo!()
+    // 0x81: IAmDispatcher (Client->Server)
+    let (input, _) = tag([0x81])(input)?;
+    let (input, numroads)  = be_u8(input)?;
+    let (input, roads) = length_count(u8, be_u16)(input)?;
+    Ok((input, MessageType::IAmDispatcher { numroads, roads }))
 }
 
 
