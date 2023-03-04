@@ -3,11 +3,13 @@ use thiserror::Error;
 /// SpeedDaemonError enumerates all possible errors returned by this library.
 #[derive(Error, Debug)]
 pub enum SpeedDaemonError {
-    /// When the client does something that this protocol specification declares "an error",
-    /// the server must send the client an appropriate Error message,
-    /// and immediately disconnect that client.
+    /// Received an invalid message type
     #[error("Invalid message type")]
     InvalidMessage,
+
+    /// Nom parser was unable to parse the in-bound message
+    #[error("Unable to parse message")]
+    ParseFailure,
 
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]

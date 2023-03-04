@@ -1,11 +1,13 @@
 // use std::sync::Arc;
-use speed_daemon::{codec::MessageCodec, message::MessageType, errors::SpeedDaemonError};
+use speed_daemon::{codec::MessageCodec, errors::SpeedDaemonError, message::InboundMessageType};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
 use env_logger::Env;
-use log::info;
+use log::{error, info};
 use tokio_util::codec::FramedRead;
+
+use futures::{SinkExt, Stream, StreamExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -59,16 +61,64 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
 
     while let Some(message) = client_reader.next().await {
-        info!("From {}: {}", addr, message);
+        info!("From {}: {:?}", addr, message);
 
         match message {
-            Ok(MessageType::Plate { plate, timestamp }) => handle_plate(MessageType::Plate {
-                plate: (),
-                timestamp: (),
+            Ok(InboundMessageType::Plate { plate, timestamp }) => {
+                handle_plate(InboundMessageType::Plate { plate, timestamp })
+            }
+
+            Ok(InboundMessageType::Ticket {
+                plate,
+                road,
+                mile1,
+                timestamp1,
+                mile2,
+                timestamp2,
+                speed,
+            }) => handle_ticket(InboundMessageType::Ticket {
+                plate,
+                road,
+                mile1,
+                timestamp1,
+                mile2,
+                timestamp2,
+                speed,
             }),
 
-            _ => Err(SpeedDaemonError::InvalidMessage)
+            Ok(InboundMessageType::WantHeartbeat { interval }) => {
+                handle_want_hearbeat(InboundMessageType::WantHeartbeat { interval })
+            }
+
+            Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
+                handle_i_am_camera(InboundMessageType::IAmCamera { road, mile, limit })
+            }
+
+            Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
+                handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
+            }
+            Err(_) => error!("Unknown message detected"),
         }
     }
     Ok(())
+}
+
+fn handle_plate(message: InboundMessageType::Plate) {
+    todo!()
+}
+
+fn handle_ticket(message: InboundMessageType::Ticket) {
+    todo!()
+}
+
+fn handle_want_hearbeat(message: InboundMessageType::WantHeartbeat) {
+    todo!()
+}
+
+fn handle_i_am_camera (message: InboundMessageType::IAmCamera) {
+    todo!()
+}
+
+fn handle_i_am_dispatcher(message: InboundMessageType::IAmDispatcher) {
+    todo!()
 }

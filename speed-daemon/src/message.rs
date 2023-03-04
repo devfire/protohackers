@@ -1,5 +1,5 @@
 #[derive(Clone, Debug)]
-pub enum MessageType {
+pub enum InboundMessageType {
     Plate {
         plate: String,
         timestamp: u32,
@@ -16,7 +16,6 @@ pub enum MessageType {
     WantHeartbeat {
         interval: u32,
     },
-    Heartbeat,
     IAmCamera {
         road: u16,
         mile: u16,

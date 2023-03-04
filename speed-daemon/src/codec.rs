@@ -1,8 +1,8 @@
 use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::{Buf, BufMut, BytesMut};
+use nom::{Err, Needed};
 use std::{cmp, fmt, io, str, usize};
-use nom::Err;
 
 use crate::{errors::SpeedDaemonError, message::MessageType, parsers::parse_message};
 
@@ -11,9 +11,9 @@ pub struct MessageCodec {}
 
 impl MessageCodec {
     /// Creates a new [`MessageCodec`].
-    pub fn new() -> Self { Self {  } }
-
-    
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 impl Decoder for MessageCodec {
@@ -26,14 +26,9 @@ impl Decoder for MessageCodec {
         // if src.is_empty() {
         //     return Ok(None);
         // }
-        match parse_message(&src) {
-            Ok((rest, val)) => {
-                src.advance(src.len() - rest.len());
-                Ok(Some(val))
-            }
-            Err(Err::Incomplete(_)) => Ok(None),
-            Err(Err::Error()) => Err(SpeedDaemonError::InvalidMessage("Badness"))
+        match parse_message(src) {
+            Err(Err::Incomplete(Needed::Size(_))) => Ok(None),
+            Result::Err(_) => Err(SpeedDaemonError::ParseFailure),
         }
-        
     }
 }
