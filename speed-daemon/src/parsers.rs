@@ -11,6 +11,9 @@ use nom::{
 use crate::message::MessageType;
 
 fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
+    // 0x20: Plate (Client->Server)
+    let (input, _) = tag([0x20])(input)?;
+
     // Parse the length byte
     let (input, length) = be_u8(input)?;
 
@@ -25,8 +28,9 @@ fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
         ))
     })?;
 
+    // timestamp: u32
     let (input, ts) = be_u32(input)?;
 
-    // Return the length and the string as a tuple
+    // Return the plate and the timestamp
     Ok((input, MessageType::Plate { plate: string, timestamp: ts }))
 }
