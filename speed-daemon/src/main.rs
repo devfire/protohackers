@@ -67,7 +67,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 timestamp: (),
             }),
 
-            _ => Err(SpeedDaemonError::InvalidMessage(()))
+            _ => Err(SpeedDaemonError::InvalidMessage)
         }
     }
     Ok(())

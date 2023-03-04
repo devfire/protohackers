@@ -2,8 +2,8 @@ use nom::{
     branch::alt,
     bytes::streaming::{tag, take},
     multi::length_count,
-    number::streaming::{be_u16, be_u32, be_u8, u8},
-    IResult,
+    number::streaming::{be_u16, be_u32, u8, be_u8},
+    Err, IResult,
 };
 
 use crate::message::MessageType;

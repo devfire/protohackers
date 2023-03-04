@@ -2,6 +2,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::{Buf, BufMut, BytesMut};
 use std::{cmp, fmt, io, str, usize};
+use nom::Err;
 
 use crate::{errors::SpeedDaemonError, message::MessageType, parsers::parse_message};
 
@@ -31,14 +32,8 @@ impl Decoder for MessageCodec {
                 Ok(Some(val))
             }
             Err(Err::Incomplete(_)) => Ok(None),
+            Err(Err::Error()) => Err(SpeedDaemonError::InvalidMessage("Badness"))
         }
         
     }
 }
-
-impl Default for MessageCodec {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
