@@ -60,8 +60,8 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
 ///
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
-    let ascii_str = std::str::from_utf8(input).expect("Unable to convert to ASCII.");
-    println!("Attempting to parse {}", ascii_str);
+    
+    println!("Attempting to parse {:?}", input);
     
     let (input, message) = alt((
         parse_plate,
