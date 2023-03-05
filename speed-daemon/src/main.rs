@@ -103,22 +103,22 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_plate(message: InboundMessageType::Plate) {
+fn handle_plate(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_ticket(message: InboundMessageType::Ticket) {
+fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_want_hearbeat(message: InboundMessageType::WantHeartbeat) {
+fn handle_want_hearbeat(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_i_am_camera (message: InboundMessageType::IAmCamera) {
+fn handle_i_am_camera (message: InboundMessageType) {
     todo!()
 }
 
-fn handle_i_am_dispatcher(message: InboundMessageType::IAmDispatcher) {
+fn handle_i_am_dispatcher(message: InboundMessageType) {
     todo!()
 }

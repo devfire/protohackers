@@ -54,6 +54,11 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
     Ok((input, InboundMessageType::IAmDispatcher { numroads, roads }))
 }
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
     let (input, message) = alt((
         parse_plate,
