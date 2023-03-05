@@ -6,6 +6,8 @@ use nom::{
     Err, IResult,
 };
 
+use hex;
+
 use crate::message::InboundMessageType;
 
 fn parse_plate(input: &[u8]) -> nom::IResult<&[u8], InboundMessageType> {
@@ -60,10 +62,7 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
 ///
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
-    print!("Trying to parse: ");
-    for byte in input {
-        print!("{:02x}", byte);
-    }
+    let hex_string = hex::encode(&input);
     let (input, message) = alt((
         parse_plate,
         parse_want_heartbeat,
