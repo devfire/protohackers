@@ -29,13 +29,13 @@ impl Decoder for MessageCodec {
     type Item = InboundMessageType;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        // if src.is_empty() {
-        //     return Ok(None);
-        // }
+        if src.is_empty() {
+            return Ok(None);
+        }
         match parse_message(src) {
             Ok(parsed_message) => Ok(Some(parsed_message.1)),
             Err(Err::Incomplete(Needed::Size(_))) => Ok(None),
-            Result::Err(_) => Err(SpeedDaemonError::ParseFailure),
+            Err(_) => Err(SpeedDaemonError::ParseFailure),
         }
     }
 }
