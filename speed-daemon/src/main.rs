@@ -65,7 +65,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(InboundMessageType::Plate { plate, timestamp })
+                handle_plate(plate, timestamp)
             }
 
             Ok(InboundMessageType::Ticket {
@@ -87,7 +87,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
             }),
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                handle_want_hearbeat(InboundMessageType::WantHeartbeat { interval })
+                handle_want_hearbeat(interval, addr)
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
@@ -103,7 +103,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_plate(message: InboundMessageType) {
+fn handle_plate(plate: String, timestamp: u32) {
     todo!()
 }
 
@@ -111,8 +111,8 @@ fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_want_hearbeat(message: InboundMessageType) {
-    todo!()
+fn handle_want_hearbeat(interval: u32, client_address: SocketAddr) {
+    info!("Client {} requested a heartbeat every {} deciseconds.", interval, client_address)
 }
 
 fn handle_i_am_camera (message: InboundMessageType) {
