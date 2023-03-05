@@ -112,7 +112,7 @@ fn handle_ticket(message: InboundMessageType) {
 }
 
 fn handle_want_hearbeat(interval: u32, client_address: SocketAddr) {
-    info!("Client {} requested a heartbeat every {} deciseconds.", interval, client_address)
+    info!("Client {} requested a heartbeat every {} deciseconds.", client_address, interval)
 }
 
 fn handle_i_am_camera (message: InboundMessageType) {
