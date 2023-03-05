@@ -1,8 +1,8 @@
 use tokio_util::codec::{Decoder, Encoder};
 
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BytesMut};
 use nom::{Err, Needed};
-use std::{cmp, fmt, io, str, usize};
+// use std::{cmp, fmt, io, str, usize};
 
 use crate::{errors::SpeedDaemonError, message::InboundMessageType, parsers::parse_message};
 
@@ -33,7 +33,14 @@ impl Decoder for MessageCodec {
             return Ok(None);
         }
         match parse_message(src) {
-            Ok(parsed_message) => Ok(Some(parsed_message.1)),
+            Ok((remaining_bytes, parsed_message)) => {
+                // advance the cursor by the difference between what we read
+                // and what we parsed
+                src.advance(src.len() - remaining_bytes.len());
+
+                // return the parsed message
+                Ok(Some(parsed_message))
+            }
             Err(Err::Incomplete(Needed::Size(_))) => Ok(None),
             Err(_) => Err(SpeedDaemonError::ParseFailure),
         }
