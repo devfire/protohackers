@@ -2,9 +2,12 @@ use nom::{
     branch::alt,
     bytes::streaming::{tag, take},
     multi::length_count,
-    number::streaming::{be_u16, be_u32, u8, be_u8},
+    number::streaming::{be_u16, be_u32, be_u8, u8},
     Err, IResult,
 };
+
+use env_logger::Env;
+use log::info;
 
 use crate::message::InboundMessageType;
 
@@ -60,6 +63,15 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
 ///
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
+    // Setup the logging framework
+    let env = Env::default()
+        .filter_or("LOG_LEVEL", "info")
+        .write_style_or("LOG_STYLE", "always");
+
+    env_logger::init_from_env(env);
+    let ascii_str = std::str::from_utf8(input).expect("Unable to convert to ASCII.");
+    info!("Attempting to parse {}", ascii_str);
+    
     let (input, message) = alt((
         parse_plate,
         parse_want_heartbeat,
