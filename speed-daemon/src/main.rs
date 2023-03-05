@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    info!("server running on {}", addr);
+    info!("Server running on {}", addr);
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
 
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
-            info!("accepted connection from {}", addr);
+            info!("Accepted connection from {}", addr);
             // if let Err(e) = process(state, stream, addr).await {
             if let Err(e) = process(stream, addr).await {
                 info!("an error occurred; error = {:?}", e);
