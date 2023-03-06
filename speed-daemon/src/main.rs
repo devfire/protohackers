@@ -12,6 +12,8 @@ use tokio_rusqlite::Connection;
 use env_logger::Env;
 use log::{error, info};
 use tokio_util::codec::FramedRead;
+use tokio::time::{sleep, Duration};
+
 
 use futures::{SinkExt, Stream, StreamExt};
 
@@ -63,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
             info!("Accepted connection from {}", addr);
 
             if let Err(e) = process(stream, addr, &conn).await {
-                info!("an error occurred; error = {:?}", e);
+                error!("an error occurred; error = {:?}", e);
             }
         });
     }
@@ -144,6 +146,7 @@ async fn handle_want_hearbeat(
         return Ok(())
     }
 
+    // ephemeral struct to hold the results of the sql query
     #[derive(Debug)]
     struct Heartbeat {
         id: u32,
@@ -179,6 +182,13 @@ async fn handle_want_hearbeat(
             beat.id, beat.interval, beat.ip
         )
     }
+
+    tokio::spawn(async move {
+        info!("Sending a heartbeat to {} every {} second", client_address, interval);
+        loop {
+
+        }
+    }).await?;
 
     Ok(())
 }

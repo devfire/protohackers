@@ -1,3 +1,5 @@
+use bytes::{BytesMut, BufMut};
+
 #[derive(Clone, Debug)]
 pub enum InboundMessageType {
     Plate {
@@ -25,4 +27,20 @@ pub enum InboundMessageType {
         numroads: u8,
         roads: Vec<u16>,
     },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum OutboundMessageType {
+    Heartbeat,
+}
+
+impl OutboundMessageType {
+    pub fn convert_to_bytes (&self, dst: &mut BytesMut) {
+        match self {
+            // 0x41: Heartbeat (Server->Client)
+            OutboundMessageType::Heartbeat => {
+                dst.put_u8(0x41);
+            }
+        }
+    }
 }
