@@ -140,7 +140,7 @@ async fn handle_want_hearbeat(
 
     #[derive(Debug)]
     struct Heartbeat {
-        id: i32,
+        id: u32,
         ip: String,
         interval: u32,
     }
@@ -168,7 +168,10 @@ async fn handle_want_hearbeat(
         .await?;
 
     for beat in beats {
-        info!("Added heartbeat every {} deciseconds for {}", beat.interval, beat.ip)
+        info!(
+            "Added heartbeat {} every {} deciseconds for {}",
+            beat.id, beat.interval, beat.ip
+        )
     }
 
     Ok(())
