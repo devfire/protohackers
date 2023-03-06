@@ -148,7 +148,7 @@ async fn handle_want_hearbeat(
     let beats = conn
         .call(move |conn| {
             conn.execute(
-                "INSERT INTO heartbeat (name, data) VALUES (?1, ?2)",
+                "INSERT INTO heartbeat (ip, interval) VALUES (?1, ?2)",
                 params![client_address.to_string(), interval],
             )?;
 
