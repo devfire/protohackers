@@ -132,11 +132,17 @@ async fn handle_want_hearbeat(
     client_address: SocketAddr,
     interval: u32,
     conn: &Connection,
-) -> rusqlite::Result<()> {
+) -> anyhow::Result<()> {
     info!(
         "Client {} requested a heartbeat every {} deciseconds.",
         client_address, interval
     );
+
+    // if interval is 0 that means no heartbeat was requested, so we exit
+    if interval == 0 {
+        info!("Interval is 0, exiting");
+        return Ok(())
+    }
 
     #[derive(Debug)]
     struct Heartbeat {
