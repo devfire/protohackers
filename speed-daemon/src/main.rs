@@ -152,7 +152,7 @@ async fn handle_want_hearbeat(
                 params![client_address.to_string(), interval],
             )?;
 
-            let mut stmt = conn.prepare("SELECT id, name, data FROM heartbeat")?;
+            let mut stmt = conn.prepare("SELECT id, ip, interval FROM heartbeat")?;
             let beats = stmt
                 .query_map([], |row| {
                     Ok(Heartbeat {
