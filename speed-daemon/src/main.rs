@@ -11,9 +11,8 @@ use tokio_rusqlite::Connection;
 
 use env_logger::Env;
 use log::{error, info};
-use tokio_util::codec::FramedRead;
 use tokio::time::{sleep, Duration};
-
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 use futures::{SinkExt, Stream, StreamExt};
 
@@ -77,9 +76,10 @@ async fn process(
     connection: &Connection,
 ) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
-    let (client_reader, mut client_writer) = stream.into_split();
+    let (client_reader, client_writer) = stream.into_split();
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
+    let client_writer = FramedWrite::new(client_writer, MessageCodec::new());
 
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
@@ -106,7 +106,7 @@ async fn process(
             }),
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                handle_want_hearbeat(addr, interval, &connection).await?
+                handle_want_hearbeat(addr, interval, connection, &client_writer).await?
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
@@ -134,6 +134,7 @@ async fn handle_want_hearbeat(
     client_address: SocketAddr,
     interval: u32,
     conn: &Connection,
+    writer: FramedWrite<tokio::net::tcp::OwnedWriteHalf, MessageCodec>,
 ) -> anyhow::Result<()> {
     info!(
         "Client {} requested a heartbeat every {} deciseconds.",
@@ -143,7 +144,7 @@ async fn handle_want_hearbeat(
     // if interval is 0 that means no heartbeat was requested, so we exit
     if interval == 0 {
         info!("Interval is 0, exiting");
-        return Ok(())
+        return Ok(());
     }
 
     // ephemeral struct to hold the results of the sql query
@@ -184,11 +185,13 @@ async fn handle_want_hearbeat(
     }
 
     tokio::spawn(async move {
-        info!("Sending a heartbeat to {} every {} second", client_address, interval);
-        loop {
-
-        }
-    }).await?;
+        info!(
+            "Sending a heartbeat to {} every {} second",
+            client_address, interval
+        );
+        loop {}
+    })
+    .await?;
 
     Ok(())
 }
