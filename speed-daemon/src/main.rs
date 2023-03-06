@@ -28,20 +28,19 @@ async fn main() -> anyhow::Result<()> {
 
     let conn = Connection::open_in_memory().await?;
 
-    // Create the shared state. This is how all the peers communicate.
+    // Create the shared state tables.
     //
-    let heartbeat = conn
-        .call(|conn| {
-            conn.execute(
-                "CREATE TABLE heartbeat (
+    conn.call(|conn| {
+        conn.execute(
+            "CREATE TABLE heartbeat (
             id INTEGER PRIMARY KEY,
             ip TEXT NOT NULL,
             interval INTEGER)",
-                [],
-            )
-            .unwrap();
-        })
-        .await;
+            [],
+        )
+        .expect("Failed to create sqlite tables");
+    })
+    .await;
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
@@ -58,11 +57,11 @@ async fn main() -> anyhow::Result<()> {
 
         // Clone a handle to the `Shared` state for the new connection.
         let conn = conn.clone();
-            
+
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            
+
             if let Err(e) = process(stream, addr, &conn).await {
                 info!("an error occurred; error = {:?}", e);
             }
@@ -70,7 +69,11 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, connection: &Connection) -> anyhow::Result<()> {
+async fn process(
+    stream: TcpStream,
+    addr: SocketAddr,
+    connection: &Connection,
+) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, mut client_writer) = stream.into_split();
 
@@ -101,7 +104,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, connection: &Connection) -
             }),
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                handle_want_hearbeat(addr, interval)
+                handle_want_hearbeat(addr, interval, &connection).await?
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
@@ -125,11 +128,50 @@ fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_want_hearbeat(client_address: SocketAddr, interval: u32) {
+async fn handle_want_hearbeat(
+    client_address: SocketAddr,
+    interval: u32,
+    conn: &Connection,
+) -> rusqlite::Result<()> {
     info!(
         "Client {} requested a heartbeat every {} deciseconds.",
         client_address, interval
-    )
+    );
+
+    #[derive(Debug)]
+    struct Heartbeat {
+        id: i32,
+        ip: String,
+        interval: u32,
+    }
+
+    let beats = conn
+        .call(move |conn| {
+            conn.execute(
+                "INSERT INTO heartbeat (name, data) VALUES (?1, ?2)",
+                params![client_address.to_string(), interval],
+            )?;
+
+            let mut stmt = conn.prepare("SELECT id, name, data FROM heartbeat")?;
+            let beats = stmt
+                .query_map([], |row| {
+                    Ok(Heartbeat {
+                        id: row.get(0)?,
+                        ip: row.get(1)?,
+                        interval: row.get(2)?,
+                    })
+                })?
+                .collect::<Result<Vec<Heartbeat>, rusqlite::Error>>()?;
+
+            Ok::<_, rusqlite::Error>(beats)
+        })
+        .await?;
+
+    for beat in beats {
+        info!("Added heartbeat every {} deciseconds for {}", beat.interval, beat.ip)
+    }
+
+    Ok(())
 }
 
 fn handle_i_am_camera(message: InboundMessageType) {
