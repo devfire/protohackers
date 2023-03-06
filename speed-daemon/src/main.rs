@@ -1,7 +1,13 @@
 // use std::sync::Arc;
-use speed_daemon::{codec::MessageCodec, errors::SpeedDaemonError, message::InboundMessageType};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use rusqlite::{params, Result};
+use speed_daemon::{codec::MessageCodec, message::InboundMessageType};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::{Arc, Mutex},
+};
 use tokio::net::{TcpListener, TcpStream};
+use tokio_rusqlite::Connection;
 
 use env_logger::Env;
 use log::{error, info};
@@ -20,12 +26,22 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting the speed daemon server.");
 
+    let conn = Connection::open_in_memory().await?;
+
     // Create the shared state. This is how all the peers communicate.
     //
-    // The server task will hold a handle to this. For every new client, the
-    // `state` handle is cloned and passed into the task that processes the
-    // client connection.
-    // let state = Arc::new(tokio::sync::Mutex::new(Shared::new()));
+    let heartbeat = conn
+        .call(|conn| {
+            conn.execute(
+                "CREATE TABLE heartbeat (
+            id INTEGER PRIMARY KEY,
+            ip TEXT NOT NULL,
+            interval INTEGER)",
+                [],
+            )
+            .unwrap();
+        })
+        .await;
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
@@ -41,20 +57,20 @@ async fn main() -> anyhow::Result<()> {
         let (stream, addr) = listener.accept().await?;
 
         // Clone a handle to the `Shared` state for the new connection.
-        // let state = Arc::clone(&state);
-
+        let conn = conn.clone();
+            
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            // if let Err(e) = process(state, stream, addr).await {
-            if let Err(e) = process(stream, addr).await {
+            
+            if let Err(e) = process(stream, addr, &conn).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr, connection: &Connection) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, mut client_writer) = stream.into_split();
 
@@ -64,9 +80,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
         info!("From {}: {:?}", addr, message);
 
         match message {
-            Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp)
-            }
+            Ok(InboundMessageType::Plate { plate, timestamp }) => handle_plate(plate, timestamp),
 
             Ok(InboundMessageType::Ticket {
                 plate,
@@ -87,7 +101,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
             }),
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                handle_want_hearbeat(interval, addr)
+                handle_want_hearbeat(addr, interval)
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
@@ -111,11 +125,14 @@ fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_want_hearbeat(interval: u32, client_address: SocketAddr) {
-    info!("Client {} requested a heartbeat every {} deciseconds.", client_address, interval)
+fn handle_want_hearbeat(client_address: SocketAddr, interval: u32) {
+    info!(
+        "Client {} requested a heartbeat every {} deciseconds.",
+        client_address, interval
+    )
 }
 
-fn handle_i_am_camera (message: InboundMessageType) {
+fn handle_i_am_camera(message: InboundMessageType) {
     todo!()
 }
 
