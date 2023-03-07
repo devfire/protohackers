@@ -61,12 +61,12 @@ async fn main() -> anyhow::Result<()> {
 
 async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
-    // let (client_reader, client_writer) = stream.into_split();
 
-    // let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
-    // let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
-
+    // A unified [`Stream`] and [`Sink`] interface to an underlying I/O object, using
+    // the `Encoder` and `Decoder` traits to encode and decode frames.
+    // NOTE: split is not necessary here since Framed does both read & write.
     let mut framed: Framed<TcpStream, MessageCodec> = Framed::new(stream, MessageCodec {});
+
     while let Some(message) = framed.try_next().await? {
         info!("From {}: {:?}", addr, message);
 
