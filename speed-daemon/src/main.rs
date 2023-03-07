@@ -1,13 +1,17 @@
 // use std::sync::Arc;
-use speed_daemon::{codec::MessageCodec, errors::SpeedDaemonError, message::InboundMessageType};
+use speed_daemon::{
+    codec::MessageCodec,
+    errors::SpeedDaemonError,
+    message::{InboundMessageType, OutboundMessageType},
+};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
 use env_logger::Env;
 use log::{error, info};
-use tokio_util::codec::FramedRead;
+use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
-use futures::{SinkExt, Stream, StreamExt};
+use futures::{SinkExt, Stream, StreamExt, TryStreamExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -56,19 +60,19 @@ async fn main() -> anyhow::Result<()> {
 
 async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
-    let (client_reader, mut client_writer) = stream.into_split();
+    // let (client_reader, client_writer) = stream.into_split();
 
-    let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
+    // let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
+    // let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
 
-    while let Some(message) = client_reader.next().await {
+    let mut framed: Framed<TcpStream, MessageCodec> = Framed::new(stream, MessageCodec {});
+    while let Some(message) = framed.try_next().await? {
         info!("From {}: {:?}", addr, message);
 
         match message {
-            Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp)
-            }
+            InboundMessageType::Plate { plate, timestamp } => handle_plate(plate, timestamp),
 
-            Ok(InboundMessageType::Ticket {
+            InboundMessageType::Ticket {
                 plate,
                 road,
                 mile1,
@@ -76,7 +80,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 mile2,
                 timestamp2,
                 speed,
-            }) => handle_ticket(InboundMessageType::Ticket {
+            } => handle_ticket(InboundMessageType::Ticket {
                 plate,
                 road,
                 mile1,
@@ -86,18 +90,17 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 speed,
             }),
 
-            Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                handle_want_hearbeat(interval, addr)
+            InboundMessageType::WantHeartbeat { interval } => {
+                info!("Client {} requested heartbeat every {} deciseconds.", addr, interval);
             }
 
-            Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
+            InboundMessageType::IAmCamera { road, mile, limit } => {
                 handle_i_am_camera(InboundMessageType::IAmCamera { road, mile, limit })
             }
 
-            Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
+            InboundMessageType::IAmDispatcher { numroads, roads } => {
                 handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
             }
-            Err(_) => error!("Unknown message detected"),
         }
     }
     Ok(())
@@ -111,11 +114,11 @@ fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_want_hearbeat(interval: u32, client_address: SocketAddr) {
-    info!("Client {} requested a heartbeat every {} deciseconds.", client_address, interval)
+fn handle_want_hearbeat( interval: u32) {
+    todo!()
 }
 
-fn handle_i_am_camera (message: InboundMessageType) {
+fn handle_i_am_camera(message: InboundMessageType) {
     todo!()
 }
 
