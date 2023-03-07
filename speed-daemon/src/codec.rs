@@ -4,7 +4,11 @@ use bytes::{Buf, BytesMut};
 use nom::{Err, Needed};
 // use std::{cmp, fmt, io, str, usize};
 
-use crate::{errors::SpeedDaemonError, message::InboundMessageType, parsers::parse_message};
+use crate::{
+    errors::SpeedDaemonError,
+    message::{InboundMessageType, OutboundMessageType},
+    parsers::parse_message,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct MessageCodec {}
@@ -45,4 +49,21 @@ impl Decoder for MessageCodec {
             Err(_) => Err(SpeedDaemonError::ParseFailure),
         }
     }
+}
+
+impl Encoder<OutboundMessageType> for MessageCodec {
+    type Error = SpeedDaemonError;
+
+    fn encode(&mut self, item: OutboundMessageType, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        match item {
+            OutboundMessageType::Heartbeat => {
+                dst.reserve(1);
+                
+            }
+        }
+
+        Ok(())
+    }
+
+    
 }

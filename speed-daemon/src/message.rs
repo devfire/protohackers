@@ -26,3 +26,9 @@ pub enum InboundMessageType {
         roads: Vec<u16>,
     },
 }
+
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum OutboundMessageType {
+    Heartbeat,
+}
