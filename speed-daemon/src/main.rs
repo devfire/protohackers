@@ -10,7 +10,7 @@ use env_logger::Env;
 use log::{error, info};
 use tokio_util::codec::Framed;
 
-use futures::{SinkExt, TryStreamExt};
+use futures::TryStreamExt;
 
 use tokio::time::{sleep, Duration};
 
@@ -117,22 +117,23 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(unused)]
 fn handle_plate(plate: String, timestamp: u32) {
     todo!()
 }
-
+#[allow(unused)]
 fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
-
+#[allow(unused)]
 fn handle_want_hearbeat(interval: u32) {
     todo!()
 }
-
+#[allow(unused)]
 fn handle_i_am_camera(message: InboundMessageType) {
     todo!()
 }
-
+#[allow(unused)]
 fn handle_i_am_dispatcher(message: InboundMessageType) {
     todo!()
 }
