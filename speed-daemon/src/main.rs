@@ -106,7 +106,7 @@ async fn process(
             }),
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                handle_want_hearbeat(addr, interval, connection, &client_writer).await?
+                handle_want_hearbeat(addr, interval, connection);
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
@@ -130,11 +130,10 @@ fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-async fn handle_want_hearbeat(
+fn handle_want_hearbeat(
     client_address: SocketAddr,
     interval: u32,
-    conn: &Connection,
-    writer: FramedWrite<tokio::net::tcp::OwnedWriteHalf, MessageCodec>,
+    conn: &Connection
 ) -> anyhow::Result<()> {
     info!(
         "Client {} requested a heartbeat every {} deciseconds.",
@@ -174,8 +173,7 @@ async fn handle_want_hearbeat(
                 .collect::<Result<Vec<Heartbeat>, rusqlite::Error>>()?;
 
             Ok::<_, rusqlite::Error>(beats)
-        })
-        .await?;
+        });
 
     for beat in beats {
         info!(
@@ -184,14 +182,6 @@ async fn handle_want_hearbeat(
         )
     }
 
-    tokio::spawn(async move {
-        info!(
-            "Sending a heartbeat to {} every {} second",
-            client_address, interval
-        );
-        loop {}
-    })
-    .await?;
 
     Ok(())
 }
