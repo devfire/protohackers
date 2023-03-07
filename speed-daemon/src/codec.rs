@@ -1,6 +1,6 @@
 use tokio_util::codec::{Decoder, Encoder};
 
-use bytes::{Buf, BytesMut};
+use bytes::{Buf, BufMut, BytesMut};
 use nom::{Err, Needed};
 // use std::{cmp, fmt, io, str, usize};
 
@@ -58,12 +58,10 @@ impl Encoder<OutboundMessageType> for MessageCodec {
         match item {
             OutboundMessageType::Heartbeat => {
                 dst.reserve(1);
-                
+                dst.put_u8(0x41);
             }
         }
 
         Ok(())
     }
-
-    
 }
