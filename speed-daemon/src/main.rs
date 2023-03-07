@@ -1,7 +1,6 @@
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
-    errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
 };
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -9,9 +8,11 @@ use tokio::net::{TcpListener, TcpStream};
 
 use env_logger::Env;
 use log::{error, info};
-use tokio_util::codec::{Framed, FramedRead, FramedWrite};
+use tokio_util::codec::Framed;
 
-use futures::{SinkExt, Stream, StreamExt, TryStreamExt};
+use futures::{SinkExt, TryStreamExt};
+
+use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -52,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
             info!("Accepted connection from {}", addr);
             // if let Err(e) = process(state, stream, addr).await {
             if let Err(e) = process(stream, addr).await {
-                info!("an error occurred; error = {:?}", e);
+                error!("an error occurred; error = {:?}", e);
             }
         });
     }
@@ -91,7 +92,17 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
             }),
 
             InboundMessageType::WantHeartbeat { interval } => {
-                info!("Client {} requested heartbeat every {} deciseconds.", addr, interval);
+                info!(
+                    "Client {} requested heartbeat every {} deciseconds.",
+                    addr, interval
+                );
+
+                // Spawn our handler to be run asynchronously.
+                tokio::spawn(async move {
+                    loop {
+                        sleep(Duration::from_secs(interval as u64)).await;
+                    }
+                });
             }
 
             InboundMessageType::IAmCamera { road, mile, limit } => {
@@ -102,7 +113,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
             }
         }
-    }
+    } // end of while
     Ok(())
 }
 
@@ -114,7 +125,7 @@ fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
-fn handle_want_hearbeat( interval: u32) {
+fn handle_want_hearbeat(interval: u32) {
     todo!()
 }
 
