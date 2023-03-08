@@ -144,6 +144,7 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
             tx.send(OutboundMessageType::Heartbeat)
                 .await
                 .expect("Unable to send heartbeat");
+            let interval = interval / 10;
             sleep(Duration::from_secs(interval as u64)).await;
         }
     });
