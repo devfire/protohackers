@@ -61,6 +61,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
     let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
+    
     // The mpsc channel is used to send commands to the task managing the client connection.
     // The multi-producer capability allows messages to be sent from many tasks.
     // Creating the channel returns two values, a sender and a receiver.
@@ -72,7 +73,9 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     // calling send(...).await will go to sleep until a message has been removed by the receiver.
     let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(32);
 
-    // Spawn off a writer manager loop
+    // Spawn off a writer manager loop.
+    // In order to send a message back to the clients, all threads must use mpsc channel to publish data
+    // to be sent. The manager will then proxy data and send on behalf of threads.
     tokio::spawn(async move {
         // Start receiving messages
         while let Some(msg) = rx.recv().await {
