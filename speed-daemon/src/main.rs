@@ -113,8 +113,13 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                     "Client {} requested a heartbeat every {} deciseconds.",
                     addr, interval
                 );
-                let tx_heartbeat = tx.clone();
-                handle_want_hearbeat(interval, tx_heartbeat);
+                // if interal is 0 then no heartbeat
+                if interval == 0 {
+                    return Ok(());
+                } else {
+                    let tx_heartbeat = tx.clone();
+                    handle_want_hearbeat(interval, tx_heartbeat);
+                }
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
