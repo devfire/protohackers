@@ -3,7 +3,7 @@ use nom::{
     bytes::streaming::{tag, take},
     multi::length_count,
     number::streaming::{be_u16, be_u32, be_u8, u8},
-    IResult,
+    Err, IResult,
 };
 
 use hex;

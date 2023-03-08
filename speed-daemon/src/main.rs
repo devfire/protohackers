@@ -4,15 +4,18 @@ use speed_daemon::{
     message::{InboundMessageType, OutboundMessageType},
 };
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::mpsc,
+    time::{sleep, Duration},
+};
 
 use env_logger::Env;
 use log::{error, info};
-use tokio_util::codec::Framed;
+use tokio_util::codec::{FramedRead, FramedWrite};
 
-use futures::TryStreamExt;
-
-use tokio::time::{sleep, Duration};
+use futures::sink::SinkExt;
+use futures::{Stream, StreamExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -24,13 +27,6 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(env);
 
     info!("Starting the speed daemon server.");
-
-    // Create the shared state. This is how all the peers communicate.
-    //
-    // The server task will hold a handle to this. For every new client, the
-    // `state` handle is cloned and passed into the task that processes the
-    // client connection.
-    // let state = Arc::new(tokio::sync::Mutex::new(Shared::new()));
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
@@ -53,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
             info!("Accepted connection from {}", addr);
             // if let Err(e) = process(state, stream, addr).await {
             if let Err(e) = process(stream, addr).await {
-                error!("an error occurred; error = {:?}", e);
+                info!("an error occurred; error = {:?}", e);
             }
         });
     }
@@ -61,19 +57,40 @@ async fn main() -> anyhow::Result<()> {
 
 async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
+    let (client_reader, client_writer) = stream.into_split();
 
-    // A unified [`Stream`] and [`Sink`] interface to an underlying I/O object, using
-    // the `Encoder` and `Decoder` traits to encode and decode frames.
-    // NOTE: split is not necessary here since Framed does both read & write.
-    let mut framed: Framed<TcpStream, MessageCodec> = Framed::new(stream, MessageCodec {});
+    let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
+    let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
+    // The mpsc channel is used to send commands to the task managing the client connection.
+    // The multi-producer capability allows messages to be sent from many tasks.
+    // Creating the channel returns two values, a sender and a receiver.
+    // The two handles are used separately. They may be moved to different tasks.
+    //
+    // NOTE: The channel is created with a capacity of 32.
+    // If messages are sent faster than they are received, the channel will store them.
+    // Once the 32 messages are stored in the channel,
+    // calling send(...).await will go to sleep until a message has been removed by the receiver.
+    let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(32);
 
-    while let Some(message) = framed.try_next().await? {
+    // Spawn off a writer manager loop
+    tokio::spawn(async move {
+        // Start receiving messages
+        while let Some(msg) = rx.recv().await {
+            info!("Sending {:?} to {}", msg, addr);
+            client_writer
+                .send(msg)
+                .await
+                .expect("Unable to send message");
+        }
+    });
+
+    while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
 
         match message {
-            InboundMessageType::Plate { plate, timestamp } => handle_plate(plate, timestamp),
+            Ok(InboundMessageType::Plate { plate, timestamp }) => handle_plate(plate, timestamp),
 
-            InboundMessageType::Ticket {
+            Ok(InboundMessageType::Ticket {
                 plate,
                 road,
                 mile1,
@@ -81,7 +98,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 mile2,
                 timestamp2,
                 speed,
-            } => handle_ticket(InboundMessageType::Ticket {
+            }) => handle_ticket(InboundMessageType::Ticket {
                 plate,
                 road,
                 mile1,
@@ -91,49 +108,51 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 speed,
             }),
 
-            InboundMessageType::WantHeartbeat { interval } => {
+            Ok(InboundMessageType::WantHeartbeat { interval }) => {
                 info!(
-                    "Client {} requested heartbeat every {} deciseconds.",
+                    "Client {} requested a heartbeat every {} deciseconds.",
                     addr, interval
                 );
-
-                // Spawn our handler to be run asynchronously.
-                tokio::spawn(async move {
-                    loop {
-                        sleep(Duration::from_secs(interval as u64)).await;
-                    }
-                });
+                let tx_heartbeat = tx.clone();
+                handle_want_hearbeat(interval, tx_heartbeat);
             }
 
-            InboundMessageType::IAmCamera { road, mile, limit } => {
+            Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 handle_i_am_camera(InboundMessageType::IAmCamera { road, mile, limit })
             }
 
-            InboundMessageType::IAmDispatcher { numroads, roads } => {
+            Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
                 handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
             }
+            Err(_) => error!("Unknown message detected"),
         }
-    } // end of while
+    }
     Ok(())
 }
 
-#[allow(unused)]
 fn handle_plate(plate: String, timestamp: u32) {
     todo!()
 }
-#[allow(unused)]
+
 fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
-#[allow(unused)]
-fn handle_want_hearbeat(interval: u32) {
-    todo!()
+
+fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
+    tokio::spawn(async move {
+        loop {
+            tx.send(OutboundMessageType::Heartbeat)
+                .await
+                .expect("Unable to send heartbeat");
+            sleep(Duration::from_secs(interval as u64)).await;
+        }
+    });
 }
-#[allow(unused)]
+
 fn handle_i_am_camera(message: InboundMessageType) {
     todo!()
 }
-#[allow(unused)]
+
 fn handle_i_am_dispatcher(message: InboundMessageType) {
     todo!()
 }
