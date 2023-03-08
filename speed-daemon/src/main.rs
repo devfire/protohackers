@@ -115,7 +115,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
                 );
                 // if interal is 0 then no heartbeat
                 if interval == 0 {
-                    return Ok(());
+                    info!("Interval is 0, no heartbeat.")
                 } else {
                     let tx_heartbeat = tx.clone();
                     handle_want_hearbeat(interval, tx_heartbeat);
