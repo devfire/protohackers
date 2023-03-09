@@ -17,6 +17,9 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
 
+use rusqlite::{params, Result};
+use tokio_rusqlite::Connection;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Setup the logging framework
