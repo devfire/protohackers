@@ -38,10 +38,11 @@ async fn main() -> anyhow::Result<()> {
     conn.call(|conn| {
         conn.execute(
             "CREATE TABLE cameras (
-            road INTEGER NOT NULL,
-            mile INTEGER NOT NULL,
-            limit INTEGER NOT NULL,
-            PRIMARY KEY (road, mile))",
+                road INTEGER NOT NULL,
+                mile INTEGER NOT NULL,
+                speed_limit INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (road, mile)
+            )",
             [],
         )
         .expect("Failed to create sqlite tables");
