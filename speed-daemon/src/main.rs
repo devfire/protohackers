@@ -31,6 +31,23 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting the speed daemon server.");
 
+    let conn = Connection::open_in_memory().await?;
+
+    // Create the shared state table.
+    //
+    conn.call(|conn| {
+        conn.execute(
+            "CREATE TABLE cameras (
+            road INTEGER NOT NULL,
+            mile INTEGER NOT NULL,
+            limit INTEGER NOT NULL,
+            PRIMARY KEY (road, mile))",
+            [],
+        )
+        .expect("Failed to create sqlite tables");
+    })
+    .await;
+
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
     // Bind a TCP listener to the socket address.
@@ -137,7 +154,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
-                error!("{}",err_message);
+                error!("{}", err_message);
                 let tx_error = tx.clone();
                 handle_error(err_message, tx_error);
             }
