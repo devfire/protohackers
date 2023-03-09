@@ -31,4 +31,7 @@ pub enum InboundMessageType {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum OutboundMessageType {
     Heartbeat,
+
+    //0x10: Error (Server->Client)
+    Error(String),
 }

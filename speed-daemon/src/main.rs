@@ -1,7 +1,7 @@
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
-    message::{InboundMessageType, OutboundMessageType},
+    message::{InboundMessageType, OutboundMessageType}, errors::SpeedDaemonError,
 };
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
@@ -138,6 +138,11 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn handle_error(err: SpeedDaemonError) {
+    tokio::spawn(async move {
+        
+    });
+}
 fn handle_plate(plate: String, timestamp: u32) {
     todo!()
 }
