@@ -62,8 +62,10 @@ impl Encoder<OutboundMessageType> for MessageCodec {
             }
 
             OutboundMessageType::Error(err_msg) => {
+                // 1 byte for the message ID, remaining for the length of error message string
                 let buffer_size = 1 + err_msg.len();
                 dst.reserve(buffer_size);
+                
                 dst.put_u8(0x10);
                 dst.put(err_msg.as_bytes());
             }

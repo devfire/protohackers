@@ -1,7 +1,7 @@
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
-    message::{InboundMessageType, OutboundMessageType}, errors::SpeedDaemonError,
+    message::{InboundMessageType, OutboundMessageType},
 };
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
@@ -61,7 +61,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
     let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
-    
+
     // The mpsc channel is used to send commands to the task managing the client connection.
     // The multi-producer capability allows messages to be sent from many tasks.
     // Creating the channel returns two values, a sender and a receiver.
@@ -74,8 +74,8 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(32);
 
     // Spawn off a writer manager loop.
-    // In order to send a message back to the clients, all threads must use mpsc channel to publish data
-    // to be sent. The manager will then proxy data and send on behalf of threads.
+    // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
+    // The manager will then proxy the data and send it on behalf of threads.
     tokio::spawn(async move {
         // Start receiving messages
         while let Some(msg) = rx.recv().await {
@@ -132,17 +132,25 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
                 handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
             }
-            Err(_) => error!("Unknown message detected"),
+            Err(_) => {
+                let err_message = String::from("Unknown message detected");
+                error!("{}",err_message);
+                let tx_error = tx.clone();
+                handle_error(err_message, tx_error);
+            }
         }
     }
     Ok(())
 }
 
-fn handle_error(err: SpeedDaemonError) {
+fn handle_error(error_message: String, tx: mpsc::Sender<OutboundMessageType>) {
     tokio::spawn(async move {
-        
+        tx.send(OutboundMessageType::Error(error_message))
+            .await
+            .expect("Unable to send error message");
     });
 }
+
 fn handle_plate(plate: String, timestamp: u32) {
     todo!()
 }
