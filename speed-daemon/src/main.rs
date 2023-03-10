@@ -30,11 +30,10 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(env);
 
     info!("Starting the speed daemon server.");
-
-    let conn = Connection::open_in_memory().await?;
-
     // Create the shared state table.
     //
+    let conn = Connection::open_in_memory().await?;
+
     conn.call(|conn| {
         conn.execute(
             "CREATE TABLE cameras (
@@ -69,14 +68,14 @@ async fn main() -> anyhow::Result<()> {
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
             // if let Err(e) = process(state, stream, addr).await {
-            if let Err(e) = process(stream, addr).await {
+            if let Err(e) = process(stream, addr, &conn).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr, conn: &Connection) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -147,7 +146,7 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
-                handle_i_am_camera(InboundMessageType::IAmCamera { road, mile, limit })
+                handle_i_am_camera(road, mile, limit, &conn)
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -192,8 +191,41 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
-fn handle_i_am_camera(message: InboundMessageType) {
-    todo!()
+fn handle_i_am_camera(road: u16, mile: u16, limit: u16, conn: &Connection) {
+    // ephemeral struct to hold the results of the sql query
+    #[derive(Debug)]
+    struct Camera {
+        road: u16,
+        mile: u16,
+        speed_limit: u16,
+    }
+
+    let cameras = conn.call(move |conn| {
+        // conn.execute(
+        //     "INSERT INTO heartbeat (ip, interval) VALUES (?1, ?2)",
+        //     params![client_address.to_string(), interval],
+        // )?;
+
+        let mut stmt = conn.prepare("SELECT road, mile, speed_limit FROM cameras")?;
+        let cameras = stmt
+            .query_map([], |row| {
+                Ok(Camera {
+                    road: row.get(0)?,
+                    mile: row.get(1)?,
+                    speed_limit: row.get(2)?,
+                })
+            })?
+            .collect::<Result<Vec<Camera>, rusqlite::Error>>()?;
+
+        Ok::<_, rusqlite::Error>(cameras)
+    });
+
+    // for camera in cameras {
+    //     info!(
+    //         "Added camera on road {} mile {} speed limit {}",
+    //         camera.road, beat.interval, beat.ip
+    //     )
+    // }
 }
 
 fn handle_i_am_dispatcher(message: InboundMessageType) {
