@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting the speed daemon server.");
 
-    // Create the shared state table.
+    // Create the shared state tables.
     let conn = Connection::open_in_memory().await?;
 
     conn.call(|conn| {
@@ -50,6 +50,20 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to create sqlite tables");
     })
     .await;
+
+    conn.call(|conn| {
+        conn.execute(
+            "CREATE TABLE plates (
+                plate TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                PRIMARY KEY (plate, timestamp)
+            )",
+            [],
+        )
+        .expect("Failed to create sqlite tables");
+    })
+    .await;
+    // -- end of shared state setup ---
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
@@ -114,7 +128,9 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyho
         info!("From {}: {:?}", addr, message);
 
         match message {
-            Ok(InboundMessageType::Plate { plate, timestamp }) => handle_plate(plate, timestamp),
+            Ok(InboundMessageType::Plate { plate, timestamp }) => {
+                handle_plate(plate, timestamp, conn.clone()).await?
+            }
 
             Ok(InboundMessageType::Ticket {
                 plate,
@@ -181,10 +197,17 @@ fn handle_error(
     Ok(())
 }
 
-#[allow(unused)]
-fn handle_plate(plate: String, timestamp: u32) {
-    todo!()
+async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow::Result<()> {
+    info!("Inserting plate: {} timestamp: {}", plate, timestamp);
+
+    let insert_query = "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)";
+
+    conn.call(move |conn| conn.execute(insert_query, params![plate, timestamp]))
+        .await?;
+
+    Ok(())
 }
+
 #[allow(unused)]
 fn handle_ticket(message: InboundMessageType) {
     todo!()
@@ -216,13 +239,15 @@ async fn handle_i_am_camera(
     //     mile: u16,
     //     speed_limit: u16,
     // }
+    info!(
+        "Inserting camera road: {} mile: {} limit: {}",
+        road, mile, speed_limit
+    );
 
     let insert_query = "INSERT INTO cameras (road, mile, speed_limit) VALUES (?1, ?2, ?3)";
 
     conn.call(move |conn| conn.execute(insert_query, params![road, mile, speed_limit]))
         .await?;
-
-    
 
     // for camera in cameras {
     //     info!(
