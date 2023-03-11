@@ -222,6 +222,8 @@ async fn handle_i_am_camera(
     conn.call(move |conn| conn.execute(insert_query, params![road, mile, speed_limit]))
         .await?;
 
+    
+
     // for camera in cameras {
     //     info!(
     //         "Added camera on road {} mile {} speed limit {}",
