@@ -22,6 +22,7 @@ use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
 
 use rusqlite::{params, Result};
+use tokio::task::JoinHandle;
 use tokio_rusqlite::Connection;
 
 #[tokio::main]
@@ -71,14 +72,14 @@ async fn main() -> anyhow::Result<()> {
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, &conn).await {
+            if let Err(e) = process(stream, addr, conn).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, conn: &Connection) -> anyhow::Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -150,7 +151,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: &Connection) -> anyh
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
-                handle_i_am_camera(road, mile, limit, &tx, conn)?
+                handle_i_am_camera(road, mile, limit, &tx, conn.clone()).await?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -199,12 +200,12 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
-fn handle_i_am_camera(
+async fn handle_i_am_camera(
     road: u16,
     mile: u16,
     speed_limit: u16,
     tx: &mpsc::Sender<OutboundMessageType>,
-    conn: &Connection,
+    conn: Connection,
 ) -> anyhow::Result<()> {
     // ephemeral struct to hold the results of the sql query
     #[derive(Debug)]
@@ -214,6 +215,10 @@ fn handle_i_am_camera(
         speed_limit: u16,
     }
 
+    let insert_query = "INSERT INTO cameras (road, mile, speed_limit) VALUES (?1, ?2, ?3)";
+
+    conn.call(move |conn| conn.execute(insert_query, params![road, mile, speed_limit]))
+        .await?;
 
     // for camera in cameras {
     //     info!(
