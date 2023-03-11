@@ -1,7 +1,6 @@
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
-    errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
 };
 use std::{
@@ -22,7 +21,6 @@ use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
 
 use rusqlite::{params, Result};
-use tokio::task::JoinHandle;
 use tokio_rusqlite::Connection;
 
 #[tokio::main]
@@ -161,7 +159,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyho
                 let err_message = String::from("Unknown message detected");
                 error!("{}", err_message);
                 let tx_error = tx.clone();
-                handle_error(err_message, tx_error);
+                handle_error(err_message, tx_error)?;
             }
         }
     }
@@ -171,12 +169,16 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyho
     Ok(())
 }
 
-fn handle_error(error_message: String, tx: mpsc::Sender<OutboundMessageType>) {
+fn handle_error(
+    error_message: String,
+    tx: mpsc::Sender<OutboundMessageType>,
+) -> anyhow::Result<()> {
     tokio::spawn(async move {
         tx.send(OutboundMessageType::Error(error_message))
             .await
             .expect("Unable to send error message");
     });
+    Ok(())
 }
 
 #[allow(unused)]
@@ -189,7 +191,7 @@ fn handle_ticket(message: InboundMessageType) {
 }
 
 fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
-    let send_heartbeat = tokio::spawn(async move {
+    tokio::spawn(async move {
         loop {
             tx.send(OutboundMessageType::Heartbeat)
                 .await
