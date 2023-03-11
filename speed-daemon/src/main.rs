@@ -210,12 +210,12 @@ async fn handle_i_am_camera(
     conn: Connection,
 ) -> anyhow::Result<()> {
     // ephemeral struct to hold the results of the sql query
-    #[derive(Debug)]
-    struct Camera {
-        road: u16,
-        mile: u16,
-        speed_limit: u16,
-    }
+    // #[derive(Debug)]
+    // struct Camera {
+    //     road: u16,
+    //     mile: u16,
+    //     speed_limit: u16,
+    // }
 
     let insert_query = "INSERT INTO cameras (road, mile, speed_limit) VALUES (?1, ?2, ?3)";
 
