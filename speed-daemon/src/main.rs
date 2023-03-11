@@ -1,9 +1,13 @@
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
+    errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
 };
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::mpsc::Receiver,
+};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
@@ -30,8 +34,8 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init_from_env(env);
 
     info!("Starting the speed daemon server.");
+
     // Create the shared state table.
-    //
     let conn = Connection::open_in_memory().await?;
 
     conn.call(|conn| {
@@ -62,12 +66,11 @@ async fn main() -> anyhow::Result<()> {
         let (stream, addr) = listener.accept().await?;
 
         // Clone a handle to the `Shared` state for the new connection.
-        // let state = Arc::clone(&state);
+        let conn = conn.clone();
 
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            // if let Err(e) = process(state, stream, addr).await {
             if let Err(e) = process(stream, addr, &conn).await {
                 info!("an error occurred; error = {:?}", e);
             }
@@ -96,8 +99,9 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: &Connection) -> anyh
     // Spawn off a writer manager loop.
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
-    tokio::spawn(async move {
+    let manager = tokio::spawn(async move {
         // Start receiving messages
+
         while let Some(msg) = rx.recv().await {
             info!("Sending {:?} to {}", msg, addr);
             client_writer
@@ -146,7 +150,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: &Connection) -> anyh
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
-                handle_i_am_camera(road, mile, limit, &conn)
+                handle_i_am_camera(road, mile, limit, &tx, conn)?
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -160,6 +164,9 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: &Connection) -> anyh
             }
         }
     }
+
+    // .await the join handles to ensure the commands fully complete before the process exits.
+    manager.await?;
     Ok(())
 }
 
@@ -171,16 +178,17 @@ fn handle_error(error_message: String, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
+#[allow(unused)]
 fn handle_plate(plate: String, timestamp: u32) {
     todo!()
 }
-
+#[allow(unused)]
 fn handle_ticket(message: InboundMessageType) {
     todo!()
 }
 
 fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
-    tokio::spawn(async move {
+    let send_heartbeat = tokio::spawn(async move {
         loop {
             tx.send(OutboundMessageType::Heartbeat)
                 .await
@@ -191,7 +199,13 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
-fn handle_i_am_camera(road: u16, mile: u16, limit: u16, conn: &Connection) {
+fn handle_i_am_camera(
+    road: u16,
+    mile: u16,
+    speed_limit: u16,
+    tx: &mpsc::Sender<OutboundMessageType>,
+    conn: &Connection,
+) -> anyhow::Result<()> {
     // ephemeral struct to hold the results of the sql query
     #[derive(Debug)]
     struct Camera {
@@ -200,25 +214,6 @@ fn handle_i_am_camera(road: u16, mile: u16, limit: u16, conn: &Connection) {
         speed_limit: u16,
     }
 
-    let cameras = conn.call(move |conn| {
-        // conn.execute(
-        //     "INSERT INTO heartbeat (ip, interval) VALUES (?1, ?2)",
-        //     params![client_address.to_string(), interval],
-        // )?;
-
-        let mut stmt = conn.prepare("SELECT road, mile, speed_limit FROM cameras")?;
-        let cameras = stmt
-            .query_map([], |row| {
-                Ok(Camera {
-                    road: row.get(0)?,
-                    mile: row.get(1)?,
-                    speed_limit: row.get(2)?,
-                })
-            })?
-            .collect::<Result<Vec<Camera>, rusqlite::Error>>()?;
-
-        Ok::<_, rusqlite::Error>(cameras)
-    });
 
     // for camera in cameras {
     //     info!(
@@ -226,6 +221,7 @@ fn handle_i_am_camera(road: u16, mile: u16, limit: u16, conn: &Connection) {
     //         camera.road, beat.interval, beat.ip
     //     )
     // }
+    Ok(())
 }
 
 fn handle_i_am_dispatcher(message: InboundMessageType) {

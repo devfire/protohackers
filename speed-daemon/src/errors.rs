@@ -7,6 +7,10 @@ pub enum SpeedDaemonError {
     #[error("Unable to parse message")]
     ParseFailure,
 
+    /// Nom parser was unable to parse the in-bound message
+    #[error("Duplicate camera detected")]
+    DuplicateCamera,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
