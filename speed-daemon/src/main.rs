@@ -47,11 +47,8 @@ async fn main() -> anyhow::Result<()> {
             )",
             [],
         )
-        .expect("Failed to create sqlite tables");
-    })
-    .await;
+        .expect("Failed to create sqlite table");
 
-    conn.call(|conn| {
         conn.execute(
             "CREATE TABLE plates (
                 plate TEXT NOT NULL,
@@ -60,10 +57,9 @@ async fn main() -> anyhow::Result<()> {
             )",
             [],
         )
-        .expect("Failed to create sqlite tables");
+        .expect("Failed to create plates table");
     })
     .await;
-    // -- end of shared state setup ---
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
@@ -198,13 +194,41 @@ fn handle_error(
 }
 
 async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow::Result<()> {
+    #[derive(Debug)]
+    struct Plate {
+        plate: String,
+        timestamp: u32,
+    }
+
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     let insert_query = "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)";
 
-    conn.call(move |conn| conn.execute(insert_query, params![plate, timestamp]))
+    let plates = conn
+        .call(|conn| {
+            conn.execute(insert_query, [])?;
+
+            let mut stmt = conn.prepare("SELECT plate, timestamp FROM plates")?;
+            let plates = stmt
+                .query_map([], |row| {
+                    Ok(Plate {
+                        plate: row.get(0)?,
+                        timestamp: row.get(1)?,
+                    })
+                })?
+                .collect::<Result<Vec<Plate>, rusqlite::Error>>()?;
+
+            Ok::<_, rusqlite::Error>(plates)
+        })
         .await?;
 
+    // Let's see if we need to issue a ticket
+    for plate in plates {
+        info!(
+            "Retrieved plate: {} timestamp: {}",
+            plate.plate, plate.timestamp
+        );
+    }
     Ok(())
 }
 
