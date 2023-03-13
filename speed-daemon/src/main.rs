@@ -231,12 +231,12 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     // Let's see if we need to issue a ticket
-    for plate in plates {
-        info!(
-            "Retrieved plate: {} timestamp: {}",
-            plate.plate, plate.timestamp
-        );
-    }
+    // for plate in plates {
+    //     info!(
+    //         "Retrieved plate: {} timestamp: {}",
+    //         plate.plate, plate.timestamp
+    //     );
+    // }
     Ok(())
 }
 
@@ -264,13 +264,6 @@ async fn handle_i_am_camera(
     tx: &mpsc::Sender<OutboundMessageType>,
     conn: Connection,
 ) -> anyhow::Result<()> {
-    // ephemeral struct to hold the results of the sql query
-    // #[derive(Debug)]
-    // struct Camera {
-    //     road: u16,
-    //     mile: u16,
-    //     speed_limit: u16,
-    // }
     info!(
         "Inserting camera road: {} mile: {} limit: {}",
         road, mile, speed_limit
@@ -280,13 +273,7 @@ async fn handle_i_am_camera(
 
     conn.call(move |conn| conn.execute(insert_query, params![road, mile, speed_limit]))
         .await?;
-
-    // for camera in cameras {
-    //     info!(
-    //         "Added camera on road {} mile {} speed limit {}",
-    //         camera.road, beat.interval, beat.ip
-    //     )
-    // }
+    
     Ok(())
 }
 
