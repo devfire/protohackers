@@ -36,7 +36,6 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-
     // Create the shared state tables. There's a set of these per client.
     let conn = Connection::open_in_memory().await?;
 
@@ -198,6 +197,14 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
     }
 
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
+
+    conn.call(move |conn| {
+        conn.execute(
+            "INSERT INTO plates (name, data) VALUES (?1, ?2)",
+            params![plate, timestamp],
+        )
+    })
+    .await?;
 
     let speed_limits = conn
         .call(move |conn| {
