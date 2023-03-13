@@ -36,33 +36,6 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    // Bind a TCP listener to the socket address.
-    //
-    // Note that this is the Tokio TcpListener, which is fully async.
-    let listener = TcpListener::bind(&addr).await?;
-
-    info!("Server running on {}", addr);
-
-    loop {
-        // Asynchronously wait for an inbound TcpStream.
-        let (stream, addr) = listener.accept().await?;
-
-        // Spawn our handler to be run asynchronously.
-        tokio::spawn(async move {
-            info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr).await {
-                info!("an error occurred; error = {:?}", e);
-            }
-        });
-    }
-}
-
-async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
-    info!("Processing stream from {}", addr);
-    let (client_reader, client_writer) = stream.into_split();
-
-    let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
-    let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
 
     // Create the shared state tables. There's a set of these per client.
     let conn = Connection::open_in_memory().await?;
@@ -90,6 +63,34 @@ async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
         .expect("Failed to create plates table");
     })
     .await;
+
+    // Bind a TCP listener to the socket address.
+    //
+    // Note that this is the Tokio TcpListener, which is fully async.
+    let listener = TcpListener::bind(&addr).await?;
+
+    info!("Server running on {}", addr);
+
+    loop {
+        // Asynchronously wait for an inbound TcpStream.
+        let (stream, addr) = listener.accept().await?;
+        let conn = conn.clone();
+        // Spawn our handler to be run asynchronously.
+        tokio::spawn(async move {
+            info!("Accepted connection from {}", addr);
+            if let Err(e) = process(stream, addr, conn).await {
+                info!("an error occurred; error = {:?}", e);
+            }
+        });
+    }
+}
+
+async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyhow::Result<()> {
+    info!("Processing stream from {}", addr);
+    let (client_reader, client_writer) = stream.into_split();
+
+    let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
+    let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
 
     // The mpsc channel is used to send commands to the task managing the client connection.
     // The multi-producer capability allows messages to be sent from many tasks.
@@ -198,27 +199,22 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
 
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
-    let speed_limit = conn
+    let speed_limits = conn
         .call(move |conn| {
             let mut stmt = conn.prepare("SELECT speed_limit FROM cameras LIMIT 1")?;
-            let speed_limit = stmt
+            let speed_limits = stmt
                 .query_map([], |row| {
                     Ok(Road {
                         speed_limit: row.get(0)?,
                     })
                 })?
                 .collect::<Result<Vec<Road>, rusqlite::Error>>()?;
-            Ok::<_, rusqlite::Error>(speed_limit)
+            Ok::<_, rusqlite::Error>(speed_limits)
         })
         .await?;
 
-    // Let's see if we need to issue a ticket
-    // for plate in plates {
-    //     info!(
-    //         "Retrieved plate: {} timestamp: {}",
-    //         plate.plate, plate.timestamp
-    //     );
-    // }
+    info!("This road's speed limit is {}", speed_limits[0].speed_limit);
+
     Ok(())
 }
 
