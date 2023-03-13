@@ -47,27 +47,24 @@ async fn main() -> anyhow::Result<()> {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
 
-        // Clone a handle to the `Shared` state for the new connection.
-        let conn = conn.clone();
-
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, conn).await {
+            if let Err(e) = process(stream, addr).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyhow::Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
     let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
 
-    // Create the shared state tables. There's a set per client.
+    // Create the shared state tables. There's a set of these per client.
     let conn = Connection::open_in_memory().await?;
 
     conn.call(|conn| {
@@ -195,40 +192,25 @@ fn handle_error(
 
 async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow::Result<()> {
     #[derive(Debug)]
-    struct Plate {
-        plate: String,
-        timestamp: u32,
-    }
-
-    let plates = conn
-        .call(|conn| {
-            let insert_plate_sql = "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)";
-            conn.execute(insert_plate_sql, [plate, timestamp.to_string()])?;
-
-            let mut stmt = conn.prepare("SELECT plate, timestamp FROM plates")?;
-            let plates = stmt
-                .query_map([], |row| {
-                    Ok(Plate {
-                        plate: row.get(0)?,
-                        timestamp: row.get(1)?,
-                    })
-                })?
-                .collect::<Result<Vec<Plate>, rusqlite::Error>>()?;
-
-            Ok::<_, rusqlite::Error>(plates)
-        })
-        .await;
-
-    if let Err(e) = plates {
-        error!(
-            "No plate: {} timestamp: {} found, inserting.",
-            plate, timestamp
-        );
-    } else {
-        info!("Plate")
+    struct Road {
+        speed_limit: i32,
     }
 
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
+
+    let speed_limit = conn
+        .call(move |conn| {
+            let mut stmt = conn.prepare("SELECT speed_limit FROM cameras LIMIT 1")?;
+            let speed_limit = stmt
+                .query_map([], |row| {
+                    Ok(Road {
+                        speed_limit: row.get(0)?,
+                    })
+                })?
+                .collect::<Result<Vec<Road>, rusqlite::Error>>()?;
+            Ok::<_, rusqlite::Error>(speed_limit)
+        })
+        .await?;
 
     // Let's see if we need to issue a ticket
     // for plate in plates {
@@ -271,9 +253,10 @@ async fn handle_i_am_camera(
 
     let insert_query = "INSERT INTO cameras (road, mile, speed_limit) VALUES (?1, ?2, ?3)";
 
+    // NOTE: there is one speed limit per road
     conn.call(move |conn| conn.execute(insert_query, params![road, mile, speed_limit]))
         .await?;
-    
+
     Ok(())
 }
 
