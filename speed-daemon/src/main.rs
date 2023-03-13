@@ -34,33 +34,6 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting the speed daemon server.");
 
-    // Create the shared state tables.
-    let conn = Connection::open_in_memory().await?;
-
-    conn.call(|conn| {
-        conn.execute(
-            "CREATE TABLE cameras (
-                road INTEGER NOT NULL,
-                mile INTEGER NOT NULL,
-                speed_limit INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (road, mile)
-            )",
-            [],
-        )
-        .expect("Failed to create sqlite table");
-
-        conn.execute(
-            "CREATE TABLE plates (
-                plate TEXT NOT NULL,
-                timestamp INTEGER NOT NULL,
-                PRIMARY KEY (plate, timestamp)
-            )",
-            [],
-        )
-        .expect("Failed to create plates table");
-    })
-    .await;
-
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
     // Bind a TCP listener to the socket address.
@@ -93,6 +66,33 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyho
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
     let mut client_writer = FramedWrite::new(client_writer, MessageCodec::new());
+
+    // Create the shared state tables. There's a set per client.
+    let conn = Connection::open_in_memory().await?;
+
+    conn.call(|conn| {
+        conn.execute(
+            "CREATE TABLE cameras (
+                    road INTEGER NOT NULL,
+                    mile INTEGER NOT NULL,
+                    speed_limit INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (road, mile)
+                )",
+            [],
+        )
+        .expect("Failed to create sqlite table");
+
+        conn.execute(
+            "CREATE TABLE plates (
+                    plate TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL,
+                    PRIMARY KEY (plate, timestamp)
+                )",
+            [],
+        )
+        .expect("Failed to create plates table");
+    })
+    .await;
 
     // The mpsc channel is used to send commands to the task managing the client connection.
     // The multi-producer capability allows messages to be sent from many tasks.
@@ -200,13 +200,10 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         timestamp: u32,
     }
 
-    info!("Inserting plate: {} timestamp: {}", plate, timestamp);
-
-    let insert_query = "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)";
-
     let plates = conn
         .call(|conn| {
-            conn.execute(insert_query, [])?;
+            let insert_plate_sql = "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)";
+            conn.execute(insert_plate_sql, [plate, timestamp.to_string()])?;
 
             let mut stmt = conn.prepare("SELECT plate, timestamp FROM plates")?;
             let plates = stmt
@@ -220,7 +217,18 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
 
             Ok::<_, rusqlite::Error>(plates)
         })
-        .await?;
+        .await;
+
+    if let Err(e) = plates {
+        error!(
+            "No plate: {} timestamp: {} found, inserting.",
+            plate, timestamp
+        );
+    } else {
+        info!("Plate")
+    }
+
+    info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     // Let's see if we need to issue a ticket
     for plate in plates {
