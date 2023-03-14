@@ -96,6 +96,8 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
     // calling send(...).await will go to sleep until a message has been removed by the receiver.
     let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(32);
 
+    
+
     // Spawn off a writer manager loop.
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
@@ -187,6 +189,21 @@ fn handle_error(
 async fn handle_plate(plate: String, timestamp: u32, db: Db) -> anyhow::Result<()> {
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
+    let new_plate = InboundMessageType::Plate { plate, timestamp };
+
+    let mut db = db.lock().expect("Unable to lock shared db");
+    db.push(new_plate);
+
+    for item in db.iter() {
+        match item {
+            InboundMessageType::IAmCamera { road, mile, limit } => {
+                if *road == 123 as u16 {
+                    info!("Speed limit is {}", limit);
+                }
+            },
+            _ => (),
+        }
+    }
     // Since we said "LIMIT 1" we only ever get one value, hence [0]
     info!("This road's speed limit is {}", speed_limits[0].speed_limit);
 
