@@ -96,8 +96,6 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
     // calling send(...).await will go to sleep until a message has been removed by the receiver.
     let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(32);
 
-    
-
     // Spawn off a writer manager loop.
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
@@ -113,12 +111,15 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
         }
     });
 
+    type Road = Arc<Mutex<u16>>;
+    let current_road = Arc::new(Mutex::new(0));
+
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp, db.clone()).await?
+                handle_plate(plate, timestamp, db.clone(), current_road.clone()).await?
             }
 
             Ok(InboundMessageType::Ticket {
@@ -154,7 +155,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
-                handle_i_am_camera(road, mile, limit, &tx, db.clone()).await?;
+                handle_i_am_camera(road, mile, limit, &tx, db.clone(), current_road.clone()).await?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -186,7 +187,7 @@ fn handle_error(
     Ok(())
 }
 
-async fn handle_plate(plate: String, timestamp: u32, db: Db) -> anyhow::Result<()> {
+async fn handle_plate(plate: String, timestamp: u32, db: Db, my_road: Arc<Mutex<u16>>) -> anyhow::Result<()> {
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     let new_plate = InboundMessageType::Plate { plate, timestamp };
@@ -194,23 +195,15 @@ async fn handle_plate(plate: String, timestamp: u32, db: Db) -> anyhow::Result<(
     let mut db = db.lock().expect("Unable to lock shared db");
     db.push(new_plate);
 
+    let my_road = my_road.lock().expect("Unable to lock the current road for editing");
+
     for item in db.iter() {
-        match item {
-            InboundMessageType::IAmCamera { road, mile, limit } => {
-                if *road == 123 as u16 {
-                    info!("Speed limit is {}", limit);
-                }
-            },
-            _ => (),
+        if let InboundMessageType::IAmCamera { road, mile, limit } = item {
+            if *road == *my_road {
+                info!("Speed limit is {}", limit);
+            }
         }
     }
-    // Since we said "LIMIT 1" we only ever get one value, hence [0]
-    info!("This road's speed limit is {}", speed_limits[0].speed_limit);
-
-    info!(
-        "Travel time is {} distance traveled is {}",
-        travel_times[0].time, distances_traveled[0].miles
-    );
 
     Ok(())
 }
@@ -238,6 +231,7 @@ async fn handle_i_am_camera(
     limit: u16,
     tx: &mpsc::Sender<OutboundMessageType>,
     db: Db,
+    my_road: Arc<Mutex<u16>>,
 ) -> anyhow::Result<()> {
     info!(
         "Inserting camera road: {} mile: {} limit: {}",
@@ -248,6 +242,10 @@ async fn handle_i_am_camera(
 
     let mut db = db.lock().expect("Unable to lock shared db");
     db.push(new_camera);
+
+    // Set the current thread road so we can look up the speed limit later
+    let mut my_road = my_road.lock().expect("Unable to lock the current road for editing");
+    *my_road = road;
 
     Ok(())
 }
