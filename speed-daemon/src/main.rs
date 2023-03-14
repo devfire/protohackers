@@ -1,3 +1,4 @@
+use bytes::Bytes;
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
@@ -20,8 +21,10 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
 
-use rusqlite::{params, Result};
-use tokio_rusqlite::Connection;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+type Db = Arc<Mutex<HashMap<String, Bytes>>>;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,32 +39,7 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    // Create the shared state tables. There's a set of these per client.
-    let conn = Connection::open_in_memory().await?;
-
-    conn.call(|conn| {
-        conn.execute(
-            "CREATE TABLE cameras (
-                    road INTEGER NOT NULL,
-                    mile INTEGER NOT NULL,
-                    speed_limit INTEGER NOT NULL DEFAULT 0,
-                    PRIMARY KEY (road, mile)
-                )",
-            [],
-        )
-        .expect("Failed to create sqlite table");
-
-        conn.execute(
-            "CREATE TABLE plates (
-                    plate TEXT NOT NULL,
-                    timestamp INTEGER NOT NULL,
-                    PRIMARY KEY (plate, timestamp)
-                )",
-            [],
-        )
-        .expect("Failed to create plates table");
-    })
-    .await;
+    let db = Arc::new(Mutex::new(HashMap::<String, Bytes>::new()));
 
     // Bind a TCP listener to the socket address.
     //
@@ -73,18 +51,21 @@ async fn main() -> anyhow::Result<()> {
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        let conn = conn.clone();
+
+        // Clone the handle to the hash map.
+        let db = db.clone();
+
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, conn).await {
+            if let Err(e) = process(stream, addr, db).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyhow::Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -122,7 +103,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, conn: Connection) -> anyho
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp, conn.clone()).await?
+                handle_plate(&plate, timestamp, conn.clone()).await?
             }
 
             Ok(InboundMessageType::Ticket {
@@ -190,7 +171,7 @@ fn handle_error(
     Ok(())
 }
 
-async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow::Result<()> {
+async fn handle_plate(plate: &str, timestamp: u32, conn: Connection) -> anyhow::Result<()> {
     #[derive(Debug)]
     struct Road {
         speed_limit: i32,
@@ -206,20 +187,23 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         miles: i32,
     }
 
-    
-
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
+    // let plate = std::sync::Arc::new(std::sync::Mutex::new(plate));
+
+    // let plate = plate.clone();
     conn.call(move |conn| {
+        // let plate = plate.lock().unwrap();
         conn.execute(
             "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)",
-            params![plate, timestamp],
+            params![&plate, timestamp],
         )
     })
     .await?;
 
+    // Get the speed limit for the current road reported by this camera
     let speed_limits = conn
-        .call(move |conn| {
+        .call(|conn| {
             let mut stmt = conn.prepare("SELECT speed_limit FROM cameras LIMIT 1")?;
             let speed_limits = stmt
                 .query_map([], |row| {
@@ -232,11 +216,12 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         })
         .await?;
 
+    // Since we said "LIMIT 1" we only ever get one value, hence [0]
     info!("This road's speed limit is {}", speed_limits[0].speed_limit);
 
     // Get travel time.
-    // This query selects the last two values from my_table using two subqueries with ORDER BY and LIMIT clauses,
-    // then calculates the difference between them in the outer query using a simple arithmetic expression.
+    // This query selects the last two values from PLATES table using two subqueries with ORDER BY and LIMIT clauses,
+    // then calculates the difference between them in the outer query using a simple "-" expression.
     // The JOIN on 1=1 is used to ensure that the query returns only a single row with the difference value.
 
     // NOTE: if there are fewer than two entries in the table, this query will not return any rows.
@@ -279,7 +264,7 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         .call(move |conn| {
             let mut stmt = conn.prepare(travel_times_sql)?;
             let travel_times = stmt
-                .query_map([&(":plate", plate.to_string().as_str())], |row| Ok(Duration { time: row.get(0)? }))?
+                .query_map([], |row| Ok(Duration { time: row.get(0)? }))?
                 .collect::<Result<Vec<Duration>, rusqlite::Error>>()?;
             Ok::<_, rusqlite::Error>(travel_times)
         })
@@ -295,7 +280,10 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         })
         .await?;
 
-    info!("Travel time is {} distance traveled is {}", travel_times[0].time, distances_traveled[0].time);
+    info!(
+        "Travel time is {} distance traveled is {}",
+        travel_times[0].time, distances_traveled[0].miles
+    );
 
     Ok(())
 }
