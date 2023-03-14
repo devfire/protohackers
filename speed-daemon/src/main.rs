@@ -196,11 +196,23 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         speed_limit: i32,
     }
 
+    #[derive(Debug)]
+    struct Duration {
+        time: i32,
+    }
+
+    #[derive(Debug)]
+    struct Distance {
+        miles: i32,
+    }
+
+    
+
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     conn.call(move |conn| {
         conn.execute(
-            "INSERT INTO plates (name, data) VALUES (?1, ?2)",
+            "INSERT INTO plates (plate, timestamp) VALUES (?1, ?2)",
             params![plate, timestamp],
         )
     })
@@ -221,6 +233,69 @@ async fn handle_plate(plate: String, timestamp: u32, conn: Connection) -> anyhow
         .await?;
 
     info!("This road's speed limit is {}", speed_limits[0].speed_limit);
+
+    // Get travel time.
+    // This query selects the last two values from my_table using two subqueries with ORDER BY and LIMIT clauses,
+    // then calculates the difference between them in the outer query using a simple arithmetic expression.
+    // The JOIN on 1=1 is used to ensure that the query returns only a single row with the difference value.
+
+    // NOTE: if there are fewer than two entries in the table, this query will not return any rows.
+    let travel_times_sql = "SELECT (t2.timestamp - t1.timestamp) AS difference
+        FROM (
+            SELECT timestamp
+            FROM plates
+            WHERE plate=:plate
+            ORDER BY timestamp DESC
+            LIMIT 2
+        ) t1
+        JOIN (
+            SELECT timestamp
+            FROM plates
+            WHERE plate=:plate
+            ORDER BY timestamp DESC
+            LIMIT 2
+            OFFSET 1
+        ) t2 ON 1=1
+    ";
+
+    // Get distance traveled.
+    let distances_traveled_sql = "SELECT (t2.mile - t1.mile) AS difference
+    FROM (
+        SELECT mile
+        FROM cameras
+        ORDER BY mile DESC
+        LIMIT 2
+    ) t1
+    JOIN (
+        SELECT mile
+        FROM cameras
+        ORDER BY mile DESC
+        LIMIT 2
+        OFFSET 1
+    ) t2 ON 1=1
+    ";
+
+    let travel_times = conn
+        .call(move |conn| {
+            let mut stmt = conn.prepare(travel_times_sql)?;
+            let travel_times = stmt
+                .query_map([&(":plate", plate.to_string().as_str())], |row| Ok(Duration { time: row.get(0)? }))?
+                .collect::<Result<Vec<Duration>, rusqlite::Error>>()?;
+            Ok::<_, rusqlite::Error>(travel_times)
+        })
+        .await?;
+
+    let distances_traveled = conn
+        .call(move |conn| {
+            let mut stmt = conn.prepare(distances_traveled_sql)?;
+            let distances_traveled = stmt
+                .query_map([], |row| Ok(Distance { miles: row.get(0)? }))?
+                .collect::<Result<Vec<Distance>, rusqlite::Error>>()?;
+            Ok::<_, rusqlite::Error>(distances_traveled)
+        })
+        .await?;
+
+    info!("Travel time is {} distance traveled is {}", travel_times[0].time, distances_traveled[0].time);
 
     Ok(())
 }
