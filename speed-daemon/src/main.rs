@@ -1,4 +1,4 @@
-use bytes::Bytes;
+// use bytes::Bytes;
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
@@ -21,7 +21,7 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
 
-use std::collections::HashMap;
+
 use std::sync::{Arc, Mutex};
 
 type Db = Arc<Mutex<Vec<InboundMessageType>>>;
@@ -111,7 +111,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
         }
     });
 
-    type Road = Arc<Mutex<u16>>;
+    // This shared var holds the current thread road number. Init to 0 and overriden later.
     let current_road = Arc::new(Mutex::new(0));
 
     while let Some(message) = client_reader.next().await {
@@ -200,7 +200,7 @@ async fn handle_plate(plate: String, timestamp: u32, db: Db, my_road: Arc<Mutex<
     for item in db.iter() {
         if let InboundMessageType::IAmCamera { road, mile, limit } = item {
             if *road == *my_road {
-                info!("Speed limit is {}", limit);
+                info!("Speed limit is {} at mile {}", limit, mile);
             }
         }
     }
@@ -250,6 +250,7 @@ async fn handle_i_am_camera(
     Ok(())
 }
 
+#[allow(unused)]
 fn handle_i_am_dispatcher(message: InboundMessageType) {
     todo!()
 }
