@@ -225,9 +225,10 @@ async fn handle_plate(
 
     // let mut previously_seen_plate: String;
     // let mut time_traveled: u32 = 0;
-    let mut distance_traveled: u16 = 0;
+    // let observed_speed: u32;
     if let Some(previously_seen_camera) = db.get(&new_plate) {
         let time_traveled: u32;
+        let mut distance_traveled: u16 = 0;
         // Messages may arrive out of order, so we need to figure out what to subtract from what.
         // NOTE: previously_seen_camera is a (timestamp, InboundMessageType::IAmCamera) tuple,
         // so 0th entry refers to the timestamp.
@@ -253,11 +254,19 @@ async fn handle_plate(
             }
         }
 
-        // let observed_speed = distance_traveled as u32 / (time_traveled / 3600);
+        let observed_speed: u32 = (distance_traveled as u32 / time_traveled) * 3600;
         info!(
-            "Plate: {} seen by camera: {:?} distance traveled: {} in time: {}",
-            new_plate, previously_seen_camera, distance_traveled, time_traveled
+            "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
+            new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
         );
+
+        // check if the car exceeded the speed limit
+        if observed_speed > speed_limit as u32 {
+            info!(
+                "Plate {} exceeded the speed limit, issuing ticket",
+                new_plate
+            );
+        }
     } else {
         info!(
             "First time seeing plate: {} observed by camera: {:?}",
