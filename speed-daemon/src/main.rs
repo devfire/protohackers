@@ -5,8 +5,9 @@ use speed_daemon::{
     message::{InboundMessageType, OutboundMessageType},
 };
 use std::{
+    collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::mpsc::Receiver, collections::HashMap,
+    sync::mpsc::Receiver,
 };
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -43,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     let db = Arc::new(Mutex::new(HashMap::new()));
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
-    
+
     // Bind a TCP listener to the socket address.
     //
     // Note that this is the Tokio TcpListener, which is fully async.
@@ -188,31 +189,12 @@ async fn handle_plate(
 
     let new_plate = InboundMessageType::Plate { plate, timestamp };
 
-    let mut db = db.lock().expect("Unable to lock shared db");
+    // let mut db = db.lock().expect("Unable to lock shared db");
     let my_road = my_road
-    .lock()
-    .expect("Unable to lock the current road for editing");
+        .lock()
+        .expect("Unable to lock the current road for editing");
 
-    db.insert(my_road, new_plate);
-
-
-    let mut mile_markers: Vec<u16> = vec![];
-    for item in db.iter() {
-        match item {
-            InboundMessageType::IAmCamera { road, mile, limit } => {
-                if *road == *my_road {
-                    info!("Speed limit is {} at mile {}", limit, mile);
-                    mile_markers.push(*mile);
-                }
-            }
-            InboundMessageType::Plate { plate, timestamp }
-            _ => (),
-        }
-    }
-
-    if let Some(InboundMessageType::Plate { plate, timestamp } ) = db.get(0) {
-
-    }
+    add_object(new_plate, &my_road, db);
 
     Ok(())
 }
@@ -234,6 +216,20 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
+fn add_object(object: InboundMessageType, road: &u16, db: Db) {
+    let mut db = db.lock().expect("Unable to lock shared db");
+
+    // init an empty list so we can push it into the shared db later
+    let object_vec = vec![];
+    // get a list of all cameras on this road
+    if let Some(object_vec) = db.get_mut(&road) {
+        // Add the new camera to the HashMap.
+        object_vec.push(object);
+    }
+
+    // The road is the key, and the InboundMessageType::IAmCamera are the values
+    db.insert(*road, object_vec);
+}
 async fn handle_i_am_camera(
     road: u16,
     mile: u16,
@@ -247,24 +243,13 @@ async fn handle_i_am_camera(
         road, mile, limit
     );
 
-    
-    let mut db = db.lock().expect("Unable to lock shared db");
-    
-    let new_camera: InboundMessageType = InboundMessageType::IAmCamera { road, mile, limit};
-    
-    // get a list of all cameras on this road
+    let new_camera: InboundMessageType = InboundMessageType::IAmCamera { road, mile, limit };
 
-    let  camera_vec = vec![];
-    if let Some(camera_vec) = db.get_mut(&road) {       
-        // Add the new camera to the HashMap.
-        camera_vec.push(new_camera); 
-    }
+    add_object(new_camera, &road, db);
 
-    // The road is the key, and the InboundMessageType::IAmCamera are the values
-    db.insert(road, camera_vec);
-    
+    // let my_road = my_road.clone();
 
-    // Set the current thread road so we can look up the speed limit later
+    // Set the current tokio thread road so we can look up the speed limit later
     let mut my_road = my_road
         .lock()
         .expect("Unable to lock the current road for editing");
