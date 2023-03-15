@@ -9,6 +9,7 @@ use std::{
     hash::Hash,
     // collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    os::unix::raw::time_t,
     sync::mpsc::Receiver,
 };
 use tokio::{
@@ -32,7 +33,7 @@ use std::sync::{Arc, Mutex};
 // type Db = Arc<Mutex<Vec<HashMap<InboundMessageType,InboundMessageType>>>>;
 
 // A hash of Plate -> (timestamp, IAmCamera)
-type Db = Arc<Mutex<HashMap<String, (u16, InboundMessageType)>>>;
+type Db = Arc<Mutex<HashMap<String, (u32, InboundMessageType)>>>;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -217,17 +218,33 @@ async fn handle_plate(
         observed_mile_marker = mile;
         speed_limit = limit;
     }
-    info!("Speed limit is: {} mile marker: {}", speed_limit, observed_mile_marker);
+    info!(
+        "Speed limit is: {} mile marker: {}",
+        speed_limit, observed_mile_marker
+    );
 
     // Check if this plate has been observed before
     // let mut previously_seen_plate: (u16, InboundMessageType);
     // let mut previous_timestamp: InboundMessageType;
 
     // let mut previously_seen_plate: String;
+    // let mut time_traveled: u32 = 0;
+    let mut distance_traveled: u16 = 0;
     if let Some(previously_seen_camera) = db.get(&new_plate) {
+        let time_traveled = previously_seen_camera.0 - new_timestamp;
+
+        if let InboundMessageType::IAmCamera {
+            road: _,
+            mile,
+            limit: _,
+        } = previously_seen_camera.1
+        {
+            distance_traveled = observed_mile_marker - mile;
+        }
+        let observed_speed = distance_traveled as u32 / time_traveled / 3600;
         info!(
-            "Plate {} has been seen before by camera {:?}",
-            new_plate, previously_seen_camera.0
+            "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}mph",
+            new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
         );
     }
 
