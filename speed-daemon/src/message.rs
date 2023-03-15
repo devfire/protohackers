@@ -4,15 +4,6 @@ pub enum InboundMessageType {
         plate: String,
         timestamp: u32,
     },
-    Ticket {
-        plate: String,
-        road: u16,
-        mile1: u16,
-        timestamp1: u32,
-        mile2: u16,
-        timestamp2: u32,
-        speed: u16,
-    },
     WantHeartbeat {
         interval: u32,
     },
@@ -34,4 +25,14 @@ pub enum OutboundMessageType {
 
     //0x10: Error (Server->Client)
     Error(String),
+
+    Ticket {
+        plate: String,
+        road: u16,
+        mile1: u16,
+        timestamp1: u32,
+        mile2: u16,
+        timestamp2: u32,
+        speed: u16,
+    },
 }

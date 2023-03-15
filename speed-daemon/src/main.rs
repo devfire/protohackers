@@ -123,24 +123,6 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
                 handle_plate(plate, timestamp, db.clone(), current_camera.clone()).await?
             }
 
-            Ok(InboundMessageType::Ticket {
-                plate,
-                road,
-                mile1,
-                timestamp1,
-                mile2,
-                timestamp2,
-                speed,
-            }) => handle_ticket(InboundMessageType::Ticket {
-                plate,
-                road,
-                mile1,
-                timestamp1,
-                mile2,
-                timestamp2,
-                speed,
-            }),
-
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
                 info!(
                     "Client {} requested a heartbeat every {} deciseconds.",

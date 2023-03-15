@@ -65,9 +65,31 @@ impl Encoder<OutboundMessageType> for MessageCodec {
                 // 1 byte for the message ID, remaining for the length of error message string
                 let buffer_size = 1 + err_msg.len();
                 dst.reserve(buffer_size);
-                
+
                 dst.put_u8(0x10);
                 dst.put(err_msg.as_bytes());
+            }
+
+            OutboundMessageType::Ticket {
+                plate,
+                road,
+                mile1,
+                timestamp1,
+                mile2,
+                timestamp2,
+                speed,
+            } => {
+                let buffer_size = 1 + plate.len() + 16 + 16 + 32 + 16 + 32 + 16;
+                dst.reserve(buffer_size);
+                dst.put_u8(0x21);
+
+                dst.put(plate.as_bytes());
+                dst.put_u16(road);
+                dst.put_u16(mile1);
+                dst.put_u32(timestamp1);
+                dst.put_u16(mile2);
+                dst.put_u32(timestamp2);
+                dst.put_u16(speed);
             }
         }
 
