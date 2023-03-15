@@ -237,7 +237,7 @@ async fn handle_plate(
         {
             distance_traveled = observed_mile_marker - mile;
         }
-        let observed_speed = distance_traveled as u32 / time_traveled / 3600;
+        let observed_speed = distance_traveled as u32 / (time_traveled / 3600);
         info!(
             "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}mph",
             new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
