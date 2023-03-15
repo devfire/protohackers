@@ -1,15 +1,13 @@
-use bytes::Bytes;
-// use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
     message::{InboundMessageType, OutboundMessageType},
 };
 use std::{
     collections::HashMap,
-    hash::Hash,
+    
     // collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    os::unix::raw::time_t,
+    
     sync::mpsc::Receiver,
 };
 use tokio::{
@@ -204,8 +202,6 @@ async fn handle_plate(
         .lock()
         .expect("Unable to lock the current road for editing");
 
-    // db.push((new_plate, current_camera.clone()));
-
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
     let mut observed_mile_marker: u16 = 0;
@@ -246,6 +242,10 @@ async fn handle_plate(
             "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}mph",
             new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
         );
+    } else {
+        info!("First time seeing plate: {} observed by camera: {:?}", new_plate, current_camera);
+        // let mut db = db.clone();
+        db.insert(new_plate, (new_timestamp, current_camera.clone()));
     }
 
     Ok(())
