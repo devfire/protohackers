@@ -258,7 +258,7 @@ async fn handle_plate(
         let observed_speed: u32 = (distance_traveled / time_traveled) * 3600;
         info!(
             "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
-            new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
+            new_plate, previously_seen_camera, distance_traveled, time_traveled, (distance_traveled / time_traveled) * 3600
         );
 
         // check if the car exceeded the speed limit
