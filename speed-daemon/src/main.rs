@@ -196,7 +196,7 @@ async fn handle_plate(
 ) -> anyhow::Result<()> {
     let mut db = db.lock().expect("Unable to lock shared db");
 
-    info!("Received plate: {:?}", new_plate);
+    // info!("Received plate: {:?}", new_plate);
 
     let current_camera = current_camera
         .lock()
@@ -228,7 +228,9 @@ async fn handle_plate(
     let mut distance_traveled: u16 = 0;
     if let Some(previously_seen_camera) = db.get(&new_plate) {
         let time_traveled: u32;
-        // Messages may arrive out of order
+        // Messages may arrive out of order, so we need to figure out what to subtract from what.
+        // NOTE: previously_seen_camera is a (timestamp, InboundMessageType::IAmCamera) tuple,
+        // so 0th entry refers to the timestamp.
         if new_timestamp > previously_seen_camera.0 {
             time_traveled = new_timestamp - previously_seen_camera.0;
             if let InboundMessageType::IAmCamera {
@@ -290,7 +292,7 @@ async fn handle_i_am_camera(
     tx: &mpsc::Sender<OutboundMessageType>,
     my_camera: Arc<Mutex<InboundMessageType>>,
 ) -> anyhow::Result<()> {
-    info!("Current camera: {:?}", new_camera);
+    // info!("Current camera: {:?}", new_camera);
 
     // Set the current tokio thread road so we can look up its details later
     let mut my_camera = my_camera
