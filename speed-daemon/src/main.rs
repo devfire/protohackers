@@ -4,10 +4,10 @@ use speed_daemon::{
 };
 use std::{
     collections::HashMap,
-    
+
     // collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    
+
     sync::mpsc::Receiver,
 };
 use tokio::{
@@ -227,23 +227,40 @@ async fn handle_plate(
     // let mut time_traveled: u32 = 0;
     let mut distance_traveled: u16 = 0;
     if let Some(previously_seen_camera) = db.get(&new_plate) {
-        let time_traveled = new_timestamp - previously_seen_camera.0;
-
-        if let InboundMessageType::IAmCamera {
-            road: _,
-            mile,
-            limit: _,
-        } = previously_seen_camera.1
-        {
-            distance_traveled = observed_mile_marker - mile;
+        let time_traveled: u32;
+        // Messages may arrive out of order
+        if new_timestamp > previously_seen_camera.0 {
+            time_traveled = new_timestamp - previously_seen_camera.0;
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = previously_seen_camera.1
+            {
+                distance_traveled = observed_mile_marker - mile;
+            }
+        } else {
+            time_traveled = previously_seen_camera.0 - new_timestamp;
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = previously_seen_camera.1
+            {
+                distance_traveled = mile - observed_mile_marker;
+            }
         }
+
         let observed_speed = distance_traveled as u32 / (time_traveled / 3600);
         info!(
             "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}mph",
             new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
         );
     } else {
-        info!("First time seeing plate: {} observed by camera: {:?}", new_plate, current_camera);
+        info!(
+            "First time seeing plate: {} observed by camera: {:?}",
+            new_plate, current_camera
+        );
         // let mut db = db.clone();
         db.insert(new_plate, (new_timestamp, current_camera.clone()));
     }
