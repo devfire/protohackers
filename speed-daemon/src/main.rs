@@ -26,7 +26,8 @@ use std::sync::{Arc, Mutex};
 
 // Type alias CamelCase matches the db hash of hashes below
 // type Db = Arc<Mutex<HashMap<u16, Bytes>>>;
-type Db = Arc<Mutex<HashMap<u16, Vec<InboundMessageType>>>>;
+// type Db = Arc<Mutex<HashMap<u16, Vec<InboundMessageType>>>>;
+type Db = Arc<Mutex<Vec<(InboundMessageType, InboundMessageType)>>>;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -41,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    let db = Arc::new(Mutex::new(HashMap::new()));
+    let db = Arc::new(Mutex::new(Vec::new()));
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
 
@@ -102,15 +103,19 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
         }
     });
 
-    // This shared var holds the current thread road number. Init to 0 and overriden later.
-    let current_road = Arc::new(Mutex::new(0));
+    // This shared var holds the current thread camera. Init to 0 and overriden later.
+    let current_camera = Arc::new(Mutex::new(InboundMessageType::IAmCamera {
+        road: 0,
+        mile: 0,
+        limit: 0,
+    }));
 
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp, db.clone(), current_road.clone()).await?
+                handle_plate(plate, timestamp, db.clone(), current_camera.clone()).await?
             }
 
             Ok(InboundMessageType::Ticket {
@@ -146,8 +151,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
-                handle_i_am_camera(road, mile, limit, &tx, db.clone(), current_road.clone())
-                    .await?;
+                handle_i_am_camera(road, mile, limit, &tx, current_camera.clone()).await?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -197,19 +201,45 @@ async fn handle_plate(
         .expect("Unable to lock the current road for editing");
 
     // init an empty list so we can push it into the shared db later
-    let object_vec = vec![];
-    
+    let object_vec: Vec<InboundMessageType> = vec![];
+
     // get a list of all objects (cameras & plates) on this road
     if let Some(object_vec) = db.get_mut(&my_road) {
         // Add the new plate to the Vec.
         object_vec.push(new_plate);
     }
 
+    // we need to clone this because the object will move into the shared db
+    let list_of_objects = object_vec.clone();
+
     // The road is the key, and the InboundMessageType::Plate are the values
     db.insert(*my_road, object_vec);
 
     let speed_limit = db.get(&my_road);
 
+    // filter list_of_objects we got from the shared db Vec clone to only contain the Plate variant,
+    // extract the plate and timestamp fields into a new Vec called plates,
+    // sort by timestamp in descending order, and calculate the difference between the two largest timestamps.
+    let mut plates = list_of_objects
+        .iter()
+        .filter(|m| matches!(m, InboundMessageType::Plate { .. }))
+        .map(|m| match m {
+            InboundMessageType::Plate { plate, timestamp } => (plate, timestamp),
+            _ => unreachable!(),
+        })
+        .collect::<Vec<_>>();
+
+    plates.sort_by(|(_, ts1), (_, ts2)| ts2.cmp(ts1));
+
+    if let (Some((_, max1)), Some((_, max2))) = (plates.get(0), plates.get(1)) {
+        let diff = **max1 - **max2;
+        info!(
+            "Difference between two largest timestamps in hours: {}",
+            diff / 3600
+        );
+    } else {
+        error!("Not enough Plate messages to calculate difference");
+    }
 
     Ok(())
 }
@@ -236,8 +266,7 @@ async fn handle_i_am_camera(
     mile: u16,
     limit: u16,
     tx: &mpsc::Sender<OutboundMessageType>,
-    db: Db,
-    my_road: Arc<Mutex<u16>>,
+    my_camera: Arc<Mutex<InboundMessageType>>,
 ) -> anyhow::Result<()> {
     info!(
         "Inserting camera road: {} mile: {} limit: {}",
@@ -245,26 +274,26 @@ async fn handle_i_am_camera(
     );
 
     let new_camera: InboundMessageType = InboundMessageType::IAmCamera { road, mile, limit };
-    let mut db = db.lock().expect("Unable to lock shared db");
+    // let mut db = db.lock().expect("Unable to lock shared db");
 
     // init an empty list so we can push it into the shared db later
-    let object_vec = vec![];
-    // get a list of all cameras on this road
-    if let Some(object_vec) = db.get_mut(&road) {
-        // Add the new camera to the HashMap.
-        object_vec.push(new_camera);
-    }
+    // let object_vec = vec![];
+    // // get a list of all cameras on this road
+    // if let Some(object_vec) = db.get_mut(&road) {
+    //     // Add the new camera to the HashMap.
+    //     object_vec.push(new_camera);
+    // }
 
-    // The road is the key, and the InboundMessageType::IAmCamera are the values
-    db.insert(road, object_vec);
+    // // The road is the key, and the InboundMessageType::IAmCamera are the values
+    // db.insert(road, object_vec);
 
     // let my_road = my_road.clone();
 
     // Set the current tokio thread road so we can look up the speed limit later
-    let mut my_road = my_road
+    let mut my_camera = my_camera
         .lock()
         .expect("Unable to lock the current road for editing");
-    *my_road = road;
+    *my_camera = new_camera;
 
     Ok(())
 }
