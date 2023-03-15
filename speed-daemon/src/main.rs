@@ -2,6 +2,7 @@ use speed_daemon::{
     codec::MessageCodec,
     message::{InboundMessageType, OutboundMessageType},
 };
+
 use std::{
     collections::HashMap,
 
@@ -254,15 +255,14 @@ async fn handle_plate(
             }
         }
 
-        let distance_traveled = distance_traveled as u32;
-        let observed_speed: u32 = (distance_traveled / time_traveled) * 3600;
+        let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
         info!(
             "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
-            new_plate, previously_seen_camera, distance_traveled, time_traveled, distance_traveled / time_traveled * 3600
+            new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
         );
 
         // check if the car exceeded the speed limit
-        if observed_speed > speed_limit as u32 {
+        if observed_speed > speed_limit as f64 {
             info!(
                 "Plate {} exceeded the speed limit, issuing ticket",
                 new_plate
@@ -276,7 +276,6 @@ async fn handle_plate(
         // let mut db = db.clone();
         db.insert(new_plate, (new_timestamp, current_camera.clone()));
     }
-
     Ok(())
 }
 
