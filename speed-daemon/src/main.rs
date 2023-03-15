@@ -1,4 +1,4 @@
-// use bytes::Bytes;
+use bytes::Bytes;
 // use std::sync::Arc;
 use speed_daemon::{
     codec::MessageCodec,
@@ -6,7 +6,7 @@ use speed_daemon::{
 };
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::mpsc::Receiver,
+    sync::mpsc::Receiver, collections::HashMap,
 };
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -21,10 +21,11 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
 
-
 use std::sync::{Arc, Mutex};
 
-type Db = Arc<Mutex<Vec<InboundMessageType>>>;
+// Type alias CamelCase matches the db hash of hashes below
+// type Db = Arc<Mutex<HashMap<u16, Bytes>>>;
+type Db = Arc<Mutex<HashMap<u16, Vec<InboundMessageType>>>>;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -39,21 +40,10 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    /*
-    Creates a new Arc<Mutex<HashMap<String, Bytes>>> instance named db.
+    let db = Arc::new(Mutex::new(HashMap::new()));
 
-    HashMap<String, Bytes> is the type of the value stored in the Mutex.
-    Mutex is a synchronization primitive that provides mutual exclusion between concurrent threads,
-    ensuring that only one thread at a time can access the HashMap inside the Mutex.
-    Arc is a thread-safe reference-counting smart pointer that allows multiple threads to have shared ownership of the Mutex.
-    Bytes is a type provided by the bytes crate that represents a contiguous region of raw bytes in memory.
-    It is similar to Vec<u8>, but with additional functionality and optimizations for working with byte buffers.
-
-    Overall, this code creates a thread-safe, shared HashMap of key-value pairs with keys of type String and values of type Bytes.
-    The Mutex ensures that the HashMap can be accessed safely from multiple threads, and the Arc allows the Mutex to be shared between threads.
-    */
-    let db = Arc::new(Mutex::new(Vec::new()));
-
+    // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
+    
     // Bind a TCP listener to the socket address.
     //
     // Note that this is the Tokio TcpListener, which is fully async.
@@ -155,7 +145,8 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
-                handle_i_am_camera(road, mile, limit, &tx, db.clone(), current_road.clone()).await?;
+                handle_i_am_camera(road, mile, limit, &tx, db.clone(), current_road.clone())
+                    .await?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -187,22 +178,40 @@ fn handle_error(
     Ok(())
 }
 
-async fn handle_plate(plate: String, timestamp: u32, db: Db, my_road: Arc<Mutex<u16>>) -> anyhow::Result<()> {
+async fn handle_plate(
+    plate: String,
+    timestamp: u32,
+    db: Db,
+    my_road: Arc<Mutex<u16>>,
+) -> anyhow::Result<()> {
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     let new_plate = InboundMessageType::Plate { plate, timestamp };
 
     let mut db = db.lock().expect("Unable to lock shared db");
-    db.push(new_plate);
+    let my_road = my_road
+    .lock()
+    .expect("Unable to lock the current road for editing");
 
-    let my_road = my_road.lock().expect("Unable to lock the current road for editing");
+    db.insert(my_road, new_plate);
 
+
+    let mut mile_markers: Vec<u16> = vec![];
     for item in db.iter() {
-        if let InboundMessageType::IAmCamera { road, mile, limit } = item {
-            if *road == *my_road {
-                info!("Speed limit is {} at mile {}", limit, mile);
+        match item {
+            InboundMessageType::IAmCamera { road, mile, limit } => {
+                if *road == *my_road {
+                    info!("Speed limit is {} at mile {}", limit, mile);
+                    mile_markers.push(*mile);
+                }
             }
+            InboundMessageType::Plate { plate, timestamp }
+            _ => (),
         }
+    }
+
+    if let Some(InboundMessageType::Plate { plate, timestamp } ) = db.get(0) {
+
     }
 
     Ok(())
@@ -238,13 +247,27 @@ async fn handle_i_am_camera(
         road, mile, limit
     );
 
-    let new_camera: InboundMessageType = InboundMessageType::IAmCamera { road, mile, limit };
-
+    
     let mut db = db.lock().expect("Unable to lock shared db");
-    db.push(new_camera);
+    
+    let new_camera: InboundMessageType = InboundMessageType::IAmCamera { road, mile, limit};
+    
+    // get a list of all cameras on this road
+
+    let  camera_vec = vec![];
+    if let Some(camera_vec) = db.get_mut(&road) {       
+        // Add the new camera to the HashMap.
+        camera_vec.push(new_camera); 
+    }
+
+    // The road is the key, and the InboundMessageType::IAmCamera are the values
+    db.insert(road, camera_vec);
+    
 
     // Set the current thread road so we can look up the speed limit later
-    let mut my_road = my_road.lock().expect("Unable to lock the current road for editing");
+    let mut my_road = my_road
+        .lock()
+        .expect("Unable to lock the current road for editing");
     *my_road = road;
 
     Ok(())
