@@ -185,6 +185,8 @@ async fn handle_plate(
     db: Db,
     my_road: Arc<Mutex<u16>>,
 ) -> anyhow::Result<()> {
+    let mut db = db.lock().expect("Unable to lock shared db");
+
     info!("Inserting plate: {} timestamp: {}", plate, timestamp);
 
     let new_plate = InboundMessageType::Plate { plate, timestamp };
@@ -194,7 +196,20 @@ async fn handle_plate(
         .lock()
         .expect("Unable to lock the current road for editing");
 
-    add_object(new_plate, &my_road, db);
+    // init an empty list so we can push it into the shared db later
+    let object_vec = vec![];
+    
+    // get a list of all objects (cameras & plates) on this road
+    if let Some(object_vec) = db.get_mut(&my_road) {
+        // Add the new plate to the Vec.
+        object_vec.push(new_plate);
+    }
+
+    // The road is the key, and the InboundMessageType::Plate are the values
+    db.insert(*my_road, object_vec);
+
+    let speed_limit = db.get(&my_road);
+
 
     Ok(())
 }
@@ -216,20 +231,6 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
-fn add_object(object: InboundMessageType, road: &u16, db: Db) {
-    let mut db = db.lock().expect("Unable to lock shared db");
-
-    // init an empty list so we can push it into the shared db later
-    let object_vec = vec![];
-    // get a list of all cameras on this road
-    if let Some(object_vec) = db.get_mut(&road) {
-        // Add the new camera to the HashMap.
-        object_vec.push(object);
-    }
-
-    // The road is the key, and the InboundMessageType::IAmCamera are the values
-    db.insert(*road, object_vec);
-}
 async fn handle_i_am_camera(
     road: u16,
     mile: u16,
@@ -244,8 +245,18 @@ async fn handle_i_am_camera(
     );
 
     let new_camera: InboundMessageType = InboundMessageType::IAmCamera { road, mile, limit };
+    let mut db = db.lock().expect("Unable to lock shared db");
 
-    add_object(new_camera, &road, db);
+    // init an empty list so we can push it into the shared db later
+    let object_vec = vec![];
+    // get a list of all cameras on this road
+    if let Some(object_vec) = db.get_mut(&road) {
+        // Add the new camera to the HashMap.
+        object_vec.push(new_camera);
+    }
+
+    // The road is the key, and the InboundMessageType::IAmCamera are the values
+    db.insert(road, object_vec);
 
     // let my_road = my_road.clone();
 
