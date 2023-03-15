@@ -196,7 +196,7 @@ async fn handle_plate(
 ) -> anyhow::Result<()> {
     let mut db = db.lock().expect("Unable to lock shared db");
 
-    info!("Adding plate: {:?}", new_plate);
+    info!("Received plate: {:?}", new_plate);
 
     let current_camera = current_camera
         .lock()
@@ -227,7 +227,7 @@ async fn handle_plate(
     // let mut time_traveled: u32 = 0;
     let mut distance_traveled: u16 = 0;
     if let Some(previously_seen_camera) = db.get(&new_plate) {
-        let time_traveled = previously_seen_camera.0 - new_timestamp;
+        let time_traveled = new_timestamp - previously_seen_camera.0;
 
         if let InboundMessageType::IAmCamera {
             road: _,
