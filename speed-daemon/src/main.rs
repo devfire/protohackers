@@ -5,11 +5,7 @@ use speed_daemon::{
 
 use std::{
     collections::HashMap,
-
-    // collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-
-    sync::mpsc::Receiver,
 };
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -97,14 +93,22 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
     let manager = tokio::spawn(async move {
-        // Start receiving messages
-
+        // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
+        // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
             info!("Sending {:?} to {}", msg, addr);
-            client_writer
-                .send(msg)
-                .await
-                .expect("Unable to send message");
+            // client_writer
+            //     .send(msg)
+            //     .await
+            //     .expect("Unable to send message");
+
+            if let Err(e) = client_writer.send(msg).await {
+                error!("Client {} disconnected: {}", addr, e);
+                client_writer
+                    .close()
+                    .await
+                    .expect("Unable to close channel.");
+            }
         }
     });
 
