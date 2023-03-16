@@ -150,7 +150,7 @@ async fn process(
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
-                handle_i_am_dispatcher(numroads, roads, tx.clone(), ticket_dispatcher_db.clone())
+                handle_i_am_dispatcher(numroads, roads, &tx.clone(), ticket_dispatcher_db.clone())
                     .await?;
             }
             Err(_) => {
@@ -300,12 +300,15 @@ async fn handle_i_am_camera(
 async fn handle_i_am_dispatcher(
     num_roads: u8,
     roads: Vec<u16>,
-    tx: mpsc::Sender<OutboundMessageType>,
+    tx: &mpsc::Sender<OutboundMessageType>,
     dispatcher_db: TicketDispatcherDb,
 ) -> anyhow::Result<()> {
     let mut dispatcher_db = dispatcher_db.lock().expect("Unable to lock dispatcher db");
+
     for road in roads.iter() {
-        dispatcher_db.insert(road, tx)
+        // for every road this dispatcher is responsible for, add the corresponding tx reference
+        let tx = tx.clone();
+        dispatcher_db.insert(*road, tx);
     }
     Ok(())
 }
