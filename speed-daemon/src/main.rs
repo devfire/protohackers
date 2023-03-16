@@ -22,11 +22,7 @@ use futures::StreamExt;
 
 use std::sync::{Arc, Mutex};
 
-// ----------------Shared state data structures----------------
-// A hash of Plate -> (timestamp, IAmCamera)
-type Db = Arc<Mutex<HashMap<String, (u32, InboundMessageType)>>>;
-type TicketDispatcherDb = Arc<Mutex<HashMap<u16, tokio::sync::mpsc::Sender<OutboundMessageType>>>>;
-// ------------------------------------------------------------
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -43,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
 
     let db = Arc::new(Mutex::new(HashMap::new()));
     let ticket_dispatcher_db: Arc<
-        Mutex<HashMap<u16, tokio::sync::mpsc::Sender<OutboundMessageType>>>,
+        Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>,
     > = Arc::new(Mutex::new(HashMap::new()));
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
@@ -127,7 +123,14 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp, db.clone(), current_camera.clone()).await?
+                handle_plate(
+                    plate,
+                    timestamp,
+                    db.clone(),
+                    current_camera.clone(),
+                    ticket_dispatcher_db.clone(),
+                )
+                .await?
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -184,6 +187,7 @@ async fn handle_plate(
     new_timestamp: u32,
     db: Db,
     current_camera: Arc<Mutex<InboundMessageType>>,
+    dispatcher_db: TicketDispatcherDb,
 ) -> anyhow::Result<()> {
     let mut db = db.lock().expect("Unable to lock shared db");
 
@@ -196,12 +200,9 @@ async fn handle_plate(
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
     let mut observed_mile_marker: u16 = 0;
-    if let InboundMessageType::IAmCamera {
-        road: _,
-        mile,
-        limit,
-    } = current_camera.clone()
-    {
+    let mut current_road: u16 = 0;
+    if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera.clone() {
+        current_road = road;
         observed_mile_marker = mile;
         speed_limit = limit;
     }
@@ -210,6 +211,10 @@ async fn handle_plate(
         speed_limit, observed_mile_marker
     );
 
+    let mut mile1: u16 = 0;
+    let mut mile2: u16 = 0;
+    let mut timestamp1: u32 = 0;
+    let mut timestamp2: u32 = 0;
     // Check if this plate has been observed before
     if let Some(previously_seen_camera) = db.get(&new_plate) {
         let time_traveled: u32;
@@ -226,6 +231,10 @@ async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = observed_mile_marker - mile;
+                mile1 = observed_mile_marker;
+                mile2 = mile;
+                timestamp1 = new_timestamp;
+                timestamp2 = previously_seen_camera.0;
             }
         } else {
             time_traveled = previously_seen_camera.0 - new_timestamp;
@@ -236,6 +245,10 @@ async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = mile - observed_mile_marker;
+                mile1 = mile;
+                mile2 = observed_mile_marker;
+                timestamp1 = previously_seen_camera.0;
+                timestamp2 = new_timestamp;
             }
         }
 
@@ -251,6 +264,25 @@ async fn handle_plate(
                 "Plate {} exceeded the speed limit, issuing ticket",
                 new_plate
             );
+            let new_ticket = OutboundMessageType::Ticket {
+                plate: new_plate,
+                road: current_road,
+                mile1,
+                timestamp1,
+                mile2,
+                timestamp2,
+                speed: observed_speed as u16,
+            };
+
+            let dispatcher_db = dispatcher_db
+                .lock()
+                .expect("Unable to lock dispatcher db in handle plate");
+
+            if let Some(dispatcher_tx) = dispatcher_db.get(&current_road) {
+                // dispatcher_tx.send(new_ticket).await.expect("Unable to issue ticket");
+            }
+
+            // issue ticket
         }
     } else {
         info!(
