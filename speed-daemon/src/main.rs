@@ -1,6 +1,8 @@
 use speed_daemon::{
     codec::MessageCodec,
     message::{InboundMessageType, OutboundMessageType},
+    state::SharedState,
+    types::{Plate, PlateCameraDb, Road, TicketDispatcherDb, Timestamp, Mile},
 };
 
 use std::{
@@ -22,8 +24,6 @@ use futures::StreamExt;
 
 use std::sync::{Arc, Mutex};
 
-
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Setup the logging framework
@@ -37,10 +37,22 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    let db = Arc::new(Mutex::new(HashMap::new()));
-    let ticket_dispatcher_db: Arc<
-        Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    // let db = Arc::new(Mutex::new(HashMap::new()));
+    // let ticket_dispatcher_db: Arc<
+    //     Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>,
+    // > = Arc::new(Mutex::new(HashMap::new()));
+
+    let dispatchers: TicketDispatcherDb;
+    let current_camera: InboundMessageType;
+    let plates_cameras: PlateCameraDb;
+
+    let shared_db = Arc::new(Mutex::new(SharedState::new(
+        dispatchers,
+        current_camera,
+        plates_cameras,
+    )));
+
+    // let shared_db = shared_db.lock()?;
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
 
@@ -55,14 +67,15 @@ async fn main() -> anyhow::Result<()> {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
 
-        // Clone the handle to the hash map.
-        let db = db.clone();
-        let ticket_dispatcher_db = ticket_dispatcher_db.clone();
+        // Clone the handle to the shared state.
+        // let db = db.clone();
+        // let ticket_dispatcher_db = ticket_dispatcher_db.clone();
 
+        let shared_db = shared_db.clone();
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, db, ticket_dispatcher_db).await {
+            if let Err(e) = process(stream, addr, shared_db).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
@@ -72,8 +85,7 @@ async fn main() -> anyhow::Result<()> {
 async fn process(
     stream: TcpStream,
     addr: SocketAddr,
-    db: Db,
-    ticket_dispatcher_db: TicketDispatcherDb,
+    shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
@@ -123,14 +135,7 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(
-                    plate,
-                    timestamp,
-                    db.clone(),
-                    current_camera.clone(),
-                    ticket_dispatcher_db.clone(),
-                )
-                .await?
+                handle_plate(plate, timestamp, shared_db.clone()).await?
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -149,7 +154,7 @@ async fn process(
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(new_camera, &tx, current_camera.clone()).await?;
+                handle_i_am_camera(new_camera, &tx, current_camera.clone())?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -183,32 +188,33 @@ fn handle_error(
 }
 
 async fn handle_plate(
-    new_plate: String,
-    new_timestamp: u32,
-    db: Db,
-    current_camera: Arc<Mutex<InboundMessageType>>,
-    dispatcher_db: TicketDispatcherDb,
+    new_plate: Plate,
+    new_timestamp: Timestamp,
+    shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
-    let mut db = db.lock().expect("Unable to lock shared db");
+    let mut shared_db = shared_db.lock().expect("Unable to lock shared db");
 
     // info!("Received plate: {:?}", new_plate);
 
-    let current_camera = current_camera
-        .lock()
-        .expect("Unable to lock the current road for editing");
-
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
-    let mut observed_mile_marker: u16 = 0;
-    let mut current_road: u16 = 0;
-    if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera.clone() {
+    let mut observed_mile_marker: Mile = 0;
+    let mut current_road: Road = 0;
+
+    // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
+    let current_camera = shared_db.current_camera;
+
+    // Get the details of the camera that obseved this plate.
+    // NOTE: this came from handle_i_am_camera
+    if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera {
         current_road = road;
         observed_mile_marker = mile;
         speed_limit = limit;
     }
+
     info!(
         "Speed limit is: {} mile marker: {}",
-        speed_limit, observed_mile_marker
+        current_road, observed_mile_marker
     );
 
     let mut mile1: u16 = 0;
@@ -312,18 +318,19 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
-async fn handle_i_am_camera(
+fn handle_i_am_camera(
     new_camera: InboundMessageType,
     tx: &mpsc::Sender<OutboundMessageType>,
-    my_camera: Arc<Mutex<InboundMessageType>>,
+    shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
     // info!("Current camera: {:?}", new_camera);
 
-    // Set the current tokio thread road so we can look up its details later
-    let mut my_camera = my_camera
+    // Set the current tokio thread camera so we can look up its details later
+    let mut shared_db = shared_db
         .lock()
-        .expect("Unable to lock the current road for editing");
-    *my_camera = new_camera;
+        .expect("Unable to lock shared db in handle_i_am_camera");
+
+    shared_db.add_camera(new_camera);
 
     Ok(())
 }
@@ -333,9 +340,11 @@ async fn handle_i_am_dispatcher(
     num_roads: u8,
     roads: Vec<u16>,
     tx: &mpsc::Sender<OutboundMessageType>,
-    dispatcher_db: TicketDispatcherDb,
+    shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
-    let mut dispatcher_db = dispatcher_db.lock().expect("Unable to lock dispatcher db");
+    let mut shared_db = shared_db
+        .lock()
+        .expect("Unable to lock shared db in handle_i_am_dispatcher");
 
     for road in roads.iter() {
         // for every road this dispatcher is responsible for, add the corresponding tx reference

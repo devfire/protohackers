@@ -1,4 +1,9 @@
-use std::{sync::{Arc, Mutex}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+};
+
+use tokio::sync::mpsc;
 
 use crate::message::{InboundMessageType, OutboundMessageType};
 
@@ -10,7 +15,6 @@ pub type Plate = String;
 
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
-pub type Db = Arc<Mutex<HashMap<String, (u32, InboundMessageType)>>>;
-pub type TicketDispatcherDb =
-    Arc<Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>>;
+pub type PlateCameraDb = HashMap<Plate, (Timestamp, InboundMessageType)>;
+pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;
 // ------------------------------------------------------------
