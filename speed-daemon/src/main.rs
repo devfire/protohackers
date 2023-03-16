@@ -18,17 +18,16 @@ use log::{error, info};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use futures::sink::SinkExt;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 
 use std::sync::{Arc, Mutex};
 
-// Type alias CamelCase matches the db hash of hashes below
-// type Db = Arc<Mutex<HashMap<u16, Bytes>>>;
-// type Db = Arc<Mutex<HashMap<u16, Vec<InboundMessageType>>>>;
-// type Db = Arc<Mutex<Vec<HashMap<InboundMessageType,InboundMessageType>>>>;
-
+// ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
 type Db = Arc<Mutex<HashMap<String, (u32, InboundMessageType)>>>;
+type TicketDispatcherDb =
+    Arc<Mutex<HashMap<u16, tokio::sync::mpsc::Receiver<OutboundMessageType>>>>;
+// ------------------------------------------------------------
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -44,6 +43,9 @@ async fn main() -> anyhow::Result<()> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
     let db = Arc::new(Mutex::new(HashMap::new()));
+    let ticket_dispatcher_db: Arc<
+        Mutex<HashMap<u16, tokio::sync::mpsc::Receiver<OutboundMessageType>>>,
+    > = Arc::new(Mutex::new(HashMap::new()));
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
 
@@ -60,18 +62,24 @@ async fn main() -> anyhow::Result<()> {
 
         // Clone the handle to the hash map.
         let db = db.clone();
+        let ticket_dispatcher_db = ticket_dispatcher_db.clone();
 
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, db).await {
+            if let Err(e) = process(stream, addr, db, ticket_dispatcher_db).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<()> {
+async fn process(
+    stream: TcpStream,
+    addr: SocketAddr,
+    db: Db,
+    ticket_dispatcher_db: TicketDispatcherDb,
+) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -147,7 +155,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
-                handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
+                handle_i_am_dispatcher(numroads, roads, ticket_dispatcher_db.clone()).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -207,12 +215,6 @@ async fn handle_plate(
     );
 
     // Check if this plate has been observed before
-    // let mut previously_seen_plate: (u16, InboundMessageType);
-    // let mut previous_timestamp: InboundMessageType;
-
-    // let mut previously_seen_plate: String;
-    // let mut time_traveled: u32 = 0;
-    // let observed_speed: u32;
     if let Some(previously_seen_camera) = db.get(&new_plate) {
         let time_traveled: u32;
         let mut distance_traveled: u16 = 0;
@@ -299,6 +301,10 @@ async fn handle_i_am_camera(
 }
 
 #[allow(unused)]
-fn handle_i_am_dispatcher(message: InboundMessageType) {
-    todo!()
+async fn handle_i_am_dispatcher(
+    num_roads: u8,
+    roads: Vec<u16>,
+    dispatcher_db: TicketDispatcherDb,
+) -> anyhow::Result<()> {
+    Ok(())
 }
