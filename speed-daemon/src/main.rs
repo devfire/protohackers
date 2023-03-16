@@ -2,7 +2,7 @@ use speed_daemon::{
     codec::MessageCodec,
     message::{InboundMessageType, OutboundMessageType},
     state::SharedState,
-    types::{Plate, PlateCameraDb, Road, TicketDispatcherDb, Timestamp, Mile},
+    types::{Mile, Plate, PlateCameraDb, Road, TicketDispatcherDb, Timestamp},
 };
 
 use std::{
@@ -154,12 +154,11 @@ async fn process(
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(new_camera, &tx, current_camera.clone())?;
+                handle_i_am_camera(new_camera, &tx, shared_db.clone())?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
-                handle_i_am_dispatcher(numroads, roads, &tx.clone(), ticket_dispatcher_db.clone())
-                    .await?;
+                handle_i_am_dispatcher(numroads, roads, &tx.clone(), shared_db.clone()).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -197,20 +196,20 @@ async fn handle_plate(
     // info!("Received plate: {:?}", new_plate);
 
     // Get the current road speed limit
-    let mut speed_limit: u16 = 0;
-    let mut observed_mile_marker: Mile = 0;
-    let mut current_road: Road = 0;
+    let mut speed_limit: &u16 = &0;
+    let mut observed_mile_marker: &Mile = &0;
+    let mut current_road: &Road = &0;
 
     // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
-    let current_camera = shared_db.current_camera;
+    let current_camera = &shared_db.current_camera;
 
     // Get the details of the camera that obseved this plate.
     // NOTE: this came from handle_i_am_camera
     if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera {
-        current_road = road;
-        observed_mile_marker = mile;
-        speed_limit = limit;
-    }
+        current_road = &road;
+        observed_mile_marker = &mile;
+        speed_limit = &limit;
+    } 
 
     info!(
         "Speed limit is: {} mile marker: {}",
@@ -222,8 +221,8 @@ async fn handle_plate(
     let mut timestamp1: u32 = 0;
     let mut timestamp2: u32 = 0;
     // Check if this plate has been observed before
-    if let Some(previously_seen_camera) = db.get(&new_plate) {
-        let time_traveled: u32;
+    if let Some(previously_seen_camera) = shared_db.plates_cameras.get(&new_plate) {
+        let mut time_traveled: u32 = 0;
         let mut distance_traveled: u16 = 0;
         // Messages may arrive out of order, so we need to figure out what to subtract from what.
         // NOTE: previously_seen_camera is a (timestamp, InboundMessageType::IAmCamera) tuple,
@@ -237,7 +236,7 @@ async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = observed_mile_marker - mile;
-                mile1 = observed_mile_marker;
+                mile1 = *observed_mile_marker;
                 mile2 = mile;
                 timestamp1 = new_timestamp;
                 timestamp2 = previously_seen_camera.0;
@@ -252,7 +251,7 @@ async fn handle_plate(
             {
                 distance_traveled = mile - observed_mile_marker;
                 mile1 = mile;
-                mile2 = observed_mile_marker;
+                mile2 = *observed_mile_marker;
                 timestamp1 = previously_seen_camera.0;
                 timestamp2 = new_timestamp;
             }
@@ -265,28 +264,20 @@ async fn handle_plate(
         );
 
         // check if the car exceeded the speed limit
-        if observed_speed > speed_limit as f64 {
+        if observed_speed > *speed_limit as f64 {
             info!(
                 "Plate {} exceeded the speed limit, issuing ticket",
                 new_plate
             );
             let new_ticket = OutboundMessageType::Ticket {
                 plate: new_plate,
-                road: current_road,
+                road: *current_road,
                 mile1,
                 timestamp1,
                 mile2,
                 timestamp2,
                 speed: observed_speed as u16,
             };
-
-            let dispatcher_db = dispatcher_db
-                .lock()
-                .expect("Unable to lock dispatcher db in handle plate");
-
-            if let Some(dispatcher_tx) = dispatcher_db.get(&current_road) {
-                // dispatcher_tx.send(new_ticket).await.expect("Unable to issue ticket");
-            }
 
             // issue ticket
         }
@@ -295,8 +286,12 @@ async fn handle_plate(
             "First time seeing plate: {} observed by camera: {:?}",
             new_plate, current_camera
         );
-        // let mut db = db.clone();
-        db.insert(new_plate, (new_timestamp, current_camera.clone()));
+        // Add the newly observed camera to the shared db of plate -> camera hash
+        // NOTE: subsequent inserts will override the value because the plate key is the same.
+        // But that's OK since we only ever need the last two values.
+        shared_db
+            .plates_cameras
+            .insert(new_plate, (new_timestamp, current_camera.clone()));
     }
     Ok(())
 }
