@@ -25,8 +25,7 @@ use std::sync::{Arc, Mutex};
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
 type Db = Arc<Mutex<HashMap<String, (u32, InboundMessageType)>>>;
-type TicketDispatcherDb =
-    Arc<Mutex<HashMap<u16, tokio::sync::mpsc::Receiver<OutboundMessageType>>>>;
+type TicketDispatcherDb = Arc<Mutex<HashMap<u16, tokio::sync::mpsc::Sender<OutboundMessageType>>>>;
 // ------------------------------------------------------------
 
 #[tokio::main]
@@ -44,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
     let db = Arc::new(Mutex::new(HashMap::new()));
     let ticket_dispatcher_db: Arc<
-        Mutex<HashMap<u16, tokio::sync::mpsc::Receiver<OutboundMessageType>>>,
+        Mutex<HashMap<u16, tokio::sync::mpsc::Sender<OutboundMessageType>>>,
     > = Arc::new(Mutex::new(HashMap::new()));
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
@@ -105,10 +104,6 @@ async fn process(
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
             info!("Sending {:?} to {}", msg, addr);
-            // client_writer
-            //     .send(msg)
-            //     .await
-            //     .expect("Unable to send message");
 
             if let Err(e) = client_writer.send(msg).await {
                 error!("Client {} disconnected: {}", addr, e);
@@ -155,7 +150,8 @@ async fn process(
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
-                handle_i_am_dispatcher(numroads, roads, ticket_dispatcher_db.clone()).await?;
+                handle_i_am_dispatcher(numroads, roads, tx.clone(), ticket_dispatcher_db.clone())
+                    .await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -304,7 +300,12 @@ async fn handle_i_am_camera(
 async fn handle_i_am_dispatcher(
     num_roads: u8,
     roads: Vec<u16>,
+    tx: mpsc::Sender<OutboundMessageType>,
     dispatcher_db: TicketDispatcherDb,
 ) -> anyhow::Result<()> {
+    let mut dispatcher_db = dispatcher_db.lock().expect("Unable to lock dispatcher db");
+    for road in roads.iter() {
+        dispatcher_db.insert(road, tx)
+    }
     Ok(())
 }
