@@ -46,11 +46,7 @@ async fn main() -> anyhow::Result<()> {
     let current_camera: InboundMessageType;
     let plates_cameras: PlateCameraDb;
 
-    let shared_db = Arc::new(Mutex::new(SharedState::new(
-        dispatchers,
-        current_camera,
-        plates_cameras,
-    )));
+    let shared_db = Arc::new(Mutex::new(SharedState::new()));
 
     // let shared_db = shared_db.lock()?;
 
@@ -196,20 +192,21 @@ async fn handle_plate(
     // info!("Received plate: {:?}", new_plate);
 
     // Get the current road speed limit
-    let mut speed_limit: &u16 = &0;
-    let mut observed_mile_marker: &Mile = &0;
-    let mut current_road: &Road = &0;
+    let mut speed_limit: u16 = 0;
+    let mut observed_mile_marker: Mile = 0;
+    let mut current_road: Road = 0;
 
     // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
-    let current_camera = &shared_db.current_camera;
+    // let current_camera = &shared_db.current_camera;
+    let new_camera = shared_db.current_camera.clone();
 
     // Get the details of the camera that obseved this plate.
     // NOTE: this came from handle_i_am_camera
-    if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera {
-        current_road = &road;
-        observed_mile_marker = &mile;
-        speed_limit = &limit;
-    } 
+    if let InboundMessageType::IAmCamera { road, mile, limit } = new_camera {
+        current_road = road;
+        observed_mile_marker = mile;
+        speed_limit = limit;
+    }
 
     info!(
         "Speed limit is: {} mile marker: {}",
@@ -236,7 +233,7 @@ async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = observed_mile_marker - mile;
-                mile1 = *observed_mile_marker;
+                mile1 = observed_mile_marker;
                 mile2 = mile;
                 timestamp1 = new_timestamp;
                 timestamp2 = previously_seen_camera.0;
@@ -251,7 +248,7 @@ async fn handle_plate(
             {
                 distance_traveled = mile - observed_mile_marker;
                 mile1 = mile;
-                mile2 = *observed_mile_marker;
+                mile2 = observed_mile_marker;
                 timestamp1 = previously_seen_camera.0;
                 timestamp2 = new_timestamp;
             }
@@ -264,14 +261,14 @@ async fn handle_plate(
         );
 
         // check if the car exceeded the speed limit
-        if observed_speed > *speed_limit as f64 {
+        if observed_speed > speed_limit as f64 {
             info!(
                 "Plate {} exceeded the speed limit, issuing ticket",
                 new_plate
             );
             let new_ticket = OutboundMessageType::Ticket {
                 plate: new_plate,
-                road: *current_road,
+                road: current_road,
                 mile1,
                 timestamp1,
                 mile2,
@@ -284,14 +281,15 @@ async fn handle_plate(
     } else {
         info!(
             "First time seeing plate: {} observed by camera: {:?}",
-            new_plate, current_camera
+            new_plate, shared_db.current_camera
         );
         // Add the newly observed camera to the shared db of plate -> camera hash
         // NOTE: subsequent inserts will override the value because the plate key is the same.
         // But that's OK since we only ever need the last two values.
+
         shared_db
             .plates_cameras
-            .insert(new_plate, (new_timestamp, current_camera.clone()));
+            .insert(new_plate, (new_timestamp, new_camera));
     }
     Ok(())
 }
@@ -344,7 +342,6 @@ async fn handle_i_am_dispatcher(
     for road in roads.iter() {
         // for every road this dispatcher is responsible for, add the corresponding tx reference
         let tx = tx.clone();
-        dispatcher_db.insert(*road, tx);
     }
     Ok(())
 }

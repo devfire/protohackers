@@ -12,11 +12,7 @@ pub struct SharedState {
 }
 
 impl SharedState {
-    pub fn new(
-        dispatchers: TicketDispatcherDb,
-        current_camera: InboundMessageType,
-        plates_cameras: PlateCameraDb,
-    ) -> Self {
+    pub fn new() -> Self {
         Self {
             dispatchers: HashMap::default(),
             current_camera: InboundMessageType::default(),
@@ -26,5 +22,11 @@ impl SharedState {
 
     pub fn add_camera(&mut self, new_camera: InboundMessageType) {
         self.current_camera = new_camera;
+    }
+}
+
+impl Default for SharedState {
+    fn default() -> Self {
+        Self::new()
     }
 }
