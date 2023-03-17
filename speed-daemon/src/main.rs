@@ -5,7 +5,6 @@ use speed_daemon::{
     types::{Mile, Plate, Road, Timestamp},
 };
 
-use core::num;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
