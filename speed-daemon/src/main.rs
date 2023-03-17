@@ -313,7 +313,7 @@ fn handle_i_am_camera(
     tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
-    // info!("Current camera: {:?}", new_camera);
+    info!("Current camera: {:?}", new_camera);
 
     // Set the current tokio thread camera so we can look up its details later
     let mut shared_db = shared_db
@@ -338,6 +338,7 @@ async fn handle_i_am_dispatcher(
 
     for road in roads.iter() {
         // for every road this dispatcher is responsible for, add the corresponding tx reference
+        info!("Adding dispatcher {} for road {}", client_addr, road);
         let tx = tx.clone();
         shared_db.add_ticket_dispatcher(*road, *client_addr, tx)
     }
