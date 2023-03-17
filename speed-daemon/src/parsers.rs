@@ -63,7 +63,7 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
     let hex_string = hex::encode(input);
-    println!("Parsing {}", hex_string);
+    // println!("Parsing {}", hex_string);
     let (input, message) = alt((
         parse_plate,
         parse_want_heartbeat,

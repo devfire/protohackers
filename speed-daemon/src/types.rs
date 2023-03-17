@@ -17,4 +17,8 @@ pub type Plate = String;
 // A hash of Plate -> (timestamp, IAmCamera)
 pub type PlateCameraDb = HashMap<Plate, (Timestamp, InboundMessageType)>;
 pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;
+
+// This stores the current tokio task camera. Once a new plate is received,
+// we need to check the camera's mile marker and speed limit to calculate the avg speed.
+pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
 // ------------------------------------------------------------

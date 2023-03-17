@@ -2,7 +2,7 @@ use speed_daemon::{
     codec::MessageCodec,
     message::{InboundMessageType, OutboundMessageType},
     state::SharedState,
-    types::{Mile, Plate, PlateCameraDb, Road, TicketDispatcherDb, Timestamp},
+    types::{Mile, Plate, Road, Timestamp},
 };
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -194,7 +194,6 @@ async fn handle_plate(
     let mut current_road: Road = 0;
 
     // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
-    // let current_camera = &shared_db.current_camera;
     let new_camera = shared_db.current_camera.clone();
 
     // Get the details of the camera that obseved this plate.
@@ -309,6 +308,7 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
 }
 
 fn handle_i_am_camera(
+    client_addr: &SocketAddr,
     new_camera: InboundMessageType,
     tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
@@ -320,7 +320,7 @@ fn handle_i_am_camera(
         .lock()
         .expect("Unable to lock shared db in handle_i_am_camera");
 
-    shared_db.add_camera(new_camera);
+    shared_db.add_camera(*client_addr, new_camera);
 
     Ok(())
 }
