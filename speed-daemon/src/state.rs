@@ -1,6 +1,7 @@
 pub(crate) use std::collections::HashMap;
 use std::net::SocketAddr;
 
+use log::{error, info};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -47,21 +48,21 @@ impl SharedState {
         self.dispatchers.insert(road, addr_tx_hash);
     }
 
-    pub fn get_ticket_dispatcher(
-        &self,
-        road: Road,
-        addr: &SocketAddr,
-    ) -> &mpsc::Sender<OutboundMessageType> {
+    pub fn get_ticket_dispatcher(&self, road: Road) -> Option<&mpsc::Sender<OutboundMessageType>> {
         // First, we get the hash mapping the road num to the client address-tx hash
         // Second, we get the tx from the client address
         let addr_tx_hash = self
             .dispatchers
             .get(&road)
             .expect("Unable to fetch addr_tx_hash");
-        let tx = addr_tx_hash
-            .get(addr)
-            .expect("Unable to get dispatcher tx from addr_tx_hash");
-        tx
+
+        if let Some((client_addr, tx)) = addr_tx_hash.iter().next() {
+            info!("Found a dispatcher for road {} at {}", road, client_addr);
+            Some(tx)
+        } else {
+            error!("Dispatcher for road {} not found", road);
+            None
+        }
     }
 }
 
