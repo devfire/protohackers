@@ -27,6 +27,15 @@ impl SharedState {
         self.current_camera.insert(addr, new_camera);
     }
 
+    pub fn get_current_camera(&self, addr: &SocketAddr) -> &InboundMessageType {
+        let camera = self
+            .current_camera
+            .get(addr)
+            .expect("Unable to locate camera for client");
+
+        camera
+    }
+
     pub fn add_ticket_dispatcher(
         &mut self,
         road: Road,

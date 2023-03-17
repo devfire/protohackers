@@ -128,7 +128,7 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp, shared_db.clone()).await?
+                handle_plate(&addr, plate, timestamp, shared_db.clone()).await?
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -147,7 +147,7 @@ async fn process(
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(new_camera, &tx, shared_db.clone())?;
+                handle_i_am_camera(&addr, new_camera, &tx, shared_db.clone())?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -180,6 +180,7 @@ fn handle_error(
 }
 
 async fn handle_plate(
+    client_addr: &SocketAddr,
     new_plate: Plate,
     new_timestamp: Timestamp,
     shared_db: Arc<Mutex<SharedState>>,
@@ -194,11 +195,12 @@ async fn handle_plate(
     let mut current_road: Road = 0;
 
     // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
-    let new_camera = shared_db.current_camera.clone();
+    // let new_camera = shared_db.current_camera.clone();
+    let current_camera = shared_db.get_current_camera(client_addr);
 
     // Get the details of the camera that obseved this plate.
     // NOTE: this came from handle_i_am_camera
-    if let InboundMessageType::IAmCamera { road, mile, limit } = new_camera {
+    if let InboundMessageType::IAmCamera { road, mile, limit } = *current_camera {
         current_road = road;
         observed_mile_marker = mile;
         speed_limit = limit;
@@ -215,7 +217,7 @@ async fn handle_plate(
     let mut timestamp2: u32 = 0;
     // Check if this plate has been observed before
     if let Some(previously_seen_camera) = shared_db.plates_cameras.get(&new_plate) {
-        let mut time_traveled: u32 = 0;
+        let time_traveled: u32;
         let mut distance_traveled: u16 = 0;
         // Messages may arrive out of order, so we need to figure out what to subtract from what.
         // NOTE: previously_seen_camera is a (timestamp, InboundMessageType::IAmCamera) tuple,
@@ -282,10 +284,10 @@ async fn handle_plate(
         // Add the newly observed camera to the shared db of plate -> camera hash
         // NOTE: subsequent inserts will override the value because the plate key is the same.
         // But that's OK since we only ever need the last two values.
-
+        let current_camera = current_camera.clone();
         shared_db
             .plates_cameras
-            .insert(new_plate, (new_timestamp, new_camera));
+            .insert(new_plate, (new_timestamp, current_camera));
     }
     Ok(())
 }
