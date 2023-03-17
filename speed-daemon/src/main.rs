@@ -9,7 +9,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
-    time::{sleep, Duration},
 };
 
 use env_logger::Env;
@@ -22,7 +21,8 @@ use futures::StreamExt;
 use std::sync::{Arc, Mutex};
 
 mod handlers;
-use handlers::handle_i_am_dispatcher;
+
+use handlers::{handle_i_am_dispatcher, handle_want_hearbeat, handle_i_am_camera};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -297,33 +297,6 @@ fn issue_ticket(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageTyp
     });
 }
 
-fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
-    tokio::spawn(async move {
-        loop {
-            tx.send(OutboundMessageType::Heartbeat)
-                .await
-                .expect("Unable to send heartbeat");
-            let interval = interval / 10;
-            sleep(Duration::from_secs(interval as u64)).await;
-        }
-    });
-}
 
-fn handle_i_am_camera(
-    client_addr: &SocketAddr,
-    new_camera: InboundMessageType,
-    shared_db: Arc<Mutex<SharedState>>,
-) -> anyhow::Result<()> {
-    info!("Current camera: {:?}", new_camera);
-
-    // Set the current tokio thread camera so we can look up its details later
-    let mut shared_db = shared_db
-        .lock()
-        .expect("Unable to lock shared db in handle_i_am_camera");
-
-    shared_db.add_camera(*client_addr, new_camera);
-
-    Ok(())
-}
 
 
