@@ -5,10 +5,7 @@ use speed_daemon::{
     types::{Mile, Plate, PlateCameraDb, Road, TicketDispatcherDb, Timestamp},
 };
 
-use std::{
-    collections::HashMap,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
@@ -42,9 +39,9 @@ async fn main() -> anyhow::Result<()> {
     //     Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>,
     // > = Arc::new(Mutex::new(HashMap::new()));
 
-    let dispatchers: TicketDispatcherDb;
-    let current_camera: InboundMessageType;
-    let plates_cameras: PlateCameraDb;
+    // let dispatchers: TicketDispatcherDb;
+    // let current_camera: InboundMessageType;
+    // let plates_cameras: PlateCameraDb;
 
     let shared_db = Arc::new(Mutex::new(SharedState::new()));
 
@@ -120,11 +117,11 @@ async fn process(
     });
 
     // This shared var holds the current thread camera. Init to 0 and overriden later.
-    let current_camera = Arc::new(Mutex::new(InboundMessageType::IAmCamera {
-        road: 0,
-        mile: 0,
-        limit: 0,
-    }));
+    // let current_camera = Arc::new(Mutex::new(InboundMessageType::IAmCamera {
+    //     road: 0,
+    //     mile: 0,
+    //     limit: 0,
+    // }));
 
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
@@ -154,7 +151,7 @@ async fn process(
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
-                handle_i_am_dispatcher(numroads, roads, &tx.clone(), shared_db.clone()).await?;
+                handle_i_am_dispatcher(numroads, roads, &addr, &tx, shared_db.clone()).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -328,10 +325,10 @@ fn handle_i_am_camera(
     Ok(())
 }
 
-#[allow(unused)]
 async fn handle_i_am_dispatcher(
     num_roads: u8,
     roads: Vec<u16>,
+    client_addr: &SocketAddr,
     tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
