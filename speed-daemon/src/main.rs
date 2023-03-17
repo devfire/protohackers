@@ -5,6 +5,7 @@ use speed_daemon::{
     types::{Mile, Plate, Road, Timestamp},
 };
 
+use core::num;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -141,6 +142,7 @@ async fn process(
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
+                info!("Dispatcher detected at address {}", addr);
                 handle_i_am_dispatcher(numroads, roads, &addr, &tx, shared_db.clone()).await?;
             }
             Err(_) => {
@@ -265,6 +267,7 @@ async fn handle_plate(
 
             // issue ticket
             // Get the relevant tx
+            info!("Getting the relevant tx for road {} address {}", current_road, client_addr);
             let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
 
             let tx = tx.clone();
@@ -322,12 +325,13 @@ fn handle_i_am_camera(
 }
 
 async fn handle_i_am_dispatcher(
-    _num_roads: u8,
+    num_roads: u8,
     roads: Vec<Road>,
     client_addr: &SocketAddr,
     tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
+    info!("Adding a dispatcher for roads {}", num_roads);
     let mut shared_db = shared_db
         .lock()
         .expect("Unable to lock shared db in handle_i_am_dispatcher");
