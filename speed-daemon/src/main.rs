@@ -61,9 +61,6 @@ async fn main() -> anyhow::Result<()> {
         let (stream, addr) = listener.accept().await?;
 
         // Clone the handle to the shared state.
-        // let db = db.clone();
-        // let ticket_dispatcher_db = ticket_dispatcher_db.clone();
-
         let shared_db = shared_db.clone();
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
@@ -116,13 +113,6 @@ async fn process(
         }
     });
 
-    // This shared var holds the current thread camera. Init to 0 and overriden later.
-    // let current_camera = Arc::new(Mutex::new(InboundMessageType::IAmCamera {
-    //     road: 0,
-    //     mile: 0,
-    //     limit: 0,
-    // }));
-
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
 
@@ -147,7 +137,7 @@ async fn process(
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(&addr, new_camera, &tx, shared_db.clone())?;
+                handle_i_am_camera(&addr, new_camera, shared_db.clone())?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
@@ -162,7 +152,6 @@ async fn process(
         }
     }
 
-    // .await the join handles to ensure the commands fully complete before the process exits.
     manager.await?;
     Ok(())
 }
@@ -275,6 +264,11 @@ async fn handle_plate(
             };
 
             // issue ticket
+            // Get the relevant tx
+            let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
+
+            let tx = tx.clone();
+            issue_ticket(new_ticket, tx);
         }
     } else {
         info!(
@@ -292,9 +286,10 @@ async fn handle_plate(
     Ok(())
 }
 
-#[allow(unused)]
-fn handle_ticket(message: InboundMessageType) {
-    todo!()
+fn issue_ticket(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
+    tokio::spawn(async move {
+        tx.send(ticket).await.expect("Unable to send ticket");
+    });
 }
 
 fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
@@ -312,7 +307,6 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
 fn handle_i_am_camera(
     client_addr: &SocketAddr,
     new_camera: InboundMessageType,
-    tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
     info!("Current camera: {:?}", new_camera);

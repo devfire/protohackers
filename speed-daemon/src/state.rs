@@ -46,6 +46,23 @@ impl SharedState {
         addr_tx_hash.insert(addr, tx);
         self.dispatchers.insert(road, addr_tx_hash);
     }
+
+    pub fn get_ticket_dispatcher(
+        &self,
+        road: Road,
+        addr: &SocketAddr,
+    ) -> &mpsc::Sender<OutboundMessageType> {
+        // First, we get the hash mapping the road num to the client address-tx hash
+        // Second, we get the tx from the client address
+        let addr_tx_hash = self
+            .dispatchers
+            .get(&road)
+            .expect("Unable to fetch addr_tx_hash");
+        let tx = addr_tx_hash
+            .get(addr)
+            .expect("Unable to get dispatcher tx from addr_tx_hash");
+        tx
+    }
 }
 
 impl Default for SharedState {
