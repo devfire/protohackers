@@ -312,7 +312,7 @@ async fn handle_i_am_camera(
     Ok(())
 }
 
-#[allow(unused)]
+
 fn handle_i_am_dispatcher(message: InboundMessageType) {
-    todo!()
+    info!("Handling dispatcher, {:?}", message);
 }
