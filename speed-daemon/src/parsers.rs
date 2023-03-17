@@ -51,12 +51,10 @@ pub fn parse_i_am_camera(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
 pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
     // 0x81: IAmDispatcher (Client->Server)
     let (input, _) = tag([0x81])(input)?;
-    let (input, numroads) = be_u8(input)?;
     let (input, roads) = length_count(u8, be_u16)(input)?;
-    Ok((input, InboundMessageType::IAmDispatcher { numroads, roads }))
+    Ok((input, InboundMessageType::IAmDispatcher { roads }))
 }
 
-/// .
 ///
 /// # Errors
 ///
@@ -70,5 +68,6 @@ pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
         parse_i_am_camera,
         parse_i_am_dispatcher,
     ))(input)?;
+    println!("Parser finished, inbound message: {:?}", message);
     Ok((input, message))
 }

@@ -1,16 +1,11 @@
 use speed_daemon::{
     codec::MessageCodec,
     message::{InboundMessageType, OutboundMessageType},
+    state::SharedState,
+    types::{Mile, Plate, Road, Timestamp},
 };
 
-use std::{
-    collections::HashMap,
-
-    // collections::HashMap,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-
-    sync::mpsc::Receiver,
-};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
@@ -22,17 +17,9 @@ use log::{error, info};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use futures::sink::SinkExt;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 
 use std::sync::{Arc, Mutex};
-
-// Type alias CamelCase matches the db hash of hashes below
-// type Db = Arc<Mutex<HashMap<u16, Bytes>>>;
-// type Db = Arc<Mutex<HashMap<u16, Vec<InboundMessageType>>>>;
-// type Db = Arc<Mutex<Vec<HashMap<InboundMessageType,InboundMessageType>>>>;
-
-// A hash of Plate -> (timestamp, IAmCamera)
-type Db = Arc<Mutex<HashMap<String, (u32, InboundMessageType)>>>;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,7 +34,18 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    let db = Arc::new(Mutex::new(HashMap::new()));
+    // let db = Arc::new(Mutex::new(HashMap::new()));
+    // let ticket_dispatcher_db: Arc<
+    //     Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>,
+    // > = Arc::new(Mutex::new(HashMap::new()));
+
+    // let dispatchers: TicketDispatcherDb;
+    // let current_camera: InboundMessageType;
+    // let plates_cameras: PlateCameraDb;
+
+    let shared_db = Arc::new(Mutex::new(SharedState::new()));
+
+    // let shared_db = shared_db.lock()?;
 
     // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
 
@@ -62,20 +60,23 @@ async fn main() -> anyhow::Result<()> {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
 
-        // Clone the handle to the hash map.
-        let db = db.clone();
-
+        // Clone the handle to the shared state.
+        let shared_db = shared_db.clone();
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, db).await {
+            if let Err(e) = process(stream, addr, shared_db).await {
                 info!("an error occurred; error = {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<()> {
+async fn process(
+    stream: TcpStream,
+    addr: SocketAddr,
+    shared_db: Arc<Mutex<SharedState>>,
+) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -97,49 +98,28 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
     let manager = tokio::spawn(async move {
-        // Start receiving messages
-
+        // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
+        // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
             info!("Sending {:?} to {}", msg, addr);
-            client_writer
-                .send(msg)
-                .await
-                .expect("Unable to send message");
+
+            if let Err(e) = client_writer.send(msg).await {
+                error!("Client {} disconnected: {}", addr, e);
+                client_writer
+                    .close()
+                    .await
+                    .expect("Unable to close channel.");
+            }
         }
     });
-
-    // This shared var holds the current thread camera. Init to 0 and overriden later.
-    let current_camera = Arc::new(Mutex::new(InboundMessageType::IAmCamera {
-        road: 0,
-        mile: 0,
-        limit: 0,
-    }));
 
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(plate, timestamp, db.clone(), current_camera.clone()).await?
+                handle_plate(&addr, plate, timestamp, shared_db.clone()).await?
             }
-
-            Ok(InboundMessageType::Ticket {
-                plate,
-                road,
-                mile1,
-                timestamp1,
-                mile2,
-                timestamp2,
-                speed,
-            }) => handle_ticket(InboundMessageType::Ticket {
-                plate,
-                road,
-                mile1,
-                timestamp1,
-                mile2,
-                timestamp2,
-                speed,
-            }),
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
                 info!(
@@ -157,11 +137,12 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(new_camera, &tx, current_camera.clone()).await?;
+                handle_i_am_camera(&addr, new_camera, shared_db.clone())?;
             }
 
-            Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
-                handle_i_am_dispatcher(InboundMessageType::IAmDispatcher { numroads, roads })
+            Ok(InboundMessageType::IAmDispatcher { roads }) => {
+                info!("Dispatcher detected at address {}", addr);
+                handle_i_am_dispatcher( roads, &addr, &tx, shared_db.clone()).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -172,7 +153,6 @@ async fn process(stream: TcpStream, addr: SocketAddr, db: Db) -> anyhow::Result<
         }
     }
 
-    // .await the join handles to ensure the commands fully complete before the process exits.
     manager.await?;
     Ok(())
 }
@@ -190,44 +170,43 @@ fn handle_error(
 }
 
 async fn handle_plate(
-    new_plate: String,
-    new_timestamp: u32,
-    db: Db,
-    current_camera: Arc<Mutex<InboundMessageType>>,
+    client_addr: &SocketAddr,
+    new_plate: Plate,
+    new_timestamp: Timestamp,
+    shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
-    let mut db = db.lock().expect("Unable to lock shared db");
+    let mut shared_db = shared_db.lock().expect("Unable to lock shared db");
 
     // info!("Received plate: {:?}", new_plate);
 
-    let current_camera = current_camera
-        .lock()
-        .expect("Unable to lock the current road for editing");
-
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
-    let mut observed_mile_marker: u16 = 0;
-    if let InboundMessageType::IAmCamera {
-        road: _,
-        mile,
-        limit,
-    } = current_camera.clone()
-    {
+    let mut observed_mile_marker: Mile = 0;
+    let mut current_road: Road = 0;
+
+    // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
+    // let new_camera = shared_db.current_camera.clone();
+    let current_camera = shared_db.get_current_camera(client_addr);
+
+    // Get the details of the camera that obseved this plate.
+    // NOTE: this came from handle_i_am_camera
+    if let InboundMessageType::IAmCamera { road, mile, limit } = *current_camera {
+        current_road = road;
         observed_mile_marker = mile;
         speed_limit = limit;
     }
+
     info!(
         "Speed limit is: {} mile marker: {}",
-        speed_limit, observed_mile_marker
+        current_road, observed_mile_marker
     );
 
+    let mut mile1: u16 = 0;
+    let mut mile2: u16 = 0;
+    let mut timestamp1: u32 = 0;
+    let mut timestamp2: u32 = 0;
     // Check if this plate has been observed before
-    // let mut previously_seen_plate: (u16, InboundMessageType);
-    // let mut previous_timestamp: InboundMessageType;
-
-    // let mut previously_seen_plate: String;
-    // let mut time_traveled: u32 = 0;
-    // let observed_speed: u32;
-    if let Some(previously_seen_camera) = db.get(&new_plate) {
+    if let Some(previously_seen_camera) = shared_db.plates_cameras.get(&new_plate) {
         let time_traveled: u32;
         let mut distance_traveled: u16 = 0;
         // Messages may arrive out of order, so we need to figure out what to subtract from what.
@@ -242,6 +221,10 @@ async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = observed_mile_marker - mile;
+                mile1 = observed_mile_marker;
+                mile2 = mile;
+                timestamp1 = new_timestamp;
+                timestamp2 = previously_seen_camera.0;
             }
         } else {
             time_traveled = previously_seen_camera.0 - new_timestamp;
@@ -252,6 +235,10 @@ async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = mile - observed_mile_marker;
+                mile1 = mile;
+                mile2 = observed_mile_marker;
+                timestamp1 = previously_seen_camera.0;
+                timestamp2 = new_timestamp;
             }
         }
 
@@ -267,21 +254,44 @@ async fn handle_plate(
                 "Plate {} exceeded the speed limit, issuing ticket",
                 new_plate
             );
+            let new_ticket = OutboundMessageType::Ticket {
+                plate: new_plate,
+                road: current_road,
+                mile1,
+                timestamp1,
+                mile2,
+                timestamp2,
+                speed: observed_speed as u16,
+            };
+
+            // issue ticket
+            // Get the relevant tx
+            info!("Getting the relevant tx for road {} address {}", current_road, client_addr);
+            let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
+
+            let tx = tx.clone();
+            issue_ticket(new_ticket, tx);
         }
     } else {
         info!(
             "First time seeing plate: {} observed by camera: {:?}",
-            new_plate, current_camera
+            new_plate, shared_db.current_camera
         );
-        // let mut db = db.clone();
-        db.insert(new_plate, (new_timestamp, current_camera.clone()));
+        // Add the newly observed camera to the shared db of plate -> camera hash
+        // NOTE: subsequent inserts will override the value because the plate key is the same.
+        // But that's OK since we only ever need the last two values.
+        let current_camera = current_camera.clone();
+        shared_db
+            .plates_cameras
+            .insert(new_plate, (new_timestamp, current_camera));
     }
     Ok(())
 }
 
-#[allow(unused)]
-fn handle_ticket(message: InboundMessageType) {
-    todo!()
+fn issue_ticket(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
+    tokio::spawn(async move {
+        tx.send(ticket).await.expect("Unable to send ticket");
+    });
 }
 
 fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
@@ -296,23 +306,39 @@ fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {
     });
 }
 
-async fn handle_i_am_camera(
+fn handle_i_am_camera(
+    client_addr: &SocketAddr,
     new_camera: InboundMessageType,
-    tx: &mpsc::Sender<OutboundMessageType>,
-    my_camera: Arc<Mutex<InboundMessageType>>,
+    shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
-    // info!("Current camera: {:?}", new_camera);
+    info!("Current camera: {:?}", new_camera);
 
-    // Set the current tokio thread road so we can look up its details later
-    let mut my_camera = my_camera
+    // Set the current tokio thread camera so we can look up its details later
+    let mut shared_db = shared_db
         .lock()
-        .expect("Unable to lock the current road for editing");
-    *my_camera = new_camera;
+        .expect("Unable to lock shared db in handle_i_am_camera");
+
+    shared_db.add_camera(*client_addr, new_camera);
 
     Ok(())
 }
 
+async fn handle_i_am_dispatcher(
+    roads: Vec<Road>,
+    client_addr: &SocketAddr,
+    tx: &mpsc::Sender<OutboundMessageType>,
+    shared_db: Arc<Mutex<SharedState>>,
+) -> anyhow::Result<()> {
+    info!("Adding a dispatcher for roads {:?}", roads);
+    // let mut shared_db = shared_db
+      //   .lock()
+        // .expect("Unable to lock shared db in handle_i_am_dispatcher");
 
-fn handle_i_am_dispatcher(message: InboundMessageType) {
-    info!("Handling dispatcher, {:?}", message);
+    for road in roads.iter() {
+        // for every road this dispatcher is responsible for, add the corresponding tx reference
+        info!("Adding dispatcher {} for road {}", client_addr, road);
+        // let tx = tx.clone();
+        // shared_db.add_ticket_dispatcher(*road, *client_addr, tx)
+    }
+    Ok(())
 }
