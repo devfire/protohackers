@@ -50,7 +50,6 @@ pub fn parse_i_am_camera(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
 
 pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
     // 0x81: IAmDispatcher (Client->Server)
-    println!("---> Running the dispatcher parser.");
     let (input, _) = tag([0x81])(input)?;
     let (input, numroads) = be_u8(input)?;
     let (input, roads) = length_count(u8, be_u16)(input)?;
@@ -64,12 +63,13 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
     let hex_string = hex::encode(input);
-    println!("Parsing {}", hex_string);
+    // println!("Parsing {}", hex_string);
     let (input, message) = alt((
         parse_plate,
         parse_want_heartbeat,
         parse_i_am_camera,
         parse_i_am_dispatcher,
     ))(input)?;
+    println!("Parser finished, inbound message: {:?}", message);
     Ok((input, message))
 }
