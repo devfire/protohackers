@@ -1,14 +1,8 @@
-
 use log::info;
-
 use speed_daemon::state::SharedState;
-
 use std::sync::Mutex;
-
 use std::sync::Arc;
-
 use speed_daemon::message::InboundMessageType;
-
 use std::net::SocketAddr;
 
 pub fn handle_i_am_camera(

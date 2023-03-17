@@ -1,12 +1,6 @@
-
 use tokio::time::Duration;
-
 use tokio::time::sleep;
-
-use tokio;
-
 use speed_daemon::message::OutboundMessageType;
-
 use tokio::sync::mpsc;
 
 pub fn handle_want_hearbeat(interval: u32, tx: mpsc::Sender<OutboundMessageType>) {

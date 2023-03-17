@@ -1,5 +1,3 @@
-
-use tokio;
 use speed_daemon::message::OutboundMessageType;
 use tokio::sync::mpsc;
 
