@@ -326,8 +326,8 @@ fn handle_i_am_camera(
 }
 
 async fn handle_i_am_dispatcher(
-    num_roads: u8,
-    roads: Vec<u16>,
+    _num_roads: u8,
+    roads: Vec<Road>,
     client_addr: &SocketAddr,
     tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
@@ -339,6 +339,7 @@ async fn handle_i_am_dispatcher(
     for road in roads.iter() {
         // for every road this dispatcher is responsible for, add the corresponding tx reference
         let tx = tx.clone();
+        shared_db.add_ticket_dispatcher(*road, *client_addr, tx)
     }
     Ok(())
 }
