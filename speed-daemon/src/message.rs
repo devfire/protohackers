@@ -5,25 +5,7 @@ pub enum InboundMessageType {
     Plate { plate: Plate, timestamp: Timestamp },
     WantHeartbeat { interval: u32 },
     IAmCamera { road: Road, mile: Mile, limit: u16 },
-    IAmDispatcher { numroads: u8, roads: Vec<u16> },
-}
-
-impl InboundMessageType {
-    pub fn new_plate(plate: String, timestamp: u32) -> Self {
-        InboundMessageType::Plate { plate, timestamp }
-    }
-
-    pub fn new_want_heartbeat(interval: u32) -> Self {
-        InboundMessageType::WantHeartbeat { interval }
-    }
-
-    pub fn new_i_am_camera(road: u16, mile: u16, limit: u16) -> Self {
-        InboundMessageType::IAmCamera { road, mile, limit }
-    }
-
-    pub fn new_i_am_dispatcher(numroads: u8, roads: Vec<u16>) -> Self {
-        InboundMessageType::IAmDispatcher { numroads, roads }
-    }
+    IAmDispatcher { roads: Vec<u16> },
 }
 
 impl Default for InboundMessageType {
