@@ -141,9 +141,9 @@ async fn process(
                 handle_i_am_camera(&addr, new_camera, shared_db.clone())?;
             }
 
-            Ok(InboundMessageType::IAmDispatcher { numroads, roads }) => {
+            Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 info!("Dispatcher detected at address {}", addr);
-                handle_i_am_dispatcher(numroads, roads, &addr, &tx, shared_db.clone()).await?;
+                handle_i_am_dispatcher( roads, &addr, &tx, shared_db.clone()).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -325,13 +325,12 @@ fn handle_i_am_camera(
 }
 
 async fn handle_i_am_dispatcher(
-    num_roads: u8,
     roads: Vec<Road>,
     client_addr: &SocketAddr,
     tx: &mpsc::Sender<OutboundMessageType>,
     shared_db: Arc<Mutex<SharedState>>,
 ) -> anyhow::Result<()> {
-    info!("Adding a dispatcher for roads {}", num_roads);
+    info!("Adding a dispatcher for roads {:?}", roads);
     let mut shared_db = shared_db
         .lock()
         .expect("Unable to lock shared db in handle_i_am_dispatcher");
