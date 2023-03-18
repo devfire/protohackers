@@ -63,11 +63,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Clone the handle to the shared state.
     let shared_db_queue = shared_db.clone();
-    tokio::spawn(async move {
-        if let Err(e) = check_ticket_queue(shared_db_queue).await {
-            error!("Error: {:?}", e)
-        }
-    });
+
+    if let Err(e) = check_ticket_queue(shared_db_queue) {
+        error!("Error checking ticket queue: {:?}", e)
+    }
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
@@ -172,37 +171,39 @@ async fn process(
     Ok(())
 }
 
-async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) -> anyhow::Result<()> {
-    let mut shared_db = shared_db
-        .lock()
-        .expect("Unable to lock shared db in queue manager");
+fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) -> anyhow::Result<()> {
     info!("Checking to see if there are any tickets in the queue");
+    tokio::spawn(async move {
+        let mut shared_db = shared_db
+            .lock()
+            .expect("Unable to lock shared db in queue manager");
+        loop {
+            // Keep checking for new tickets in the queue
+            while let Some(new_ticket) = shared_db.get_ticket() {
+                info!("Found a ticket {:?} to", new_ticket);
 
-    loop {
-        // Keep checking for new tickets in the queue
-        while let Some(new_ticket) = shared_db.get_ticket() {
-            info!("Found a ticket {:?} to", new_ticket);
+                // get the Road from the ticket
+                if let OutboundMessageType::Ticket {
+                    plate: _,
+                    road,
+                    mile1: _,
+                    timestamp1: _,
+                    mile2: _,
+                    timestamp2: _,
+                    speed: _,
+                } = new_ticket
+                {
+                    // see if there's a tx for that road
+                    if let Some(tx) = shared_db.get_ticket_dispatcher(road) {
+                        info!("Found a dispatcher for the road {}", road);
 
-            // get the Road from the ticket
-            if let OutboundMessageType::Ticket {
-                plate: _,
-                road,
-                mile1: _,
-                timestamp1: _,
-                mile2: _,
-                timestamp2: _,
-                speed: _,
-            } = new_ticket
-            {
-                // see if there's a tx for that road
-                if let Some(tx) = shared_db.get_ticket_dispatcher(road) {
-                    info!("Found a dispatcher for the road {}", road);
-
-                    send_ticket_to_dispatcher(new_ticket, tx.clone());
+                        send_ticket_to_dispatcher(new_ticket, tx.clone());
+                    }
                 }
             }
         }
-    }
+    });
+    Ok(())
 }
 
 fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
