@@ -21,9 +21,9 @@ use std::sync::{Arc, Mutex};
 
 mod handlers;
 
-use handlers::{handle_i_am_dispatcher, handle_want_hearbeat, handle_i_am_camera};
+use handlers::{handle_i_am_camera, handle_i_am_dispatcher, handle_want_hearbeat};
 
-use crate::handlers::{handle_plate, handle_error};
+use crate::handlers::{handle_error, handle_plate};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -65,7 +65,8 @@ async fn main() -> anyhow::Result<()> {
         let (stream, addr) = listener.accept().await?;
 
         // Clone the handle to the shared state.
-        let shared_db = shared_db.clone();
+        let shared_db = Arc::clone(&shared_db);
+
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
@@ -117,6 +118,12 @@ async fn process(
         }
     });
 
+    // Clone the handle to the shared state.
+    // let shared_db = shared_db.clone();
+    tokio::spawn(async move {
+        check_ticket_queue(shared_db).await;
+    });
+
     while let Some(message) = client_reader.next().await {
         info!("From {}: {:?}", addr, message);
 
@@ -146,7 +153,8 @@ async fn process(
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 info!("Dispatcher detected at address {}", addr);
-                handle_i_am_dispatcher( roads, &addr, &tx, shared_db.clone()).await?;
+                let shared_db = shared_db.clone();
+                handle_i_am_dispatcher(roads, &addr, &tx, shared_db).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -161,9 +169,36 @@ async fn process(
     Ok(())
 }
 
+async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) {
+    let mut shared_db = shared_db
+        .lock()
+        .expect("Unable to lock shared db in queue manager");
+    // Keep checking for new tickets in the queue
+    while let Some(new_ticket) = shared_db.get_ticket() {
+        info!("Found a ticket {:?} to", new_ticket);
 
+        // get the Road from the ticket
+        if let OutboundMessageType::Ticket {
+            ref plate,
+            road,
+            mile1,
+            timestamp1,
+            mile2,
+            timestamp2,
+            speed,
+        } = new_ticket
+        {
+            // see if there's a tx for that road
+            if let Some(tx) = shared_db.get_ticket_dispatcher(road) {
+                info!("Found a dispatcher for the road {}", road);
 
-fn issue_ticket(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
+                send_ticket_to_dispatcher(new_ticket, tx.clone());
+            }
+        }
+    }
+}
+
+fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
     tokio::spawn(async move {
         tx.send(ticket).await.expect("Unable to send ticket");
     });

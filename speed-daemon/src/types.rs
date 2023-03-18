@@ -23,7 +23,7 @@ pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<Out
 
 // Since tickets can be issued before a ticket dispatcher connects,
 // we need a way to store the tickets until then.
-pub type TicketQueue = VecDeque<OutboundMessageType>;
+pub type TicketQueue = Vec<OutboundMessageType>;
 
 // This stores the current tokio task camera. Once a new plate is received,
 // we need to check the camera's mile marker and speed limit to calculate the avg speed.

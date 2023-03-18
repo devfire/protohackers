@@ -68,15 +68,18 @@ impl SharedState {
         }
     }
 
+    // Checks to see if there's a ticket in the queue. If there is, returns the ticket.
+    // If not, returns None.
     pub fn get_ticket(&mut self) -> Option<OutboundMessageType> {
-        if let Some(new_ticket) = self.ticket_queue.pop_front() {
-            info!("Found a ticket {:?}", new_ticket);
-            Some(new_ticket)
+        if let Some(ticket) = self.ticket_queue.pop_front() {
+            info!("Found a ticket {:?}", ticket);
+            Some(ticket)
         } else {
             None
         }
     }
 
+    // Append a ticket to the shared queue. Once a dispatcher comes online, it'll be delivered.
     pub fn add_ticket(&mut self, new_ticket: OutboundMessageType) {
         self.ticket_queue.push_back(new_ticket);
     }

@@ -105,10 +105,10 @@ pub async fn handle_plate(
 
             // issue ticket
             // Get the relevant tx
-            info!(
-                "Getting the relevant tx for road {} address {}",
-                current_road, client_addr
-            );
+            // info!(
+            //     "Getting the relevant tx for road {} address {}",
+            //     current_road, client_addr
+            // );
             // let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
 
             // let tx = tx.clone();
