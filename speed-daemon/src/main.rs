@@ -179,13 +179,13 @@ async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) {
 
         // get the Road from the ticket
         if let OutboundMessageType::Ticket {
-            ref plate,
+            plate: _,
             road,
-            mile1,
-            timestamp1,
-            mile2,
-            timestamp2,
-            speed,
+            mile1: _,
+            timestamp1: _,
+            mile2: _,
+            timestamp2: _,
+            speed: _,
         } = new_ticket
         {
             // see if there's a tx for that road
