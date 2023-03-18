@@ -109,9 +109,9 @@ pub async fn handle_plate(
                 "Getting the relevant tx for road {} address {}",
                 current_road, client_addr
             );
-            let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
+            // let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
 
-            let tx = tx.clone();
+            // let tx = tx.clone();
             info!("Issuing ticket");
             //issue_ticket(new_ticket, tx);
         }

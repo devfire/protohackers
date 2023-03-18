@@ -168,7 +168,3 @@ fn issue_ticket(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageTyp
         tx.send(ticket).await.expect("Unable to send ticket");
     });
 }
-
-
-
-
