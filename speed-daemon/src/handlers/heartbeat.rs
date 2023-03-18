@@ -16,7 +16,7 @@ pub fn handle_want_hearbeat(
                 Ok(_) => {}
                 Err(e) => {
                     error!("Client disconnected: {}", e);
-                    
+                    return;
                 }
             }
             // .expect("Unable to send heartbeat");

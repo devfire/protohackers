@@ -61,6 +61,14 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Server running on {}", addr);
 
+    // Clone the handle to the shared state.
+    let shared_db_queue = shared_db.clone();
+    tokio::spawn(async move {
+        if let Err(e) = check_ticket_queue(shared_db_queue).await {
+            error!("Error: {:?}", e)
+        }
+    });
+
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
@@ -73,14 +81,6 @@ async fn main() -> anyhow::Result<()> {
             info!("Accepted connection from {}", addr);
             if let Err(e) = process(stream, addr, shared_db_main).await {
                 error!("Error: {:?}", e);
-            }
-        });
-
-        // Clone the handle to the shared state.
-        let shared_db_queue = shared_db.clone();
-        tokio::spawn(async move {
-            if let Err(e) = check_ticket_queue(shared_db_queue).await {
-                error!("Error: {:?}", e)
             }
         });
     }
