@@ -6,8 +6,8 @@ use nom::{
     IResult,
 };
 
-use hex;
-use log::info;
+// use hex;
+// use log::info;
 
 use crate::message::InboundMessageType;
 
@@ -61,14 +61,14 @@ pub fn parse_i_am_dispatcher(input: &[u8]) -> IResult<&[u8], InboundMessageType>
 ///
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], InboundMessageType> {
-    let hex_string = hex::encode(input);
-    info!("Parsing {}", hex_string);
+    // let hex_string = hex::encode(input);
+    // info!("Parsing {}", hex_string);
     let (input, message) = alt((
         parse_plate,
         parse_want_heartbeat,
         parse_i_am_camera,
         parse_i_am_dispatcher,
     ))(input)?;
-    info!("Parser finished, inbound message: {:?}", message);
+    // info!("Parser finished, inbound message: {:?}", message);
     Ok((input, message))
 }
