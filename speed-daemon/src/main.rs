@@ -182,31 +182,32 @@ async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) -> anyhow::Resul
         .lock()
         .expect("Unable to lock shared db in queue manager");
     info!("Checking to see if there are any tickets in the queue");
-    loop {
-        // Keep checking for new tickets in the queue
-        while let Some(new_ticket) = shared_db.get_ticket() {
-            info!("Found a ticket {:?} to", new_ticket);
 
-            // get the Road from the ticket
-            if let OutboundMessageType::Ticket {
-                plate: _,
-                road,
-                mile1: _,
-                timestamp1: _,
-                mile2: _,
-                timestamp2: _,
-                speed: _,
-            } = new_ticket
-            {
-                // see if there's a tx for that road
-                if let Some(tx) = shared_db.get_ticket_dispatcher(road) {
-                    info!("Found a dispatcher for the road {}", road);
+    // Keep checking for new tickets in the queue
+    while let Some(new_ticket) = shared_db.get_ticket() {
+        info!("Found a ticket {:?} to", new_ticket);
 
-                    send_ticket_to_dispatcher(new_ticket, tx.clone());
-                }
+        // get the Road from the ticket
+        if let OutboundMessageType::Ticket {
+            plate: _,
+            road,
+            mile1: _,
+            timestamp1: _,
+            mile2: _,
+            timestamp2: _,
+            speed: _,
+        } = new_ticket
+        {
+            // see if there's a tx for that road
+            if let Some(tx) = shared_db.get_ticket_dispatcher(road) {
+                info!("Found a dispatcher for the road {}", road);
+
+                send_ticket_to_dispatcher(new_ticket, tx.clone());
             }
         }
     }
+
+    Ok(())
 }
 
 fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
