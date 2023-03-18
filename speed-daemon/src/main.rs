@@ -72,13 +72,13 @@ async fn main() -> anyhow::Result<()> {
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
             if let Err(e) = process(stream, addr, shared_db_main).await {
-                info!("an error occurred; error = {:?}", e);
+                error!("Error: {:?}", e);
             }
         });
 
         // Clone the handle to the shared state.
         let shared_db_queue = shared_db.clone();
-        let queue_manager = tokio::spawn(async move {
+        tokio::spawn(async move {
             if let Err(e) = check_ticket_queue(shared_db_queue).await {
                 error!("Error: {:?}", e)
             }
