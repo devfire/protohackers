@@ -167,7 +167,7 @@ async fn process(
     }
 
     if let Err(e) = manager.await? {
-        error!("Error: {}", e)
+        error!("Error from the tx manager: {}", e)
     }
     Ok(())
 }
