@@ -1,5 +1,6 @@
 use speed_daemon::{
     codec::MessageCodec,
+    errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
     state::SharedState,
 };
@@ -77,8 +78,10 @@ async fn main() -> anyhow::Result<()> {
 
         // Clone the handle to the shared state.
         let shared_db_queue = shared_db.clone();
-        tokio::spawn(async move {
-            check_ticket_queue(shared_db_queue).await;
+        let queue_manager = tokio::spawn(async move {
+            if let Err(e) = check_ticket_queue(shared_db_queue).await {
+                error!("Error: {:?}", e)
+            }
         });
     }
 }
@@ -116,12 +119,15 @@ async fn process(
 
             if let Err(e) = client_writer.send(msg).await {
                 error!("Client {} disconnected: {}", addr, e);
-                client_writer
-                    .close()
-                    .await
-                    .expect("Unable to close channel.");
+                return Err(SpeedDaemonError::DisconnectedClient);
+
+                // client_writer
+                //     .close()
+                //     .await
+                //     .expect("Unable to close channel.");
             }
         }
+        Ok(())
     });
 
     while let Some(message) = client_reader.next().await {
@@ -165,11 +171,13 @@ async fn process(
         }
     }
 
-    manager.await?;
+    if let Err(e) = manager.await? {
+        error!("Error: {}", e)
+    }
     Ok(())
 }
 
-async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) {
+async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) -> anyhow::Result<()> {
     let mut shared_db = shared_db
         .lock()
         .expect("Unable to lock shared db in queue manager");

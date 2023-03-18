@@ -11,6 +11,9 @@ pub enum SpeedDaemonError {
     #[error("Duplicate camera detected")]
     DuplicateCamera,
 
+    #[error("Client disconnected")]
+    DisconnectedClient,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
