@@ -65,14 +65,20 @@ async fn main() -> anyhow::Result<()> {
         let (stream, addr) = listener.accept().await?;
 
         // Clone the handle to the shared state.
-        let shared_db = Arc::clone(&shared_db);
+        let shared_db_main = shared_db.clone();
 
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, shared_db).await {
+            if let Err(e) = process(stream, addr, shared_db_main).await {
                 info!("an error occurred; error = {:?}", e);
             }
+        });
+
+        // Clone the handle to the shared state.
+        let shared_db_queue = shared_db.clone();
+        tokio::spawn(async move {
+            check_ticket_queue(shared_db_queue).await;
         });
     }
 }
@@ -116,12 +122,6 @@ async fn process(
                     .expect("Unable to close channel.");
             }
         }
-    });
-
-    // Clone the handle to the shared state.
-    // let shared_db = shared_db.clone();
-    tokio::spawn(async move {
-        check_ticket_queue(shared_db).await;
     });
 
     while let Some(message) = client_reader.next().await {
