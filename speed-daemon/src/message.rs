@@ -18,7 +18,7 @@ impl Default for InboundMessageType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug)]
 pub enum OutboundMessageType {
     Heartbeat,
 
@@ -26,12 +26,12 @@ pub enum OutboundMessageType {
     Error(String),
 
     Ticket {
-        plate: String,
-        road: u16,
-        mile1: u16,
-        timestamp1: u32,
-        mile2: u16,
-        timestamp2: u32,
+        plate: Plate,
+        road: Road,
+        mile1: Mile,
+        timestamp1: Timestamp,
+        mile2: Mile,
+        timestamp2: Timestamp,
         speed: u16,
     },
 }

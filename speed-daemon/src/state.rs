@@ -1,18 +1,19 @@
 pub(crate) use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::{collections::VecDeque, net::SocketAddr};
 
 use log::{error, info};
 use tokio::sync::mpsc;
 
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
-    types::{CurrentCameraDb, PlateCameraDb, Road, TicketDispatcherDb},
+    types::{CurrentCameraDb, PlateCameraDb, Road, TicketDispatcherDb, TicketQueue},
 };
 
 pub struct SharedState {
     pub dispatchers: TicketDispatcherDb,
     pub current_camera: CurrentCameraDb,
     pub plates_cameras: PlateCameraDb,
+    pub ticket_queue: TicketQueue,
 }
 
 impl SharedState {
@@ -21,6 +22,7 @@ impl SharedState {
             dispatchers: HashMap::default(),
             current_camera: HashMap::default(),
             plates_cameras: HashMap::default(),
+            ticket_queue: VecDeque::default(),
         }
     }
 
@@ -50,7 +52,8 @@ impl SharedState {
 
     pub fn get_ticket_dispatcher(&self, road: Road) -> Option<&mpsc::Sender<OutboundMessageType>> {
         // First, we get the hash mapping the road num to the client address-tx hash
-        // Second, we get the tx from the client address
+        // Second, we get the tx from the client address.
+        // NOTE: this overrides the previous ticket dispatcher for the same road. PROBLEM?
         let addr_tx_hash = self
             .dispatchers
             .get(&road)
@@ -63,6 +66,19 @@ impl SharedState {
             error!("Dispatcher for road {} not found", road);
             None
         }
+    }
+
+    pub fn get_ticket(&mut self) -> Option<OutboundMessageType> {
+        if let Some(new_ticket) = self.ticket_queue.pop_front() {
+            info!("Found a ticket {:?}", new_ticket);
+            Some(new_ticket)
+        } else {
+            None
+        }
+    }
+
+    pub fn add_ticket(&mut self, new_ticket: OutboundMessageType) {
+        self.ticket_queue.push_back(new_ticket);
     }
 }
 

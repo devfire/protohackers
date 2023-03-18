@@ -1,12 +1,12 @@
-use speed_daemon::message::OutboundMessageType;
 use log::info;
 use speed_daemon::message::InboundMessageType;
-use speed_daemon::types::{Road, Mile};
+use speed_daemon::message::OutboundMessageType;
 use speed_daemon::state::SharedState;
-use std::sync::Mutex;
-use std::sync::Arc;
-use speed_daemon::types::{Timestamp, Plate};
+use speed_daemon::types::{Mile, Road};
+use speed_daemon::types::{Plate, Timestamp};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub async fn handle_plate(
     client_addr: &SocketAddr,
@@ -112,7 +112,8 @@ pub async fn handle_plate(
             // let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
 
             // let tx = tx.clone();
-            info!("Issuing ticket");
+            info!("Adding ticket {:?}", new_ticket);
+            shared_db.add_ticket(new_ticket);
             //issue_ticket(new_ticket, tx);
         }
     } else {

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     net::SocketAddr,
 };
 
@@ -13,10 +13,17 @@ pub type Timestamp = u32;
 pub type Speed = u16;
 pub type Plate = String;
 
+
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
 pub type PlateCameraDb = HashMap<Plate, (Timestamp, InboundMessageType)>;
+
+// This maps a road ID to a hash of IP,tx
 pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;
+
+// Since tickets can be issued before a ticket dispatcher connects,
+// we need a way to store the tickets until then.
+pub type TicketQueue = VecDeque<OutboundMessageType>;
 
 // This stores the current tokio task camera. Once a new plate is received,
 // we need to check the camera's mile marker and speed limit to calculate the avg speed.
