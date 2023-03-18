@@ -120,11 +120,6 @@ async fn process(
             if let Err(e) = client_writer.send(msg).await {
                 error!("Client {} disconnected: {}", addr, e);
                 return Err(SpeedDaemonError::DisconnectedClient);
-
-                // client_writer
-                //     .close()
-                //     .await
-                //     .expect("Unable to close channel.");
             }
         }
         Ok(())
@@ -148,7 +143,7 @@ async fn process(
                     info!("Interval is 0, no heartbeat.")
                 } else {
                     let tx_heartbeat = tx.clone();
-                    handle_want_hearbeat(interval, tx_heartbeat);
+                    handle_want_hearbeat(interval, tx_heartbeat)?;
                 }
             }
 
