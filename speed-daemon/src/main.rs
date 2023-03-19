@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     let shared_db_queue = shared_db.clone();
 
     info!("Checking to see if there are any tickets in the queue");
-    tokio::spawn(async move {
+    let queue_manager = tokio::spawn(async move {
         let mut shared_db_queue = shared_db_queue
             .lock()
             .expect("Unable to lock shared db in queue manager");
@@ -95,6 +95,8 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
+
+    queue_manager.await?;
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
