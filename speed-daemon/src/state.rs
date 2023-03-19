@@ -60,7 +60,7 @@ impl Db {
     }
 
     pub fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
-        let state = self
+        let mut state = self
             .shared
             .state
             .lock()
@@ -69,7 +69,7 @@ impl Db {
         state.current_camera.insert(addr, new_camera);
     }
 
-    pub fn get_current_camera(&self, addr: &SocketAddr) -> &InboundMessageType {
+    pub fn get_current_camera(&self, addr: &SocketAddr) -> InboundMessageType {
         let state = self
             .shared
             .state
@@ -83,7 +83,7 @@ impl Db {
             .current_camera
             .get(addr)
             .expect("Unable to locate camera");
-        camera
+        camera.clone()
     }
 
     pub fn add_ticket_dispatcher(
@@ -94,7 +94,7 @@ impl Db {
     ) {
         let mut addr_tx_hash = HashMap::new();
         addr_tx_hash.insert(addr, tx);
-        let state = self
+        let mut state = self
             .shared
             .state
             .lock()
@@ -103,7 +103,7 @@ impl Db {
         state.dispatchers.insert(road, addr_tx_hash);
     }
 
-    pub fn get_ticket_dispatcher(&self, road: Road) -> Option<&mpsc::Sender<OutboundMessageType>> {
+    pub fn get_ticket_dispatcher(&self, road: Road) -> Option<mpsc::Sender<OutboundMessageType>> {
         let state = self
             .shared
             .state
@@ -120,7 +120,7 @@ impl Db {
 
         if let Some((client_addr, tx)) = addr_tx_hash.iter().next() {
             info!("Found a dispatcher for road {} at {}", road, client_addr);
-            Some(tx)
+            Some(tx.clone())
         } else {
             error!("Dispatcher for road {} not found", road);
             None
@@ -130,7 +130,7 @@ impl Db {
     // Checks to see if there's a ticket in the queue. If there is, returns the ticket.
     // If not, returns None.
     pub fn get_ticket(&mut self) -> Option<OutboundMessageType> {
-        let state = self
+        let mut state = self
             .shared
             .state
             .lock()
@@ -146,7 +146,7 @@ impl Db {
 
     // Append a ticket to the shared queue. Once a dispatcher comes online, it'll be delivered.
     pub fn add_ticket(&mut self, new_ticket: OutboundMessageType) {
-        let state = self
+        let mut state = self
             .shared
             .state
             .lock()
@@ -156,7 +156,7 @@ impl Db {
     }
 }
 
-impl Default for SharedState {
+impl Default for Db {
     fn default() -> Self {
         Self::new()
     }
