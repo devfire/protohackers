@@ -59,12 +59,10 @@ async fn main() -> anyhow::Result<()> {
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    info!("Server running on {}", addr);
-
     // Clone the handle to the shared state.
     let shared_db_queue = shared_db.clone();
 
-    info!("Checking to see if there are any tickets in the queue");
+    info!("Spawning queue manager.");
     let queue_manager = tokio::spawn(async move {
         let mut shared_db_queue = shared_db_queue
             .lock()
@@ -97,6 +95,8 @@ async fn main() -> anyhow::Result<()> {
     });
 
     queue_manager.await?;
+
+    info!("Server running on {}", addr);
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
