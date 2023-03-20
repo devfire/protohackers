@@ -32,10 +32,10 @@ pub async fn handle_plate(
         speed_limit = limit;
     }
 
-    info!(
-        "From {}: speed limit for road {} is {} from camera at mile marker: {}",
-        client_addr, current_road, speed_limit, observed_mile_marker
-    );
+    // info!(
+    //     "From {}: speed limit for road {} is {} from camera at mile marker: {}",
+    //     client_addr, current_road, speed_limit, observed_mile_marker
+    // );
 
     let mut mile1: u16 = 0;
     let mut mile2: u16 = 0;
@@ -79,19 +79,19 @@ pub async fn handle_plate(
         }
 
         let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
-        info!(
-            "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
-            new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
-        );
+        // info!(
+        //     "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
+        //     new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
+        // );
 
         // make sure the car is speeding AND no tickets have been issued <24hrs
         if issue_new_ticket_bool(timestamp2, &new_plate, shared_db.clone())
             && (observed_speed > speed_limit as f64)
         {
-            info!(
-                "Plate {} exceeded the speed limit, issuing ticket",
-                new_plate
-            );
+            // info!(
+            //     "Plate {} exceeded the speed limit, issuing ticket",
+            //     new_plate
+            // );
             let new_ticket = OutboundMessageType::Ticket {
                 plate: new_plate.to_string(),
                 road: current_road,
@@ -135,19 +135,15 @@ fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db)
     }) = shared_db.get_plate_ticket(plate)
     // this will return a ticket if it exists
     {
-        info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
+        // info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
         
         // need absolute difference since new_timestamp can be ahead of last ticket's and vice versa
         let difference = new_timestamp.abs_diff(last_ticket_timestamp);
-        if difference < 86400 {
-            info!("Found a ticket less than a day old for plate {}", plate);
-            false // skip this ticket
-        } else {
-            info!("Last ticket for plate {} is over a day old, issue new one", plate);
-            true // issue a ticket
-        }
+
+        // collapsed if-then-else for bools: https://rust-lang.github.io/rust-clippy/master/index.html#needless_bool
+        difference >= 86400
     } else {
-        info!("No previous tickets for plate {}, issue new one", plate);
+        // info!("No previous tickets for plate {}, issue new one", plate);
         true
     }
 }

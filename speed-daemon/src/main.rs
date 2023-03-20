@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(32);
+    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(8192);
     // NOTE: These are cheap clones, pointers only.
     let ticket_tx_queue = ticket_tx.clone();
     let shared_ticket_db = shared_db.clone();
