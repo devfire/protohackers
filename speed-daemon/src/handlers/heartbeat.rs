@@ -9,18 +9,18 @@ pub fn handle_want_hearbeat(
     interval: u32,
     tx: mpsc::Sender<OutboundMessageType>,
 ) -> anyhow::Result<()> {
-    let interval = interval / 10;
+    let interval = interval as f32 / 10.0 * 1000.0;
     tokio::spawn(async move {
         loop {
             match tx.send(OutboundMessageType::Heartbeat).await {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("Unable to send heartbeat client {} disconnected", e);
+                    error!("Unable to send heartbeat, client {} disconnected", e);
                     return;
                 }
             }
 
-            sleep(Duration::from_secs(interval as u64)).await;
+            sleep(Duration::from_millis(interval as u64)).await;
         }
     });
 
