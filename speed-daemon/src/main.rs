@@ -44,36 +44,37 @@ async fn main() -> anyhow::Result<()> {
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    // let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(32);
+    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(32);
+    // NOTE: These are cheap clones, pointers only.
+    let ticket_tx_queue = ticket_tx.clone();
+    let shared_ticket_db = shared_db.clone();
 
-    let mut shared_ticket_db = shared_db.clone();
     // Spawn off a ticket manager loop.
     tokio::spawn(async move {
-        loop {
-            while let Some(ticket) = shared_ticket_db.get_ticket() {
-                info!("Found {:?}", ticket);
+        // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
+        // This method blocks until a message is received.
+        while let Some(ticket) = ticket_rx.recv().await {
+            info!("Sending {:?}", ticket);
 
-                if let OutboundMessageType::Ticket {
-                    plate: _,
-                    road,
-                    mile1: _,
-                    timestamp1: _,
-                    mile2: _,
-                    timestamp2: _,
-                    speed: _,
-                } = ticket
-                {
-                    if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
-                        send_ticket_to_dispatcher(ticket, dispatcher_tx);
-                    } else {
-                        warn!("No dispatcher found, sending the ticket back");
-                        shared_ticket_db.add_ticket(ticket);
-                    }
+            if let OutboundMessageType::Ticket {
+                plate: _,
+                road,
+                mile1: _,
+                timestamp1: _,
+                mile2: _,
+                timestamp2: _,
+                speed: _,
+            } = ticket
+            {
+                if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
+                    send_ticket_to_dispatcher(ticket, dispatcher_tx);
+                } else {
+                    warn!("No dispatcher found, sending the ticket back");
+                    ticket_tx_queue.send(ticket).await.expect("Unable to send ticket");
                 }
             }
         }
-    })
-    .await?;
+    });
 
     info!("Server running on {}", addr);
 
@@ -83,18 +84,23 @@ async fn main() -> anyhow::Result<()> {
 
         // Clone the handle to the shared state.
         let shared_db_main = shared_db.clone();
-
+        let ticket_tx_process = ticket_tx.clone();
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, shared_db_main).await {
+            if let Err(e) = process(stream, addr, ticket_tx_process, shared_db_main).await {
                 error!("Error: {:?}", e);
             }
         });
     }
 }
 
-async fn process(stream: TcpStream, addr: SocketAddr, shared_db: Db) -> anyhow::Result<()> {
+async fn process(
+    stream: TcpStream,
+    addr: SocketAddr,
+    ticket_tx: mpsc::Sender<OutboundMessageType>,
+    shared_db: Db,
+) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -134,7 +140,7 @@ async fn process(stream: TcpStream, addr: SocketAddr, shared_db: Db) -> anyhow::
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(&addr, plate, timestamp, shared_db.clone())?
+                handle_plate(&addr, plate, timestamp, ticket_tx.clone(), shared_db.clone()).await?
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {

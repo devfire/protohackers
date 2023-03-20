@@ -4,14 +4,16 @@ use speed_daemon::{
     state::Db,
     types::{Mile, Plate, Road, Timestamp},
 };
+use tokio::sync::mpsc;
 
 use std::net::SocketAddr;
 
-pub fn handle_plate(
+pub async fn handle_plate(
     client_addr: &SocketAddr,
     new_plate: Plate,
     new_timestamp: Timestamp,
-    mut shared_db: Db,
+    ticket_tx: mpsc::Sender<OutboundMessageType>,
+    shared_db: Db,
 ) -> anyhow::Result<()> {
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
@@ -100,7 +102,8 @@ pub fn handle_plate(
 
             // let tx = tx.clone();
             info!("Adding ticket {:?}", new_ticket);
-            shared_db.add_ticket(new_ticket);
+            ticket_tx.send(new_ticket).await?;
+            // shared_db.add_ticket(new_ticket);
             //issue_ticket(new_ticket, tx);
         }
     } else {
