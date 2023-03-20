@@ -13,7 +13,7 @@ pub async fn handle_plate(
     new_plate: Plate,
     new_timestamp: Timestamp,
     ticket_tx: mpsc::Sender<OutboundMessageType>,
-    shared_db: Db,
+    mut shared_db: Db,
 ) -> anyhow::Result<()> {
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
@@ -85,7 +85,7 @@ pub async fn handle_plate(
         );
 
         // make sure the car is speeding AND no tickets have been issued <24hrs
-        if issue_new_ticket_bool(timestamp2, &new_plate, shared_db)
+        if issue_new_ticket_bool(timestamp2, &new_plate, shared_db.clone())
             && (observed_speed > speed_limit as f64)
         {
             info!(
@@ -102,15 +102,16 @@ pub async fn handle_plate(
                 speed: (observed_speed * 100.0) as u16, //100x miles per hour
             };
 
-            // let tx = tx.clone();
             info!(
                 "Plate handler forwarding ticket {:?} to ticket manager",
                 new_ticket
             );
 
-            ticket_tx.send(new_ticket).await?;
-            // shared_db.add_ticket(new_ticket);
-            //issue_ticket(new_ticket, tx);
+            // Send the ticket to the ticket dispatcher
+            ticket_tx.send(new_ticket.clone()).await?;
+
+            // Store the Plate -> ticket mapping so we can check the timestamp for this plate in the future
+            shared_db.add_plate_ticket(new_plate, new_ticket);
         }
     } else {
         // Add the newly observed plate to the shared db of plate -> camera hash

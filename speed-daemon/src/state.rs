@@ -171,11 +171,7 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in add_plate_ticket");
 
-        if let Some(ticket) = state.plates_tickets.get(plate) {
-            Some(ticket.clone())
-        } else {
-            None
-        }
+        state.plates_tickets.get(plate).cloned()
     }
 }
 
