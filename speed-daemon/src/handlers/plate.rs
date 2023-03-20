@@ -79,10 +79,10 @@ pub async fn handle_plate(
         }
 
         let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
-        // info!(
-        //     "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
-        //     new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
-        // );
+        info!(
+            "Plate: {} seen by camera: {:?} distance traveled: {} in time: {} speed: {}",
+            new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
+        );
 
         // make sure the car is speeding AND no tickets have been issued <24hrs
         if issue_new_ticket_bool(timestamp2, &new_plate, shared_db.clone())
@@ -135,7 +135,7 @@ fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db)
     }) = shared_db.get_plate_ticket(plate)
     // this will return a ticket if it exists
     {
-        // info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
+        info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
         
         // need absolute difference since new_timestamp can be ahead of last ticket's and vice versa
         let difference = new_timestamp.abs_diff(last_ticket_timestamp);
