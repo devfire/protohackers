@@ -15,11 +15,10 @@ pub fn handle_want_hearbeat(
             match tx.send(OutboundMessageType::Heartbeat).await {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("Client disconnected: {}", e);
+                    error!("Unable to send heartbeat client {} disconnected", e);
                     return;
                 }
             }
-            // .expect("Unable to send heartbeat");
 
             sleep(Duration::from_secs(interval as u64)).await;
         }
