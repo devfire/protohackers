@@ -97,7 +97,7 @@ pub async fn handle_plate(
                 timestamp1,
                 mile2,
                 timestamp2,
-                speed: observed_speed as u16,
+                speed: (observed_speed * 100.0) as u16, //100x miles per hour
             };
 
             // let tx = tx.clone();

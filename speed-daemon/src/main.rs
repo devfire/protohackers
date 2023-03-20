@@ -54,8 +54,6 @@ async fn main() -> anyhow::Result<()> {
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(ticket) = ticket_rx.recv().await {
-            info!("Ticket manager received {:?}", ticket);
-
             if let OutboundMessageType::Ticket {
                 plate: _,
                 road,
@@ -67,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
             } = ticket
             {
                 if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
+                    info!("Ticket manager received {:?}", ticket);
                     send_ticket_to_dispatcher(ticket, dispatcher_tx);
                 } else {
                     // warn!("No dispatcher found, sending the ticket back");
