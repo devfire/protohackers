@@ -23,7 +23,7 @@ pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<Out
 
 // Since we don't allow more than one ticket pre day we need to store the tickets.
 // This is a hash of Plate -> Ticket. The ticket includes the timestamp so we can calculate when the last ticket was issued.
-pub type PlateTicketDb = HashMap<Plate, InboundMessageType>;
+pub type PlateTicketDb = HashMap<Plate, OutboundMessageType>;
 
 // This stores the current tokio task camera. Once a new plate is received,
 // we need to check the camera's mile marker and speed limit to calculate the avg speed.

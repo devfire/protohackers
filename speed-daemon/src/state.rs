@@ -153,7 +153,7 @@ impl Db {
         }
     }
 
-    pub fn add_plate_ticket(&self, plate: Plate, ticket: InboundMessageType) {
+    pub fn add_plate_ticket(&self, plate: Plate, ticket: OutboundMessageType) {
         let mut state = self
             .shared
             .state
@@ -164,14 +164,14 @@ impl Db {
     }
 
     // returns the last ticket for this plate
-    pub fn get_plate_ticket(&self, plate: Plate) -> Option<InboundMessageType> {
+    pub fn get_plate_ticket(&self, plate: &Plate) -> Option<OutboundMessageType> {
         let state = self
             .shared
             .state
             .lock()
             .expect("Unable to lock shared state in add_plate_ticket");
 
-        if let Some(ticket) = state.plates_tickets.get(&plate) {
+        if let Some(ticket) = state.plates_tickets.get(plate) {
             Some(ticket.clone())
         } else {
             None
