@@ -107,7 +107,7 @@ pub fn handle_plate(
         // Add the newly observed plate to the shared db of plate -> camera hash
         // NOTE: subsequent inserts will override the value because the plate key is the same.
         // But that's OK since we only ever need the last two values.
-        shared_db.add_camera_plate(new_plate.to_string(), new_timestamp, current_camera);
+        shared_db.add_camera_plate(new_plate, new_timestamp, current_camera);
     }
     Ok(())
 }
