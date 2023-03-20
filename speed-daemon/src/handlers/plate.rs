@@ -6,7 +6,7 @@ use speed_daemon::{
 };
 use tokio::sync::mpsc;
 
-use std::{net::SocketAddr, intrinsics::floorf32};
+use std::net::SocketAddr;
 
 pub async fn handle_plate(
     client_addr: &SocketAddr,
@@ -84,8 +84,10 @@ pub async fn handle_plate(
             new_plate, previously_seen_camera, distance_traveled, time_traveled, observed_speed
         );
 
-        // check if the car exceeded the speed limit
-        if observed_speed > speed_limit as f64 {
+        // make sure the car is speeding AND no tickets have been issued <24hrs
+        if issue_new_ticket_bool(timestamp2, &new_plate, shared_db)
+            && (observed_speed > speed_limit as f64)
+        {
             info!(
                 "Plate {} exceeded the speed limit, issuing ticket",
                 new_plate
@@ -106,22 +108,6 @@ pub async fn handle_plate(
                 new_ticket
             );
 
-            // Check if we've already ticketed this car today
-            if let Some(OutboundMessageType::Ticket {
-                plate:_,
-                road:_,
-                mile1:_,
-                timestamp1:_,
-                mile2:_,
-                timestamp2: last_ticket_timestamp,
-                speed:_,
-            }) = shared_db.get_plate_ticket(&new_plate)
-            {
-                if last_ticket_timestamp > floorf32(new_ticket_timestamp / 86400) {
-                    // 
-                }
-
-            }
             ticket_tx.send(new_ticket).await?;
             // shared_db.add_ticket(new_ticket);
             //issue_ticket(new_ticket, tx);
@@ -133,4 +119,29 @@ pub async fn handle_plate(
         shared_db.add_camera_plate(new_plate, new_timestamp, current_camera);
     }
     Ok(())
+}
+
+fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db) -> bool {
+    // Check if we've already ticketed this car today
+    if let Some(OutboundMessageType::Ticket {
+        plate: _,
+        road: _,
+        mile1: _,
+        timestamp1: _,
+        mile2: _,
+        timestamp2: last_ticket_timestamp,
+        speed: _,
+    }) = shared_db.get_plate_ticket(plate)
+    // this will return a ticket if it exists
+    {
+        if (new_timestamp - last_ticket_timestamp) > 86400 {
+            info!("Found a ticket less than a day old for plate {}", plate);
+            false // skip this ticket
+        } else {
+            true // issue a ticket
+        }
+    } else {
+        info!("No previous tickets for plate {}", plate);
+        true
+    }
 }
