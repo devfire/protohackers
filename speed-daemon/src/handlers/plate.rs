@@ -101,7 +101,7 @@ pub async fn handle_plate(
             };
 
             // let tx = tx.clone();
-            info!("Forwarding ticket {:?} to ticket manager", new_ticket);
+            info!("Plate handler forwarding ticket {:?} to ticket manager", new_ticket);
             ticket_tx.send(new_ticket).await?;
             // shared_db.add_ticket(new_ticket);
             //issue_ticket(new_ticket, tx);

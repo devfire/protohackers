@@ -54,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(ticket) = ticket_rx.recv().await {
-            info!("Sending {:?}", ticket);
+            info!("Ticket manager received {:?}", ticket);
 
             if let OutboundMessageType::Ticket {
                 plate: _,
@@ -193,7 +193,7 @@ async fn process(
 }
 
 fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
-    info!("Sending {:?} to dispatcher rx {:?}", ticket, tx);
+    info!("Sending {:?} to dispatcher ", ticket);
     tokio::spawn(async move {
         tx.send(ticket).await.expect("Unable to send ticket");
     });
