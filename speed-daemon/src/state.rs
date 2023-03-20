@@ -5,14 +5,14 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use log::{error, info, warn};
+use log::{error, info};
 use tokio::sync::mpsc;
 
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, Plate, PlateCameraDb, PlateCameraTuple, Road, TicketDispatcherDb,
-        TicketQueue, Timestamp,
+        CurrentCameraDb, Plate, PlateCameraDb, PlateCameraTuple, PlateTicketDb, Road,
+        TicketDispatcherDb, Timestamp,
     },
 };
 
@@ -46,7 +46,7 @@ struct State {
     dispatchers: TicketDispatcherDb,
     current_camera: CurrentCameraDb,
     plates_cameras: PlateCameraDb,
-    ticket_queue: TicketQueue,
+    plates_tickets: PlateTicketDb,
 }
 
 impl Db {
@@ -56,7 +56,7 @@ impl Db {
                 dispatchers: HashMap::new(),
                 current_camera: HashMap::new(),
                 plates_cameras: HashMap::new(),
-                ticket_queue: VecDeque::new(),
+                plates_tickets: HashMap::new(),
             }),
         });
         Db { shared }
@@ -141,7 +141,10 @@ impl Db {
                 info!("Found a dispatcher for road {} at {}", road, client_addr);
                 Some(tx.clone())
             } else {
-                error!("BIG PROBLEM, dispatcher was added but somehow not found for road {}!", road);
+                error!(
+                    "BIG PROBLEM, dispatcher was added but somehow not found for road {}!",
+                    road
+                );
                 None
             }
         } else {
@@ -150,33 +153,30 @@ impl Db {
         }
     }
 
-    // Checks to see if there's a ticket in the queue. If there is, returns the ticket.
-    // If not, returns None.
-    // pub fn get_ticket(&mut self) -> Option<OutboundMessageType> {
-    //     let mut state = self
-    //         .shared
-    //         .state
-    //         .lock()
-    //         .expect("Unable to lock shared state in get_ticket");
+    pub fn add_plate_ticket(&self, plate: Plate, ticket: InboundMessageType) {
+        let mut state = self
+            .shared
+            .state
+            .lock()
+            .expect("Unable to lock shared state in add_plate_ticket");
 
-    //     if let Some(ticket) = state.ticket_queue.pop_front() {
-    //         info!("Found a ticket {:?}", ticket);
-    //         Some(ticket)
-    //     } else {
-    //         None
-    //     }
-    // }
+        state.plates_tickets.insert(plate, ticket);
+    }
 
-    // Append a ticket to the shared queue. Once a dispatcher comes online, it'll be delivered.
-    // pub fn add_ticket(&mut self, new_ticket: OutboundMessageType) {
-    //     let mut state = self
-    //         .shared
-    //         .state
-    //         .lock()
-    //         .expect("Unable to lock shared state in add_ticket");
+    // returns the last ticket for this plate
+    pub fn get_plate_ticket(&self, plate: Plate) -> Option<InboundMessageType> {
+        let state = self
+            .shared
+            .state
+            .lock()
+            .expect("Unable to lock shared state in add_plate_ticket");
 
-    //     state.ticket_queue.push_back(new_ticket);
-    // }
+        if let Some(ticket) = state.plates_tickets.get(&plate) {
+            Some(ticket.clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl Default for Db {

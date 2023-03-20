@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     net::SocketAddr,
 };
 
@@ -21,9 +21,9 @@ pub type PlateCameraDb = HashMap<Plate, PlateCameraTuple>;
 // This maps a road ID to a hash of IP,tx
 pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;
 
-// Since tickets can be issued before a ticket dispatcher connects,
-// we need a way to store the tickets until then.
-pub type TicketQueue = VecDeque<OutboundMessageType>;
+// Since we don't allow more than one ticket pre day we need to store the tickets.
+// This is a hash of Plate -> Ticket. The ticket includes the timestamp so we can calculate when the last ticket was issued.
+pub type PlateTicketDb = HashMap<Plate, InboundMessageType>;
 
 // This stores the current tokio task camera. Once a new plate is received,
 // we need to check the camera's mile marker and speed limit to calculate the avg speed.
