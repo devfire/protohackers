@@ -33,8 +33,8 @@ pub async fn handle_plate(
     }
 
     info!(
-        "Speed limit is: {} mile marker: {}",
-        current_road, observed_mile_marker
+        "From {}: speed limit for road {} is {} from camera at mile marker: {}",
+        client_addr, current_road, speed_limit, observed_mile_marker
     );
 
     let mut mile1: u16 = 0;
