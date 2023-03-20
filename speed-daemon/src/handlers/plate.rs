@@ -49,28 +49,28 @@ pub async fn handle_plate(
         // NOTE: previously_seen_camera is a (timestamp, InboundMessageType::IAmCamera) tuple,
         // so 0th entry refers to the timestamp.
         if new_timestamp > previously_seen_camera.0 {
-            time_traveled = new_timestamp - previously_seen_camera.0;
+            time_traveled = new_timestamp.abs_diff(previously_seen_camera.0);
             if let InboundMessageType::IAmCamera {
                 road: _,
                 mile,
                 limit: _,
             } = previously_seen_camera.1
             {
-                distance_traveled = observed_mile_marker - mile;
+                distance_traveled = observed_mile_marker.abs_diff(mile);
                 mile1 = mile;
                 mile2 = observed_mile_marker;
                 timestamp1 = previously_seen_camera.0;
                 timestamp2 = new_timestamp;
             }
         } else {
-            time_traveled = previously_seen_camera.0 - new_timestamp;
+            time_traveled = previously_seen_camera.0.abs_diff(new_timestamp);
             if let InboundMessageType::IAmCamera {
                 road: _,
                 mile,
                 limit: _,
             } = previously_seen_camera.1
             {
-                distance_traveled = mile - observed_mile_marker;
+                distance_traveled = mile.abs_diff(observed_mile_marker);
                 mile1 = observed_mile_marker;
                 mile2 = mile;
                 timestamp1 = new_timestamp;
