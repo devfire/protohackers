@@ -57,8 +57,8 @@ pub async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = observed_mile_marker - mile;
-                mile1 = observed_mile_marker;
-                mile2 = mile;
+                mile1 = mile;
+                mile2 = observed_mile_marker;
                 timestamp1 = new_timestamp;
                 timestamp2 = previously_seen_camera.0;
             }
@@ -71,8 +71,8 @@ pub async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = mile - observed_mile_marker;
-                mile1 = mile;
-                mile2 = observed_mile_marker;
+                mile1 = observed_mile_marker;
+                mile2 = mile;
                 timestamp1 = previously_seen_camera.0;
                 timestamp2 = new_timestamp;
             }
