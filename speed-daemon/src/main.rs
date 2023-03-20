@@ -128,7 +128,7 @@ async fn process(
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
-            info!("Sending {:?} to {}", msg, addr);
+            info!("Writer manager: sending {:?} to {}", msg, addr);
 
             if let Err(e) = client_writer.send(msg).await {
                 error!("Client {} disconnected: {}", addr, e);
@@ -193,7 +193,7 @@ async fn process(
 }
 
 fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
-    info!("Sending {:?} to dispatcher ", ticket);
+    info!("Sending {:?} to writer manager ", ticket);
     tokio::spawn(async move {
         tx.send(ticket).await.expect("Unable to send ticket");
     });
