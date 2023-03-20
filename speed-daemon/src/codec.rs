@@ -79,11 +79,13 @@ impl Encoder<OutboundMessageType> for MessageCodec {
                 timestamp2,
                 speed,
             } => {
-                let buffer_size = 1 + plate.len() + 16 + 16 + 32 + 16 + 32 + 16;
+                let buffer_size = 1 + 1 + plate.len() + 2 + 2 + 4 + 2 + 4 + 2;
+                let plate = plate.as_bytes();
                 dst.reserve(buffer_size);
                 dst.put_u8(0x21);
 
-                dst.put(plate.as_bytes());
+                dst.put_u8(plate.len() as u8);
+                dst.extend_from_slice(plate);
                 dst.put_u16(road);
                 dst.put_u16(mile1);
                 dst.put_u32(timestamp1);
