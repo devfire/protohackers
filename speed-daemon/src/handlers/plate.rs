@@ -136,7 +136,10 @@ fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db)
     // this will return a ticket if it exists
     {
         info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
-        if (new_timestamp - last_ticket_timestamp) < 86400 {
+        
+        // need absolute difference since new_timestamp can be ahead of last ticket's and vice versa
+        let difference = new_timestamp.abs_diff(last_ticket_timestamp);
+        if difference < 86400 {
             info!("Found a ticket less than a day old for plate {}", plate);
             false // skip this ticket
         } else {
