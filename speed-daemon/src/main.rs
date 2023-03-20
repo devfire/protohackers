@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
                 if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
                     send_ticket_to_dispatcher(ticket, dispatcher_tx);
                 } else {
-                    warn!("No dispatcher found, sending the ticket back");
+                    // warn!("No dispatcher found, sending the ticket back");
                     ticket_tx_queue
                         .send(ticket)
                         .await

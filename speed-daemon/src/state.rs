@@ -145,7 +145,7 @@ impl Db {
                 None
             }
         } else {
-            warn!("No dispatcher found for road {} try again later", road);
+            // warn!("No dispatcher found for road {} try again later", road);
             None
         }
     }

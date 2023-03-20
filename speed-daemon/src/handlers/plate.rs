@@ -59,8 +59,8 @@ pub async fn handle_plate(
                 distance_traveled = observed_mile_marker - mile;
                 mile1 = mile;
                 mile2 = observed_mile_marker;
-                timestamp1 = new_timestamp;
-                timestamp2 = previously_seen_camera.0;
+                timestamp1 = previously_seen_camera.0;
+                timestamp2 = new_timestamp;
             }
         } else {
             time_traveled = previously_seen_camera.0 - new_timestamp;
@@ -73,8 +73,8 @@ pub async fn handle_plate(
                 distance_traveled = mile - observed_mile_marker;
                 mile1 = observed_mile_marker;
                 mile2 = mile;
-                timestamp1 = previously_seen_camera.0;
-                timestamp2 = new_timestamp;
+                timestamp1 = new_timestamp;
+                timestamp2 = previously_seen_camera.0;
             }
         }
 
@@ -101,7 +101,10 @@ pub async fn handle_plate(
             };
 
             // let tx = tx.clone();
-            info!("Plate handler forwarding ticket {:?} to ticket manager", new_ticket);
+            info!(
+                "Plate handler forwarding ticket {:?} to ticket manager",
+                new_ticket
+            );
             ticket_tx.send(new_ticket).await?;
             // shared_db.add_ticket(new_ticket);
             //issue_ticket(new_ticket, tx);
