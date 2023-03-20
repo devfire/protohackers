@@ -2,7 +2,7 @@ use log::info;
 use speed_daemon::{
     message::{InboundMessageType, OutboundMessageType},
     state::Db,
-    types::{Mile, Plate, Road, Timestamp, Speed},
+    types::{Mile, Plate, Road, Speed, Timestamp},
 };
 use tokio::sync::mpsc;
 
@@ -41,6 +41,11 @@ pub async fn handle_plate(
     let mut mile2: u16 = 0;
     let mut timestamp1: u32 = 0;
     let mut timestamp2: u32 = 0;
+    let mut preserve_camera: InboundMessageType = InboundMessageType::IAmCamera {
+        road: 0,
+        mile: 0,
+        limit: 0,
+    };
     // Check if this plate has been observed before
     if let Some(previously_seen_camera) = shared_db.check_camera_plate(&new_plate) {
         let time_traveled: u32;
@@ -62,6 +67,7 @@ pub async fn handle_plate(
                 timestamp1 = previously_seen_camera.0;
                 timestamp2 = new_timestamp;
             }
+            preserve_camera = previously_seen_camera.1.clone();
         } else {
             time_traveled = previously_seen_camera.0.abs_diff(new_timestamp);
             if let InboundMessageType::IAmCamera {
@@ -76,6 +82,7 @@ pub async fn handle_plate(
                 timestamp1 = new_timestamp;
                 timestamp2 = previously_seen_camera.0;
             }
+            preserve_camera = current_camera;
         }
 
         let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
@@ -111,14 +118,19 @@ pub async fn handle_plate(
             ticket_tx.send(new_ticket.clone()).await?;
 
             // Store the Plate -> ticket mapping so we can check the timestamp for this plate in the future
-            shared_db.add_plate_ticket(new_plate, new_ticket);
+            // in order to avoid issuing multiple tickets per day.
+            shared_db.add_plate_ticket(new_plate.to_string(), new_ticket);
         }
-    } else {
-        // Add the newly observed plate to the shared db of plate -> camera hash
-        // NOTE: subsequent inserts will override the value because the plate key is the same.
-        // But that's OK since we only ever need the last two values.
-        shared_db.add_camera_plate(new_plate, timestamp2, current_camera);
     }
+    info!(
+        "Storing plate {} timestamp {} camera {:?} for future reference.",
+        new_plate, timestamp2, preserve_camera
+    );
+    
+    // Add the newly observed plate to the shared db of plate -> camera hash
+    // NOTE: subsequent inserts will override the value because the plate key is the same.
+    // But that's OK since we only ever need the last two values.
+    shared_db.add_camera_plate(new_plate.clone(), timestamp2, preserve_camera);
     Ok(())
 }
 
@@ -136,7 +148,7 @@ fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db)
     // this will return a ticket if it exists
     {
         info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
-        
+
         // need absolute difference since new_timestamp can be ahead of last ticket's and vice versa
         let difference = new_timestamp.abs_diff(last_ticket_timestamp);
 
