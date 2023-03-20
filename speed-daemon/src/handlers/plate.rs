@@ -13,7 +13,7 @@ pub async fn handle_plate(
     new_plate: Plate,
     new_timestamp: Timestamp,
     ticket_tx: mpsc::Sender<OutboundMessageType>,
-    mut shared_db: Db,
+    shared_db: Db,
 ) -> anyhow::Result<()> {
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;

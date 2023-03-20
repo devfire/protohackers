@@ -12,7 +12,7 @@ use tokio::{
 };
 
 use env_logger::Env;
-use log::{error, info, warn};
+use log::{error, info};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use futures::sink::SinkExt;

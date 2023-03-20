@@ -1,6 +1,5 @@
 pub(crate) use std::collections::HashMap;
 use std::{
-    collections::VecDeque,
     net::SocketAddr,
     sync::{Arc, Mutex},
 };
