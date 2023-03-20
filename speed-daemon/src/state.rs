@@ -10,12 +10,15 @@ use tokio::sync::mpsc;
 
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
-    types::{CurrentCameraDb, PlateCameraDb, Road, TicketDispatcherDb, TicketQueue},
+    types::{
+        CurrentCameraDb, Plate, PlateCameraDb, PlateCameraTuple, Road, TicketDispatcherDb,
+        TicketQueue, Timestamp,
+    },
 };
 
 // Reference: https://github.com/tokio-rs/mini-redis/blob/master/src/db.rs
 #[derive(Debug, Clone)]
-pub(crate) struct Db {
+pub struct Db {
     /// Handle to shared state. The background task will also have an
     /// `Arc<Shared>`.
     shared: Arc<Shared>,
@@ -59,13 +62,36 @@ impl Db {
         Db { shared }
     }
 
+    // This function returns a previously seen Plate -> (Timestamp, Camera) mapping
+    // Need this because when a camera reports a plate, we don't know if this is a first sighting of that plate or not.
+    // So we need to keep track of plates and whether any camera has seen it previously.
+    pub fn check_camera_plate(&self, plate: &Plate) -> Option<PlateCameraTuple> {
+        let state = self
+            .shared
+            .state
+            .lock()
+            .expect("Unable to lock shared state in check_camera_plate");
+
+        state.plates_cameras.get(plate).cloned()
+    }
+
+    pub fn add_camera_plate(&self, plate: Plate, timestamp: Timestamp, camera: InboundMessageType) {
+        let mut state = self
+            .shared
+            .state
+            .lock()
+            .expect("Unable to lock shared state in check_cameadd_camera_platera_plate");
+
+        state.plates_cameras.insert(plate, (timestamp, camera));
+    }
+
     pub fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
         let mut state = self
             .shared
             .state
             .lock()
             .expect("Unable to lock shared state in get_camera");
-        // self.current_camera.insert(addr, new_camera);
+
         state.current_camera.insert(addr, new_camera);
     }
 
@@ -75,10 +101,7 @@ impl Db {
             .state
             .lock()
             .expect("Unable to lock shared state in get_current_camera");
-        // let camera = self
-        //     .current_camera
-        //     .get(addr)
-        //     .expect("Unable to locate camera for client");
+
         let camera = state
             .current_camera
             .get(addr)

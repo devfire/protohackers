@@ -2,7 +2,7 @@ use speed_daemon::{
     codec::MessageCodec,
     errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
-    state::SharedState,
+    state::Db,
 };
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -17,8 +17,6 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 
 use futures::sink::SinkExt;
 use futures::StreamExt;
-
-use std::sync::{Arc, Mutex};
 
 mod handlers;
 
@@ -39,20 +37,7 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
 
-    // let db = Arc::new(Mutex::new(HashMap::new()));
-    // let ticket_dispatcher_db: Arc<
-    //     Mutex<HashMap<u16, Vec<tokio::sync::mpsc::Sender<OutboundMessageType>>>>,
-    // > = Arc::new(Mutex::new(HashMap::new()));
-
-    // let dispatchers: TicketDispatcherDb;
-    // let current_camera: InboundMessageType;
-    // let plates_cameras: PlateCameraDb;
-
-    let shared_db = Arc::new(Mutex::new(SharedState::new()));
-
-    // let shared_db = shared_db.lock()?;
-
-    // let mut hash_of_hashes: HashMap<InboundMessageType, HashMap<InboundMessageType, u32>> = HashMap::new();
+    let shared_db = Db::new();
 
     // Bind a TCP listener to the socket address.
     //
@@ -60,14 +45,6 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(&addr).await?;
 
     info!("Server running on {}", addr);
-
-    // Clone the handle to the shared state.
-    let shared_db_queue = shared_db.clone();
-    tokio::spawn(async move {
-        if let Err(e) = check_ticket_queue(shared_db_queue).await {
-            error!("Error: {:?}", e)
-        }
-    });
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
@@ -86,11 +63,7 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn process(
-    stream: TcpStream,
-    addr: SocketAddr,
-    shared_db: Arc<Mutex<SharedState>>,
-) -> anyhow::Result<()> {
+async fn process(stream: TcpStream, addr: SocketAddr, shared_db: Db) -> anyhow::Result<()> {
     info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -130,7 +103,7 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(&addr, plate, timestamp, shared_db.clone()).await?
+                handle_plate(&addr, plate, timestamp, shared_db.clone())?
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -154,8 +127,8 @@ async fn process(
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 info!("Dispatcher detected at address {}", addr);
-                let shared_db = shared_db.clone();
-                handle_i_am_dispatcher(roads, &addr, &tx, shared_db).await?;
+
+                handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone()).await?;
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
@@ -172,41 +145,8 @@ async fn process(
     Ok(())
 }
 
-async fn check_ticket_queue(shared_db: Arc<Mutex<SharedState>>) -> anyhow::Result<()> {
-    let mut shared_db = shared_db
-        .lock()
-        .expect("Unable to lock shared db in queue manager");
-    info!("Checking to see if there are any tickets in the queue");
-
-    loop {
-        // Keep checking for new tickets in the queue
-        while let Some(new_ticket) = shared_db.get_ticket() {
-            info!("Found a ticket {:?} to", new_ticket);
-
-            // get the Road from the ticket
-            if let OutboundMessageType::Ticket {
-                plate: _,
-                road,
-                mile1: _,
-                timestamp1: _,
-                mile2: _,
-                timestamp2: _,
-                speed: _,
-            } = new_ticket
-            {
-                // see if there's a tx for that road
-                if let Some(tx) = shared_db.get_ticket_dispatcher(road) {
-                    info!("Found a dispatcher for the road {}", road);
-
-                    send_ticket_to_dispatcher(new_ticket, tx.clone());
-                }
-            }
-        }
-    }
-}
-
-fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
-    tokio::spawn(async move {
-        tx.send(ticket).await.expect("Unable to send ticket");
-    });
-}
+// fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
+//     tokio::spawn(async move {
+//         tx.send(ticket).await.expect("Unable to send ticket");
+//     });
+// }

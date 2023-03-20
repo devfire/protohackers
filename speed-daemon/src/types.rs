@@ -12,11 +12,11 @@ pub type Mile = u16;
 pub type Timestamp = u32;
 pub type Speed = u16;
 pub type Plate = String;
-
+pub type PlateCameraTuple = (Timestamp,InboundMessageType);
 
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
-pub type PlateCameraDb = HashMap<Plate, (Timestamp, InboundMessageType)>;
+pub type PlateCameraDb = HashMap<Plate, PlateCameraTuple>;
 
 // This maps a road ID to a hash of IP,tx
 pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;

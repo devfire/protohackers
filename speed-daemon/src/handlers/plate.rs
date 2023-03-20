@@ -1,23 +1,18 @@
 use log::info;
-use speed_daemon::message::InboundMessageType;
-use speed_daemon::message::OutboundMessageType;
-use speed_daemon::state::SharedState;
-use speed_daemon::types::{Mile, Road};
-use speed_daemon::types::{Plate, Timestamp};
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::Mutex;
+use speed_daemon::{
+    message::{InboundMessageType, OutboundMessageType},
+    state::Db,
+    types::{Mile, Plate, Road, Timestamp},
+};
 
-pub async fn handle_plate(
+use std::net::SocketAddr;
+
+pub fn handle_plate(
     client_addr: &SocketAddr,
     new_plate: Plate,
     new_timestamp: Timestamp,
-    shared_db: Arc<Mutex<SharedState>>,
+    mut shared_db: Db,
 ) -> anyhow::Result<()> {
-    let mut shared_db = shared_db.lock().expect("Unable to lock shared db");
-
-    // info!("Received plate: {:?}", new_plate);
-
     // Get the current road speed limit
     let mut speed_limit: u16 = 0;
     let mut observed_mile_marker: Mile = 0;
@@ -29,7 +24,7 @@ pub async fn handle_plate(
 
     // Get the details of the camera that obseved this plate.
     // NOTE: this came from handle_i_am_camera
-    if let InboundMessageType::IAmCamera { road, mile, limit } = *current_camera {
+    if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera {
         current_road = road;
         observed_mile_marker = mile;
         speed_limit = limit;
@@ -45,7 +40,7 @@ pub async fn handle_plate(
     let mut timestamp1: u32 = 0;
     let mut timestamp2: u32 = 0;
     // Check if this plate has been observed before
-    if let Some(previously_seen_camera) = shared_db.plates_cameras.get(&new_plate) {
+    if let Some(previously_seen_camera) = shared_db.check_camera_plate(&new_plate) {
         let time_traveled: u32;
         let mut distance_traveled: u16 = 0;
         // Messages may arrive out of order, so we need to figure out what to subtract from what.
@@ -103,31 +98,16 @@ pub async fn handle_plate(
                 speed: observed_speed as u16,
             };
 
-            // issue ticket
-            // Get the relevant tx
-            // info!(
-            //     "Getting the relevant tx for road {} address {}",
-            //     current_road, client_addr
-            // );
-            // let tx = shared_db.get_ticket_dispatcher(current_road, client_addr);
-
             // let tx = tx.clone();
             info!("Adding ticket {:?}", new_ticket);
             shared_db.add_ticket(new_ticket);
             //issue_ticket(new_ticket, tx);
         }
     } else {
-        info!(
-            "First time seeing plate: {} observed by camera: {:?}",
-            new_plate, shared_db.current_camera
-        );
-        // Add the newly observed camera to the shared db of plate -> camera hash
+        // Add the newly observed plate to the shared db of plate -> camera hash
         // NOTE: subsequent inserts will override the value because the plate key is the same.
         // But that's OK since we only ever need the last two values.
-        let current_camera = current_camera.clone();
-        shared_db
-            .plates_cameras
-            .insert(new_plate, (new_timestamp, current_camera));
+        shared_db.add_camera_plate(new_plate.to_string(), new_timestamp, current_camera);
     }
     Ok(())
 }
