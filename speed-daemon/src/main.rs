@@ -12,7 +12,7 @@ use tokio::{
 };
 
 use env_logger::Env;
-use log::{error, info};
+use log::{error, info, warn};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use futures::sink::SinkExt;
@@ -43,6 +43,37 @@ async fn main() -> anyhow::Result<()> {
     //
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
+
+    // let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(32);
+
+    let mut shared_ticket_db = shared_db.clone();
+    // Spawn off a ticket manager loop.
+    tokio::spawn(async move {
+        loop {
+            while let Some(ticket) = shared_ticket_db.get_ticket() {
+                info!("Found {:?}", ticket);
+
+                if let OutboundMessageType::Ticket {
+                    plate: _,
+                    road,
+                    mile1: _,
+                    timestamp1: _,
+                    mile2: _,
+                    timestamp2: _,
+                    speed: _,
+                } = ticket
+                {
+                    if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
+                        send_ticket_to_dispatcher(ticket, dispatcher_tx);
+                    } else {
+                        warn!("No dispatcher found, sending the ticket back");
+                        shared_ticket_db.add_ticket(ticket);
+                    }
+                }
+            }
+        }
+    })
+    .await?;
 
     info!("Server running on {}", addr);
 
@@ -145,8 +176,8 @@ async fn process(stream: TcpStream, addr: SocketAddr, shared_db: Db) -> anyhow::
     Ok(())
 }
 
-// fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
-//     tokio::spawn(async move {
-//         tx.send(ticket).await.expect("Unable to send ticket");
-//     });
-// }
+fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
+    tokio::spawn(async move {
+        tx.send(ticket).await.expect("Unable to send ticket");
+    });
+}
