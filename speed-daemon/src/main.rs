@@ -118,7 +118,7 @@ async fn process(
     // If messages are sent faster than they are received, the channel will store them.
     // Once the 32 messages are stored in the channel,
     // calling send(...).await will go to sleep until a message has been removed by the receiver.
-    let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(32);
+    let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(8196);
 
     // Spawn off a writer manager loop.
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
