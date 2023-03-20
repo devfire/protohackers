@@ -135,14 +135,16 @@ fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db)
     }) = shared_db.get_plate_ticket(plate)
     // this will return a ticket if it exists
     {
-        if (new_timestamp - last_ticket_timestamp) > 86400 {
+        info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
+        if (new_timestamp - last_ticket_timestamp) < 86400 {
             info!("Found a ticket less than a day old for plate {}", plate);
             false // skip this ticket
         } else {
+            info!("Last ticket for plate {} is over a day old, issue new one", plate);
             true // issue a ticket
         }
     } else {
-        info!("No previous tickets for plate {}", plate);
+        info!("No previous tickets for plate {}, issue new one", plate);
         true
     }
 }
