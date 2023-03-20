@@ -152,31 +152,31 @@ impl Db {
 
     // Checks to see if there's a ticket in the queue. If there is, returns the ticket.
     // If not, returns None.
-    pub fn get_ticket(&mut self) -> Option<OutboundMessageType> {
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .expect("Unable to lock shared state in get_ticket");
+    // pub fn get_ticket(&mut self) -> Option<OutboundMessageType> {
+    //     let mut state = self
+    //         .shared
+    //         .state
+    //         .lock()
+    //         .expect("Unable to lock shared state in get_ticket");
 
-        if let Some(ticket) = state.ticket_queue.pop_front() {
-            info!("Found a ticket {:?}", ticket);
-            Some(ticket)
-        } else {
-            None
-        }
-    }
+    //     if let Some(ticket) = state.ticket_queue.pop_front() {
+    //         info!("Found a ticket {:?}", ticket);
+    //         Some(ticket)
+    //     } else {
+    //         None
+    //     }
+    // }
 
     // Append a ticket to the shared queue. Once a dispatcher comes online, it'll be delivered.
-    pub fn add_ticket(&mut self, new_ticket: OutboundMessageType) {
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .expect("Unable to lock shared state in add_ticket");
+    // pub fn add_ticket(&mut self, new_ticket: OutboundMessageType) {
+    //     let mut state = self
+    //         .shared
+    //         .state
+    //         .lock()
+    //         .expect("Unable to lock shared state in add_ticket");
 
-        state.ticket_queue.push_back(new_ticket);
-    }
+    //     state.ticket_queue.push_back(new_ticket);
+    // }
 }
 
 impl Default for Db {

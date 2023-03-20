@@ -70,7 +70,10 @@ async fn main() -> anyhow::Result<()> {
                     send_ticket_to_dispatcher(ticket, dispatcher_tx);
                 } else {
                     warn!("No dispatcher found, sending the ticket back");
-                    ticket_tx_queue.send(ticket).await.expect("Unable to send ticket");
+                    ticket_tx_queue
+                        .send(ticket)
+                        .await
+                        .expect("Unable to send ticket");
                 }
             }
         }
@@ -140,7 +143,14 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(&addr, plate, timestamp, ticket_tx.clone(), shared_db.clone()).await?
+                handle_plate(
+                    &addr,
+                    plate,
+                    timestamp,
+                    ticket_tx.clone(),
+                    shared_db.clone(),
+                )
+                .await?
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -183,6 +193,7 @@ async fn process(
 }
 
 fn send_ticket_to_dispatcher(ticket: OutboundMessageType, tx: mpsc::Sender<OutboundMessageType>) {
+    info!("Sending {:?} to dispatcher rx {:?}", ticket, tx);
     tokio::spawn(async move {
         tx.send(ticket).await.expect("Unable to send ticket");
     });
