@@ -2,7 +2,7 @@ use log::info;
 use speed_daemon::{
     message::{InboundMessageType, OutboundMessageType},
     state::Db,
-    types::{Mile, Plate, Road, Timestamp},
+    types::{Mile, Plate, Road, Timestamp, Speed},
 };
 use tokio::sync::mpsc;
 
@@ -99,7 +99,7 @@ pub async fn handle_plate(
                 timestamp1,
                 mile2,
                 timestamp2,
-                speed: (observed_speed * 100.0) as u16, //100x miles per hour
+                speed: (observed_speed * 100.0).round() as Speed, //100x miles per hour
             };
 
             info!(
