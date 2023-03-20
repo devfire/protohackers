@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use log::{error, info};
+use log::{error, info, warn};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -136,16 +136,16 @@ impl Db {
         // First, we get the hash mapping the road num to the client address-tx hash
         // Second, we get the tx from the client address.
         // NOTE: this overrides the previous ticket dispatcher for the same road. PROBLEM?
-        let addr_tx_hash = state
-            .dispatchers
-            .get(&road)
-            .expect("Unable to fetch addr_tx_hash");
-
-        if let Some((client_addr, tx)) = addr_tx_hash.iter().next() {
-            info!("Found a dispatcher for road {} at {}", road, client_addr);
-            Some(tx.clone())
+        if let Some(addr_tx_hash) = state.dispatchers.get(&road) {
+            if let Some((client_addr, tx)) = addr_tx_hash.iter().next() {
+                info!("Found a dispatcher for road {} at {}", road, client_addr);
+                Some(tx.clone())
+            } else {
+                error!("BIG PROBLEM, dispatcher was added but somehow not found for road {}!", road);
+                None
+            }
         } else {
-            error!("Dispatcher for road {} not found", road);
+            warn!("No dispatcher found for road {} try again later", road);
             None
         }
     }
