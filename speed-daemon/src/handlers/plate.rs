@@ -41,7 +41,7 @@ pub async fn handle_plate(
     let mut timestamp1: u32 = 0;
     let mut timestamp2: u32 = 0;
     // Check if this plate has been observed before
-    if let Some(previously_seen_camera) = shared_db.check_camera_plate(&new_plate) {
+    if let Some(previously_seen_camera) = shared_db.get_camera_plate(&new_plate) {
         let time_traveled: u32;
         let mut distance_traveled: u16 = 0;
         // Messages may arrive out of order, so we need to figure out what to subtract from what.

@@ -1,7 +1,7 @@
 pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, hash::Hash,
 };
 
 use log::{error, info};
@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, Plate, PlateCameraDb, PlateCameraTuple, PlateTicketDb, Road,
-        TicketDispatcherDb, Timestamp,
+        CurrentCameraDb, Plate, PlateCameraDb, TimestampCameraTuple, PlateTicketDb, Road,
+        TicketDispatcherDb, Timestamp, PlateTimestampCameraDb,
     },
 };
 
@@ -46,6 +46,7 @@ struct State {
     current_camera: CurrentCameraDb,
     plates_cameras: PlateCameraDb,
     plates_tickets: PlateTicketDb,
+    plate_timestamp_camera: PlateTimestampCameraDb,
 }
 
 impl Db {
@@ -56,6 +57,7 @@ impl Db {
                 current_camera: HashMap::new(),
                 plates_cameras: HashMap::new(),
                 plates_tickets: HashMap::new(),
+                plate_timestamp_camera: HashMap::new(),
             }),
         });
         Db { shared }
@@ -64,7 +66,7 @@ impl Db {
     // This function returns a previously seen Plate -> (Timestamp, Camera) mapping
     // Need this because when a camera reports a plate, we don't know if this is a first sighting of that plate or not.
     // So we need to keep track of plates and whether any camera has seen it previously.
-    pub fn check_camera_plate(&self, plate: &Plate) -> Option<PlateCameraTuple> {
+    pub fn get_camera_plate(&self, plate: &Plate) -> Option<TimestampCameraTuple> {
         let state = self
             .shared
             .state
@@ -84,6 +86,7 @@ impl Db {
         state.plates_cameras.insert(plate, (timestamp, camera));
     }
 
+    // This is invoked by handle_i_am_camera when a new camera comes online.
     pub fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
         let mut state = self
             .shared
