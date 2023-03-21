@@ -1,7 +1,7 @@
 pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
-    sync::{Arc, Mutex}, hash::Hash,
+    sync::{Arc, Mutex},
 };
 
 use log::{error, info};
@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, Plate, PlateCameraDb, TimestampCameraTuple, PlateTicketDb, Road,
-        TicketDispatcherDb, Timestamp, PlateTimestampCameraDb,
+        CurrentCameraDb, Plate, PlateTicketDb, PlateTimestamp, PlateTimestampCameraDb, Road, Speed,
+        TicketDispatcherDb, Timestamp, TimestampCameraTuple,
     },
 };
 
@@ -44,7 +44,6 @@ struct Shared {
 struct State {
     dispatchers: TicketDispatcherDb,
     current_camera: CurrentCameraDb,
-    plates_cameras: PlateCameraDb,
     plates_tickets: PlateTicketDb,
     plate_timestamp_camera: PlateTimestampCameraDb,
 }
@@ -55,7 +54,6 @@ impl Db {
             state: Mutex::new(State {
                 dispatchers: HashMap::new(),
                 current_camera: HashMap::new(),
-                plates_cameras: HashMap::new(),
                 plates_tickets: HashMap::new(),
                 plate_timestamp_camera: HashMap::new(),
             }),
@@ -63,27 +61,23 @@ impl Db {
         Db { shared }
     }
 
-    // This function returns a previously seen Plate -> (Timestamp, Camera) mapping
-    // Need this because when a camera reports a plate, we don't know if this is a first sighting of that plate or not.
-    // So we need to keep track of plates and whether any camera has seen it previously.
-    pub fn get_camera_plate(&self, plate: &Plate) -> Option<TimestampCameraTuple> {
-        let state = self
-            .shared
-            .state
-            .lock()
-            .expect("Unable to lock shared state in check_camera_plate");
-
-        state.plates_cameras.get(plate).cloned()
-    }
-
-    pub fn add_camera_plate(&self, plate: Plate, timestamp: Timestamp, camera: InboundMessageType) {
+    pub fn add_plate_timestamp_camera(
+        &self,
+        plate_timestamp: PlateTimestamp,
+        camera: InboundMessageType,
+    ) {
         let mut state = self
             .shared
             .state
             .lock()
             .expect("Unable to lock shared state in check_cameadd_camera_platera_plate");
 
-        state.plates_cameras.insert(plate, (timestamp, camera));
+        state.plate_timestamp_camera.insert(plate_timestamp, camera);
+    }
+
+    // This will return two observations from two cameras in a given road that result in the max speed being exceeded.
+    pub fn get_plate_ts_camera(&self, speed: Speed) -> (InboundMessageType, InboundMessageType) {
+        todo!()
     }
 
     // This is invoked by handle_i_am_camera when a new camera comes online.

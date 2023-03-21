@@ -1,6 +1,6 @@
 use crate::types::{Mile, Plate, Road, Timestamp};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug,Eq, Hash, PartialEq)]
 pub enum InboundMessageType {
     Plate { plate: Plate, timestamp: Timestamp },
     WantHeartbeat { interval: u32 },
@@ -8,6 +8,10 @@ pub enum InboundMessageType {
     IAmDispatcher { roads: Vec<u16> },
 }
 
+struct PlateStruct {
+    plate: Plate,
+    timestamp: Timestamp,
+}
 impl Default for InboundMessageType {
     fn default() -> Self {
         InboundMessageType::IAmCamera {

@@ -12,12 +12,12 @@ pub type Plate = String;
 pub type TimestampCameraTuple = (Timestamp, InboundMessageType);
 // pub type PlateTimestampTuple = (Plate, Timestamp);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PlateTimestamp(Plate, Timestamp);
 
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
-pub type PlateCameraDb = HashMap<Plate, TimestampCameraTuple>;
+// pub type PlateCameraDb = HashMap<Plate, TimestampCameraTuple>;
 
 // This contains the (Plate,Timestamp) -> Camera mapping
 pub type PlateTimestampCameraDb = HashMap<PlateTimestamp, InboundMessageType>;
