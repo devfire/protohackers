@@ -31,10 +31,10 @@ pub async fn handle_plate(
         speed_limit = limit;
     }
 
-    // info!(
-    //     "From {}: speed limit for road {} is {} from camera at mile marker: {}",
-    //     client_addr, current_road, speed_limit, observed_mile_marker
-    // );
+    info!(
+        "From {}: speed limit for road {} is {} from camera at mile marker: {}",
+        client_addr, current_road, speed_limit, observed_mile_marker
+    );
 
     let mut mile1: u16 = 0;
     let mut mile2: u16 = 0;
