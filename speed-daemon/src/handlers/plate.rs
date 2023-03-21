@@ -2,7 +2,7 @@ use log::info;
 use speed_daemon::{
     message::{InboundMessageType, OutboundMessageType},
     state::Db,
-    types::{Mile, Plate, Road, Timestamp, Speed},
+    types::{Mile, Plate, Road, Speed, Timestamp},
 };
 use tokio::sync::mpsc;
 
@@ -21,7 +21,6 @@ pub async fn handle_plate(
     let mut current_road: Road = 0;
 
     // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
-    // let new_camera = shared_db.current_camera.clone();
     let current_camera = shared_db.get_current_camera(client_addr);
 
     // Get the details of the camera that obseved this plate.
@@ -32,10 +31,10 @@ pub async fn handle_plate(
         speed_limit = limit;
     }
 
-    // info!(
-    //     "From {}: speed limit for road {} is {} from camera at mile marker: {}",
-    //     client_addr, current_road, speed_limit, observed_mile_marker
-    // );
+    info!(
+        "From {}: plate {} speed limit for road {} is {} from current camera at mile {}",
+        client_addr, new_plate, current_road, speed_limit, observed_mile_marker
+    );
 
     let mut mile1: u16 = 0;
     let mut mile2: u16 = 0;
@@ -57,12 +56,13 @@ pub async fn handle_plate(
             } = previously_seen_camera.1
             {
                 distance_traveled = observed_mile_marker.abs_diff(mile);
-                mile1 = mile;
-                mile2 = observed_mile_marker;
-                timestamp1 = previously_seen_camera.0;
-                timestamp2 = new_timestamp;
+                mile1 = mile; // previously observed value is older, lower
+                mile2 = observed_mile_marker; // new value is newer, higher
+                timestamp1 = previously_seen_camera.0; // previously observed value is older, lower
+                timestamp2 = new_timestamp; // new value is newer, higher
             }
         } else {
+            // the values are out of order, the latest new value is older, lower
             time_traveled = previously_seen_camera.0.abs_diff(new_timestamp);
             if let InboundMessageType::IAmCamera {
                 road: _,
@@ -136,7 +136,7 @@ fn issue_new_ticket_bool(new_timestamp: Timestamp, plate: &Plate, shared_db: Db)
     // this will return a ticket if it exists
     {
         info!("Checking if we need to issue a ticket for plate {} previous timestamp {} new timestamp {}", plate, last_ticket_timestamp, new_timestamp);
-        
+
         // need absolute difference since new_timestamp can be ahead of last ticket's and vice versa
         let difference = new_timestamp.abs_diff(last_ticket_timestamp);
 
