@@ -67,13 +67,9 @@ pub async fn handle_plate(
             // But that's OK since we only ever need the last two values.
             info!(
                 "Storing plate {} timestamp {} camera {:?} for future reference.",
-                new_plate, timestamp2, previously_seen_camera.1
+                new_plate, new_timestamp, current_camera
             );
-            shared_db.add_camera_plate(
-                new_plate.clone(),
-                timestamp2,
-                previously_seen_camera.1.clone(),
-            );
+            shared_db.add_camera_plate(new_plate.clone(), new_timestamp, current_camera.clone());
         } else {
             time_traveled = previously_seen_camera.0.abs_diff(new_timestamp);
             if let InboundMessageType::IAmCamera {
@@ -94,9 +90,13 @@ pub async fn handle_plate(
             // But that's OK since we only ever need the last two values. This is needed for speed calculations.
             info!(
                 "Storing plate {} timestamp {} camera {:?} for future reference.",
-                new_plate, timestamp2, current_camera
+                new_plate, previously_seen_camera.0, previously_seen_camera.1
             );
-            shared_db.add_camera_plate(new_plate.clone(), timestamp2, current_camera);
+            shared_db.add_camera_plate(
+                new_plate.clone(),
+                previously_seen_camera.0,
+                previously_seen_camera.1.clone(),
+            );
         }
 
         let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
