@@ -64,7 +64,7 @@ impl Db {
     // This function returns a previously seen Plate -> (Timestamp, Camera) mapping
     // Need this because when a camera reports a plate, we don't know if this is a first sighting of that plate or not.
     // So we need to keep track of plates and whether any camera has seen it previously.
-    pub fn check_camera_plate(&self, plate: &Plate) -> Option<PlateCameraTuple> {
+    pub fn get_camera_plate(&self, plate: &Plate) -> Option<PlateCameraTuple> {
         let state = self
             .shared
             .state
@@ -84,7 +84,7 @@ impl Db {
         state.plates_cameras.insert(plate, (timestamp, camera));
     }
 
-    pub fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
+    pub fn add_current_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
         let mut state = self
             .shared
             .state

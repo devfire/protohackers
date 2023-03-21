@@ -10,7 +10,7 @@ pub fn handle_i_am_camera(
 ) -> anyhow::Result<()> {
     info!("Adding camera: {:?} to client {}", new_camera, client_addr);
 
-    shared_db.add_camera(*client_addr, new_camera);
+    shared_db.add_current_camera(*client_addr, new_camera);
 
     Ok(())
 }
