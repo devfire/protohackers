@@ -1,4 +1,4 @@
-use crate::types::{Mile, Plate, Road, Timestamp};
+use crate::types::{Mile, Plate, Road, Timestamp, Speed};
 
 #[derive(Clone, Debug,Eq, Hash, PartialEq)]
 pub enum InboundMessageType {
@@ -8,10 +8,6 @@ pub enum InboundMessageType {
     IAmDispatcher { roads: Vec<u16> },
 }
 
-struct PlateStruct {
-    plate: Plate,
-    timestamp: Timestamp,
-}
 impl Default for InboundMessageType {
     fn default() -> Self {
         InboundMessageType::IAmCamera {
@@ -36,6 +32,6 @@ pub enum OutboundMessageType {
         timestamp1: Timestamp,
         mile2: Mile,
         timestamp2: Timestamp,
-        speed: u16,
+        speed: Speed,
     },
 }

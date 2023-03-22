@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, Plate, PlateTicketDb, PlateTimestamp, PlateTimestampCameraDb, Road, Speed,
-        TicketDispatcherDb, Timestamp, TimestampCameraTuple,
+        CurrentCameraDb, Mile, Plate, PlateTicketDb, PlateTimestamp, PlateTimestampCameraDb, Road,
+        Speed, TicketDispatcherDb, IssuedTicketsDayDb, 
     },
 };
 
@@ -46,6 +46,7 @@ struct State {
     current_camera: CurrentCameraDb,
     plates_tickets: PlateTicketDb,
     plate_timestamp_camera: PlateTimestampCameraDb,
+    tickets_day: IssuedTicketsDayDb,
 }
 
 impl Db {
@@ -56,6 +57,7 @@ impl Db {
                 current_camera: HashMap::new(),
                 plates_tickets: HashMap::new(),
                 plate_timestamp_camera: HashMap::new(),
+                tickets_day: HashMap::new(),
             }),
         });
         Db { shared }
@@ -70,14 +72,120 @@ impl Db {
             .shared
             .state
             .lock()
-            .expect("Unable to lock shared state in check_cameadd_camera_platera_plate");
+            .expect("Unable to lock shared state in add_plate_timestamp_camera");
 
         state.plate_timestamp_camera.insert(plate_timestamp, camera);
     }
 
-    // This will return two observations from two cameras in a given road that result in the max speed being exceeded.
-    pub fn get_plate_ts_camera(&self, speed: Speed) -> (InboundMessageType, InboundMessageType) {
-        todo!()
+    // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
+    // any pair of observations on the same road, even if the observations were not from adjacent cameras.
+    pub fn get_plate_ts_camera(&self, plate: Plate) -> Option<Vec<OutboundMessageType>> {
+        let state = self
+            .shared
+            .state
+            .lock()
+            .expect("Unable to lock shared state in get_plate_ts_camera");
+
+        // return immediately if there's only one observation
+        if state.plate_timestamp_camera.len() < 2 {
+            return None
+        }
+
+        let mut tickets = Vec::new();
+
+        for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {
+            for (p_ts_pair2, camera2) in state.plate_timestamp_camera.iter() {
+                let mut camera_mile1: Mile = 0;
+                let mut camera_limit1: Speed = 0;
+                let mut camera_mile2: Mile = 0;
+                let mut camera_limit2: Speed = 0;
+                let mut road1: Road = 0; // same as road2
+                let mut road2: Road = 0; // same as road1
+
+                // We are doing two passes through the same hash, this is value from pass 1
+                if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
+                    road1 = *road;
+                    camera_mile1 = *mile;
+                    camera_limit1 = *limit;
+                } else {
+                    error!(
+                        "Something really bad happened in get_plate_ts_camera 1, values not found."
+                    );
+                };
+
+                // We are doing two passes through the same hash, this is value from pass 2
+                if let InboundMessageType::IAmCamera { road, mile, limit } = camera2 {
+                    road2 = *road;
+                    camera_mile2 = *mile;
+                    camera_limit2 = *limit;
+                } else {
+                    error!(
+                        "Something really bad happened in get_plate_ts_camera 2, values not found."
+                    );
+                };
+
+                // Observation 2 > Observation 1, plus make sure the plates match.
+                // This check is to ensure we don't add the same entries in reverse order.
+                if camera_mile2 > camera_mile1 && p_ts_pair2.plate == plate {
+                    let average_speed1 = (camera_mile2 - camera_mile1) as u32
+                        / (p_ts_pair2.timestamp - p_ts_pair1.timestamp);
+                    if average_speed1 > camera_limit1 as u32 {
+                        info!(
+                            "Issuing ticket, plate {} traveled at speed {} between {} and {} ts1 {} ts2 {}",
+                            plate,
+                            average_speed1,
+                            camera_mile1,
+                            camera_mile2,
+                            p_ts_pair2.timestamp,
+                            p_ts_pair1.timestamp
+                        );
+                        let new_ticket = OutboundMessageType::Ticket {
+                            plate: plate.clone(),
+                            road: road1,
+                            mile1: camera_mile1,
+                            timestamp1: p_ts_pair1.timestamp,
+                            mile2: camera_mile2,
+                            timestamp2: p_ts_pair2.timestamp,
+                            speed: average_speed1 as u16,
+                        };
+                        tickets.push(new_ticket);
+                    }
+                }
+
+                if camera_mile1 > camera_mile2 && p_ts_pair2.plate == plate {
+                    let average_speed2 = (camera_mile1 - camera_mile2) as u32
+                        / (p_ts_pair1.timestamp - p_ts_pair2.timestamp);
+                    if average_speed2 > camera_limit2 as u32 {
+                        info!(
+                            "Issuing ticket, plate {} traveled at speed {} between {} and {} ts1 {} ts2 {}",
+                            plate,
+                            average_speed2,
+                            camera_mile2,
+                            camera_mile1,
+                            p_ts_pair1.timestamp,
+                            p_ts_pair2.timestamp
+                        );
+                        let new_ticket = OutboundMessageType::Ticket {
+                            plate: plate.clone(),
+                            road: road2,
+                            mile1: camera_mile2,
+                            timestamp1: p_ts_pair2.timestamp,
+                            mile2: camera_mile1,
+                            timestamp2: p_ts_pair1.timestamp,
+                            speed: average_speed2 as u16,
+                        };
+                        tickets.push(new_ticket);
+                    }
+                }
+            }
+        }
+
+        // only return the tickets Vec if we have something in it
+        if tickets.is_empty() {
+            None
+        } else {
+            Some(tickets)
+        }
     }
 
     // This is invoked by handle_i_am_camera when a new camera comes online.

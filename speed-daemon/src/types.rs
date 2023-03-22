@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, hash::Hash};
 
 use tokio::sync::mpsc;
 
@@ -6,14 +6,17 @@ use crate::message::{InboundMessageType, OutboundMessageType};
 
 pub type Road = u16;
 pub type Mile = u16;
+pub type Limit = u16;
 pub type Timestamp = u32;
 pub type Speed = u16;
 pub type Plate = String;
 pub type TimestampCameraTuple = (Timestamp, InboundMessageType);
-// pub type PlateTimestampTuple = (Plate, Timestamp);
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct PlateTimestamp(Plate, Timestamp);
+pub struct PlateTimestamp {
+    pub plate: Plate,
+    pub timestamp: Timestamp,
+}
 
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
@@ -32,4 +35,7 @@ pub type PlateTicketDb = HashMap<Plate, OutboundMessageType>;
 // This stores the current tokio task camera. Once a new plate is received,
 // we need to check the camera's mile marker and speed limit to calculate the avg speed.
 pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
+
+// This keeps a mapping Plate to Day, where days are defined by floor(timestamp / 86400)
+pub type IssuedTicketsDayDb = HashMap<Plate, u16>;
 // ------------------------------------------------------------
