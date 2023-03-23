@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, Mile, Plate, PlateTicketDb, PlateTimestamp, PlateTimestampCameraDb, Road,
-        Speed, TicketDispatcherDb, IssuedTicketsDayDb, 
+        CurrentCameraDb, IssuedTicketsDayDb, Mile, Plate, PlateTicketDb, PlateTimestamp,
+        PlateTimestampCameraDb, Road, Speed, TicketDispatcherDb,
     },
 };
 
@@ -46,7 +46,7 @@ struct State {
     current_camera: CurrentCameraDb,
     plates_tickets: PlateTicketDb,
     plate_timestamp_camera: PlateTimestampCameraDb,
-    tickets_day: IssuedTicketsDayDb,
+    issued_tickets_day: IssuedTicketsDayDb,
 }
 
 impl Db {
@@ -57,7 +57,7 @@ impl Db {
                 current_camera: HashMap::new(),
                 plates_tickets: HashMap::new(),
                 plate_timestamp_camera: HashMap::new(),
-                tickets_day: HashMap::new(),
+                issued_tickets_day: HashMap::new(),
             }),
         });
         Db { shared }
@@ -80,6 +80,7 @@ impl Db {
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
     pub fn get_plate_ts_camera(&self, plate: Plate) -> Option<Vec<OutboundMessageType>> {
+        // Immutable borrow for now until later
         let state = self
             .shared
             .state
@@ -88,7 +89,7 @@ impl Db {
 
         // return immediately if there's only one observation
         if state.plate_timestamp_camera.len() < 2 {
-            return None
+            return None;
         }
 
         let mut tickets = Vec::new();
@@ -149,6 +150,18 @@ impl Db {
                             speed: average_speed1 as u16,
                         };
                         tickets.push(new_ticket);
+
+                        // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
+                        let day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
+
+                        // Borrow it as mutable this time
+                        let mut state = self
+                            .shared
+                            .state
+                            .lock()
+                            .expect("Unable to lock shared state in get_plate_ts_camera");
+
+                        state.issued_tickets_day.insert(plate.clone(), day);
                     }
                 }
 
@@ -175,6 +188,18 @@ impl Db {
                             speed: average_speed2 as u16,
                         };
                         tickets.push(new_ticket);
+
+                        // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
+                        let day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+
+                        // Borrow it as mutable this time
+                        let mut state = self
+                            .shared
+                            .state
+                            .lock()
+                            .expect("Unable to lock shared state in get_plate_ts_camera");
+
+                        state.issued_tickets_day.insert(plate.clone(), day);
                     }
                 }
             }

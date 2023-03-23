@@ -37,5 +37,5 @@ pub type PlateTicketDb = HashMap<Plate, OutboundMessageType>;
 pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
 
 // This keeps a mapping Plate to Day, where days are defined by floor(timestamp / 86400)
-pub type IssuedTicketsDayDb = HashMap<Plate, u16>;
+pub type IssuedTicketsDayDb = HashMap<Plate, u32>;
 // ------------------------------------------------------------
