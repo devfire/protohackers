@@ -103,7 +103,7 @@ impl Db {
                 let mut camera_limit2: Speed = 0;
                 let mut road1: Road = 0; // same as road2
                 let mut road2: Road = 0; // same as road1
-                let mut day: u32 = 0;
+                let mut day: u32;
 
                 // We are doing two passes through the same hash, this is value from pass 1
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
@@ -140,15 +140,6 @@ impl Db {
                     average_speed1 = (average_speed1 as f64 * 100.0).round() as Speed;
 
                     if average_speed1 > camera_limit1 {
-                        info!(
-                            "Issuing ticket, plate {} traveled at avg speed {} between {} and {} ts1 {} ts2 {}",
-                            plate,
-                            average_speed1,
-                            camera_mile1,
-                            camera_mile2,
-                            p_ts_pair2.timestamp,
-                            p_ts_pair1.timestamp
-                        );
                         let new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
                             road: road1,
@@ -159,24 +150,22 @@ impl Db {
                             speed: average_speed1,
                         };
 
-                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate) {
-                            // Only add a ticket if it hasn't been issued before
-                            if day != *previously_ticketed_day {
-                                info!("Adding ticket {:?}", new_ticket);
-                                tickets.push(new_ticket);
-                            }
-                        }
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
 
-                        // Borrow it as mutable this time
-                        let mut state = self
-                            .shared
-                            .state
-                            .lock()
-                            .expect("Unable to lock shared state in get_plate_ts_camera");
-
-                        state.issued_tickets_day.insert(plate.clone(), day);
+                        // See if this plate has been issued tickets before.
+                        // TRUE means there was a ticket, so we are skipping.
+                        if self.get_plate_ticketed_day(plate, day) {
+                            info!("{} was issued a ticket on day {}", plate, day);
+                            return None;
+                        } else {
+                            info!(
+                                "{} was never issued a ticket on day {}, storing.",
+                                plate, day
+                            );
+                            self.add_plate_ticketed_day(plate, day);
+                            tickets.push(new_ticket);
+                        }
                     }
                 }
 
@@ -204,26 +193,22 @@ impl Db {
                             speed: average_speed2,
                         };
 
-                        // Get the day if any of a previously issued ticket for the plate
-                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate) {
-                            // Only add a ticket if it hasn't been issued before
-                            if day != *previously_ticketed_day {
-                                info!("Adding ticket {:?}", new_ticket);
-                                tickets.push(new_ticket);
-                            }
-                        }
-
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
 
-                        // Borrow it as mutable this time
-                        let mut state = self
-                            .shared
-                            .state
-                            .lock()
-                            .expect("Unable to lock shared state in get_plate_ts_camera");
-
-                        state.issued_tickets_day.insert(plate.clone(), day);
+                        // See if this plate has been issued tickets before.
+                        // TRUE means there was a ticket, so we are skipping.
+                        if self.get_plate_ticketed_day(plate, day) {
+                            info!("{} was issued a ticket on day {}", plate, day);
+                            return None;
+                        } else {
+                            info!(
+                                "{} was never issued a ticket on day {}, storing.",
+                                plate, day
+                            );
+                            self.add_plate_ticketed_day(plate, day);
+                            tickets.push(new_ticket);
+                        }
                     }
                 }
             }
@@ -318,15 +303,40 @@ impl Db {
         state.plates_tickets.insert(plate, ticket);
     }
 
-    // returns the last ticket for this plate
-    pub fn get_plate_ticket(&self, plate: &Plate) -> Option<OutboundMessageType> {
+    // Private function, returns T/F depending on whether there was a ticket for that Plate:Day combo
+    fn get_plate_ticketed_day(&self, plate: &Plate, day: u32) -> bool {
         let state = self
             .shared
             .state
             .lock()
             .expect("Unable to lock shared state in add_plate_ticket");
 
-        state.plates_tickets.get(plate).cloned()
+        if let Some(check_date) = state.issued_tickets_day.get(plate) {
+            if let Some(_previously_issued_ticket) = check_date.get(&day) {
+                info!("{} was issued a ticket on day {}", plate, day);
+                true
+            } else {
+                false
+            }
+        } else {
+            info!("{} was never issued a ticket on day {}", plate, day);
+            false
+        }
+    }
+
+    fn add_plate_ticketed_day(&self, plate: &Plate, date: u32) {
+        let mut state = self
+            .shared
+            .state
+            .lock()
+            .expect("Unable to lock shared state in add_plate_ticketed_day");
+
+        let mut date_bool_hash = HashMap::new();
+        date_bool_hash.insert(date, true);
+
+        state
+            .issued_tickets_day
+            .insert(plate.clone(), date_bool_hash);
     }
 }
 
