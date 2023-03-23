@@ -79,7 +79,7 @@ impl Db {
 
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
-    pub fn get_plate_ts_camera(&self, plate: Plate) -> Option<Vec<OutboundMessageType>> {
+    pub fn get_tickets_for_plate(&self, plate: Plate) -> Option<Vec<OutboundMessageType>> {
         // Immutable borrow for now until later
         let state = self
             .shared
@@ -102,6 +102,7 @@ impl Db {
                 let mut camera_limit2: Speed = 0;
                 let mut road1: Road = 0; // same as road2
                 let mut road2: Road = 0; // same as road1
+                let mut day: u32 = 0;
 
                 // We are doing two passes through the same hash, this is value from pass 1
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
@@ -149,23 +150,21 @@ impl Db {
                             timestamp2: p_ts_pair2.timestamp,
                             speed: average_speed1 as u16,
                         };
-                        tickets.push(new_ticket);
 
+                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(&plate)
+                        {
+                            // Only add a ticket if it hasn't been issued before
+                            if day != *previously_ticketed_day {
+                                info!("Adding ticket {:?}", new_ticket);
+                                tickets.push(new_ticket);
+                            }
+                        }
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                        let day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
-
-                        // Borrow it as mutable this time
-                        let mut state = self
-                            .shared
-                            .state
-                            .lock()
-                            .expect("Unable to lock shared state in get_plate_ts_camera");
-
-                        state.issued_tickets_day.insert(plate.clone(), day);
+                        day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
                     }
                 }
 
-                if camera_mile1 > camera_mile2 && p_ts_pair2.plate == plate {
+                if camera_mile1 > camera_mile2 && p_ts_pair1.plate == plate {
                     let average_speed2 = (camera_mile1 - camera_mile2) as u32
                         / (p_ts_pair1.timestamp - p_ts_pair2.timestamp);
                     if average_speed2 > camera_limit2 as u32 {
@@ -187,21 +186,30 @@ impl Db {
                             timestamp2: p_ts_pair1.timestamp,
                             speed: average_speed2 as u16,
                         };
-                        tickets.push(new_ticket);
+
+                        // Get the day if any of a previously issued ticket for the plate
+                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(&plate)
+                        {
+                            // Only add a ticket if it hasn't been issued before
+                            if day != *previously_ticketed_day {
+                                info!("Adding ticket {:?}", new_ticket);
+                                tickets.push(new_ticket);
+                            }
+                        }
 
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                        let day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
-
-                        // Borrow it as mutable this time
-                        let mut state = self
-                            .shared
-                            .state
-                            .lock()
-                            .expect("Unable to lock shared state in get_plate_ts_camera");
-
-                        state.issued_tickets_day.insert(plate.clone(), day);
+                        day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
                     }
                 }
+
+                // Borrow it as mutable this time
+                let mut state = self
+                    .shared
+                    .state
+                    .lock()
+                    .expect("Unable to lock shared state in get_plate_ts_camera");
+
+                state.issued_tickets_day.insert(plate.clone(), day);
             }
         }
 
