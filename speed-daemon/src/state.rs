@@ -129,11 +129,15 @@ impl Db {
                 // Observation 2 > Observation 1, plus make sure the plates match.
                 // This check is to ensure we don't add the same entries in reverse order.
                 if camera_mile2 > camera_mile1 && p_ts_pair2.plate == plate {
-                    let average_speed1 = (camera_mile2 - camera_mile1) as u32
-                        / (p_ts_pair2.timestamp - p_ts_pair1.timestamp);
-                    if average_speed1 > camera_limit1 as u32 {
+                    // let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
+                    //(observed_speed * 100.0).round() as Speed, //100x miles per hour
+                    let mut average_speed1: u16 = (camera_mile2 - camera_mile1) * 3600
+                        / (p_ts_pair2.timestamp - p_ts_pair1.timestamp) as Speed;
+                    average_speed1 = (average_speed1 as f64 * 100.0).round() as Speed;
+
+                    if average_speed1 > camera_limit1 {
                         info!(
-                            "Issuing ticket, plate {} traveled at speed {} between {} and {} ts1 {} ts2 {}",
+                            "Issuing ticket, plate {} traveled at avg speed {} between {} and {} ts1 {} ts2 {}",
                             plate,
                             average_speed1,
                             camera_mile1,
@@ -148,7 +152,7 @@ impl Db {
                             timestamp1: p_ts_pair1.timestamp,
                             mile2: camera_mile2,
                             timestamp2: p_ts_pair2.timestamp,
-                            speed: average_speed1 as u16,
+                            speed: average_speed1,
                         };
 
                         if let Some(previously_ticketed_day) = state.issued_tickets_day.get(&plate)
@@ -165,9 +169,10 @@ impl Db {
                 }
 
                 if camera_mile1 > camera_mile2 && p_ts_pair1.plate == plate {
-                    let average_speed2 = (camera_mile1 - camera_mile2) as u32
-                        / (p_ts_pair1.timestamp - p_ts_pair2.timestamp);
-                    if average_speed2 > camera_limit2 as u32 {
+                    let mut average_speed2: u16 = (camera_mile1 - camera_mile2) * 3600
+                        / (p_ts_pair1.timestamp - p_ts_pair2.timestamp) as Speed;
+                    average_speed2 = (average_speed2 as f64 * 100.0).round() as Speed;
+                    if average_speed2 > camera_limit2 {
                         info!(
                             "Issuing ticket, plate {} traveled at speed {} between {} and {} ts1 {} ts2 {}",
                             plate,
@@ -184,7 +189,7 @@ impl Db {
                             timestamp1: p_ts_pair2.timestamp,
                             mile2: camera_mile1,
                             timestamp2: p_ts_pair1.timestamp,
-                            speed: average_speed2 as u16,
+                            speed: average_speed2,
                         };
 
                         // Get the day if any of a previously issued ticket for the plate
