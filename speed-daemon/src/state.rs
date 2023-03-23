@@ -89,6 +89,7 @@ impl Db {
 
         // return immediately if there's only one observation
         if state.plate_timestamp_camera.len() < 2 {
+            info!("Only one observation for plate {}, exiting.", plate);
             return None;
         }
 
@@ -126,6 +127,10 @@ impl Db {
                     );
                 };
 
+                info!(
+                    "Comparing {:?} {:?} with {:?} {:?}",
+                    p_ts_pair1, camera1, p_ts_pair2, camera2
+                );
                 // Messages may arrive out of order, so we need to figure out what to subtract from what.
                 // Observation 2 > Observation 1, plus make sure the plates match.
                 // This check is to ensure we don't add the same entries in reverse order.
@@ -154,8 +159,7 @@ impl Db {
                             speed: average_speed1,
                         };
 
-                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate)
-                        {
+                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate) {
                             // Only add a ticket if it hasn't been issued before
                             if day != *previously_ticketed_day {
                                 info!("Adding ticket {:?}", new_ticket);
@@ -164,6 +168,15 @@ impl Db {
                         }
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
+
+                        // Borrow it as mutable this time
+                        let mut state = self
+                            .shared
+                            .state
+                            .lock()
+                            .expect("Unable to lock shared state in get_plate_ts_camera");
+
+                        state.issued_tickets_day.insert(plate.clone(), day);
                     }
                 }
 
@@ -192,8 +205,7 @@ impl Db {
                         };
 
                         // Get the day if any of a previously issued ticket for the plate
-                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate)
-                        {
+                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate) {
                             // Only add a ticket if it hasn't been issued before
                             if day != *previously_ticketed_day {
                                 info!("Adding ticket {:?}", new_ticket);
@@ -203,24 +215,26 @@ impl Db {
 
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+
+                        // Borrow it as mutable this time
+                        let mut state = self
+                            .shared
+                            .state
+                            .lock()
+                            .expect("Unable to lock shared state in get_plate_ts_camera");
+
+                        state.issued_tickets_day.insert(plate.clone(), day);
                     }
                 }
-
-                // Borrow it as mutable this time
-                let mut state = self
-                    .shared
-                    .state
-                    .lock()
-                    .expect("Unable to lock shared state in get_plate_ts_camera");
-
-                state.issued_tickets_day.insert(plate.clone(), day);
             }
         }
 
         // only return the tickets Vec if we have something in it
         if tickets.is_empty() {
+            info!("No tickets found for {}", plate);
             None
         } else {
+            info!("Found tickets for {} returning {:?}", plate, tickets);
             Some(tickets)
         }
     }
