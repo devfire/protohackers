@@ -79,7 +79,7 @@ impl Db {
 
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
-    pub fn get_tickets_for_plate(&self, plate: Plate) -> Option<Vec<OutboundMessageType>> {
+    pub fn get_tickets_for_plate(&self, plate: &Plate) -> Option<Vec<OutboundMessageType>> {
         // Immutable borrow for now until later
         let state = self
             .shared
@@ -126,13 +126,12 @@ impl Db {
                     );
                 };
 
+                // Messages may arrive out of order, so we need to figure out what to subtract from what.
                 // Observation 2 > Observation 1, plus make sure the plates match.
                 // This check is to ensure we don't add the same entries in reverse order.
-                if camera_mile2 > camera_mile1 && p_ts_pair2.plate == plate {
-                    // let observed_speed: f64 = distance_traveled as f64 / time_traveled as f64 * 3600.0;
-                    //(observed_speed * 100.0).round() as Speed, //100x miles per hour
-                    let mut average_speed1: u16 = (camera_mile2 - camera_mile1) * 3600
-                        / (p_ts_pair2.timestamp - p_ts_pair1.timestamp) as Speed;
+                if camera_mile2 > camera_mile1 && p_ts_pair2.plate == *plate {
+                    let mut average_speed1: u16 = (camera_mile2.abs_diff(camera_mile1)) * 3600
+                        / (p_ts_pair2.timestamp.abs_diff(p_ts_pair1.timestamp)) as Speed;
                     average_speed1 = (average_speed1 as f64 * 100.0).round() as Speed;
 
                     if average_speed1 > camera_limit1 {
@@ -155,7 +154,7 @@ impl Db {
                             speed: average_speed1,
                         };
 
-                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(&plate)
+                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate)
                         {
                             // Only add a ticket if it hasn't been issued before
                             if day != *previously_ticketed_day {
@@ -168,9 +167,9 @@ impl Db {
                     }
                 }
 
-                if camera_mile1 > camera_mile2 && p_ts_pair1.plate == plate {
-                    let mut average_speed2: u16 = (camera_mile1 - camera_mile2) * 3600
-                        / (p_ts_pair1.timestamp - p_ts_pair2.timestamp) as Speed;
+                if camera_mile1 > camera_mile2 && p_ts_pair1.plate == *plate {
+                    let mut average_speed2: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
+                        / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
                     average_speed2 = (average_speed2 as f64 * 100.0).round() as Speed;
                     if average_speed2 > camera_limit2 {
                         info!(
@@ -193,7 +192,7 @@ impl Db {
                         };
 
                         // Get the day if any of a previously issued ticket for the plate
-                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(&plate)
+                        if let Some(previously_ticketed_day) = state.issued_tickets_day.get(plate)
                         {
                             // Only add a ticket if it hasn't been issued before
                             if day != *previously_ticketed_day {
