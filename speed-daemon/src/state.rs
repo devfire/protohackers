@@ -188,7 +188,7 @@ impl Db {
                     };
 
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                    day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+                    day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor() as u32;
                     warn!(
                         "Speed {} exceeded limit {}, preparing {:?} day {}",
                         average_speed, camera_limit1, new_ticket, day
@@ -300,7 +300,7 @@ impl Db {
                             speed: average_speed,
                         };
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                        day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+                        day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor() as u32;
                         warn!(
                             "Speed {} exceeded limit {}, preparing {:?} day {}",
                             average_speed, camera_limit1, new_ticket, day
