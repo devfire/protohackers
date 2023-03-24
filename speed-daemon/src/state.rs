@@ -169,10 +169,6 @@ impl Db {
                     plate, road1, distance_traveled, time_traveled
                 );
 
-                // let mut average_speed = (camera_mile1.abs_diff(camera_mile2) as u32
-                // / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp))) * 3600;
-                // average_speed = (average_speed as f64).round() as Speed;
-
                 info!(
                     "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
                     plate,
@@ -237,7 +233,7 @@ impl Db {
 
                         tickets.push(new_ticket);
                     }
-                    info!("Final tickets db {:?}", tickets);
+                    // info!("Final tickets db {:?}", tickets);
                 }
             }
 
