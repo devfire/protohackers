@@ -8,7 +8,7 @@ pub fn handle_i_am_camera(
     new_camera: InboundMessageType,
     mut shared_db: Db,
 ) -> anyhow::Result<()> {
-    info!("Adding camera: {:?} to client {}", new_camera, client_addr);
+    // info!("Adding camera: {:?} to client {}", new_camera, client_addr);
 
     shared_db.add_camera(*client_addr, new_camera);
 

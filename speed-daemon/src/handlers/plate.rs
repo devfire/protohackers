@@ -34,10 +34,10 @@ pub async fn handle_plate(
     // NOTE: Really should only ever get one ticket back but just in case, let's run through the vec
     if let Some(tickets_vec) = shared_db.get_tickets_for_plate(&new_plate) {
         for ticket in tickets_vec.iter() {
-            info!(
-                "Plate handler forwarding ticket {:?} to ticket manager",
-                ticket
-            );
+            // info!(
+            //     "Plate handler forwarding ticket {:?} to ticket manager",
+            //     ticket
+            // );
 
             // Send the ticket to the ticket dispatcher
             ticket_tx.send(ticket.clone()).await?;

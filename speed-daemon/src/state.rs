@@ -89,7 +89,7 @@ impl Db {
 
         // return immediately if there's only one observation (plate,timestamp)->camera
         if state.plate_timestamp_camera.len() < 2 {
-            info!("Only one observation for plate {}, exiting.", plate);
+            // info!("Only one observation for plate {}, exiting.", plate);
             return None;
         }
 
@@ -99,7 +99,7 @@ impl Db {
 
         // Special case of two elements
         if state.plate_timestamp_camera.len() == 2 {
-            info!("Special case of two elements.");
+            // info!("Special case of two elements.");
 
             // "if let Some" to get first & second value from the state.plate_timestamp_camera lose the var context inside if.
             // this is to preserve it for later code.
@@ -125,7 +125,7 @@ impl Db {
                 .nth(1)
                 .map(|(k, v)| (k, v))
             {
-                info!("Second pair: {:?} {:?}", p_ts_pair2, camera2);
+                // info!("Second pair: {:?} {:?}", p_ts_pair2, camera2);
                 pair_vector.push((p_ts_pair2, camera2));
             }
 
@@ -165,10 +165,10 @@ impl Db {
                 let average_speed =
                     ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32; // we must round here
 
-                info!(
-                    "For plate {} road {} distance {} time traveled {}",
-                    plate, road1, distance_traveled, time_traveled
-                );
+                // info!(
+                //     "For plate {} road {} distance {} time traveled {}",
+                //     plate, road1, distance_traveled, time_traveled
+                // );
 
                 // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
                 // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
@@ -177,16 +177,16 @@ impl Db {
                     (camera_mile1, camera_mile2) = (camera_mile2, camera_mile1);
                 }
 
-                info!(
-                    "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
-                    plate,
-                    camera_mile1,
-                    p_ts_pair1.timestamp,
-                    camera_mile2,
-                    p_ts_pair2.timestamp,
-                    average_speed,
-                    camera_limit1
-                );
+                // info!(
+                //     "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
+                //     plate,
+                //     camera_mile1,
+                //     p_ts_pair1.timestamp,
+                //     camera_mile2,
+                //     p_ts_pair2.timestamp,
+                //     average_speed,
+                //     camera_limit1
+                // );
 
                 if average_speed > camera_limit1.into() {
                     let new_ticket = OutboundMessageType::Ticket {
@@ -210,11 +210,11 @@ impl Db {
                     // check if we've previously issued ticket for that day
                     if let Some(check_date) = state.issued_tickets_day.get(plate) {
                         if let Some(_previously_issued_ticket) = check_date.get(&day) {
-                            info!("{} was previously issued a ticket on day {}", plate, day);
+                            // info!("{} was previously issued a ticket on day {}", plate, day);
                             // return None;
                         } else {
                             {
-                                info!("Plate {} was issued a ticket but not on day {}", plate, day);
+                                // info!("Plate {} was issued a ticket but not on day {}", plate, day);
                                 let mut date_bool_hash = HashMap::new();
                                 date_bool_hash.insert(day, true);
 
@@ -230,10 +230,10 @@ impl Db {
                             }
                         }
                     } else {
-                        info!("Plate {} was never issued a ticket on day {}", plate, day);
+                        // info!("Plate {} was never issued a ticket on day {}", plate, day);
                         let mut date_bool_hash = HashMap::new();
                         date_bool_hash.insert(day, true);
-                        info!("Marking day {} as ticketed.", day);
+                        // info!("Marking day {} as ticketed.", day);
 
                         state
                             .issued_tickets_day
@@ -247,10 +247,10 @@ impl Db {
 
             // only return the tickets Vec if we have something in it
             if tickets.is_empty() {
-                info!("No tickets found for {}", plate);
+                // info!("No tickets found for {}", plate);
                 return None;
             } else {
-                info!("Found tickets for {} returning {:?}", plate, tickets);
+                // info!("Found tickets for {} returning {:?}", plate, tickets);
                 return Some(tickets);
             }
         }
@@ -308,10 +308,10 @@ impl Db {
                     let average_speed =
                         ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32; // we must round here
 
-                    info!(
-                        "For plate {} road {} distance {} time traveled {}",
-                        plate, road1, distance_traveled, time_traveled
-                    );
+                    // info!(
+                    //     "For plate {} road {} distance {} time traveled {}",
+                    //     plate, road1, distance_traveled, time_traveled
+                    // );
 
                     // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
                     // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
@@ -342,14 +342,14 @@ impl Db {
                         // check if we've previously issued ticket for that day
                         if let Some(check_date) = state.issued_tickets_day.get(plate) {
                             if let Some(_previously_issued_ticket) = check_date.get(&day) {
-                                info!("{} was previously issued a ticket on day {}", plate, day);
+                                // info!("{} was previously issued a ticket on day {}", plate, day);
                                 // return None;
                             } else {
                                 {
-                                    info!(
-                                        "Plate {} was issued a ticket but not on day {}",
-                                        plate, day
-                                    );
+                                    // info!(
+                                    //     "Plate {} was issued a ticket but not on day {}",
+                                    //     plate, day
+                                    // );
                                     let mut date_bool_hash = HashMap::new();
                                     date_bool_hash.insert(day, true);
 
@@ -361,7 +361,7 @@ impl Db {
                                 }
                             }
                         } else {
-                            info!("Plate {} was never issued a ticket on day {}", plate, day);
+                            // info!("Plate {} was never issued a ticket on day {}", plate, day);
                             let mut date_bool_hash = HashMap::new();
                             date_bool_hash.insert(day, true);
 
@@ -378,10 +378,10 @@ impl Db {
 
         // only return the tickets Vec if we have something in it
         if tickets.is_empty() {
-            info!("No tickets found for {}", plate);
+            // info!("No tickets found for {}", plate);
             None
         } else {
-            info!("Found tickets for {} returning {:?}", plate, tickets);
+            // info!("Found tickets for {} returning {:?}", plate, tickets);
             Some(tickets)
         }
     }
@@ -439,8 +439,8 @@ impl Db {
         // Second, we get the tx from the client address.
         // NOTE: this overrides the previous ticket dispatcher for the same road. PROBLEM?
         if let Some(addr_tx_hash) = state.dispatchers.get(&road) {
-            if let Some((client_addr, tx)) = addr_tx_hash.iter().next() {
-                info!("Found a dispatcher for road {} at {}", road, client_addr);
+            if let Some((_client_addr, tx)) = addr_tx_hash.iter().next() {
+                // info!("Found a dispatcher for road {} at {}", road, client_addr);
                 Some(tx.clone())
             } else {
                 error!(
