@@ -286,9 +286,9 @@ impl Db {
                 // Observation 2 > Observation 1, plus make sure the plates match.
                 // This check is to ensure we don't add the same entries in reverse order.
                 if p_ts_pair1.plate == *plate && (p_ts_pair1.timestamp != p_ts_pair2.timestamp) {
-                    let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
-                        / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
-                    average_speed = (average_speed as f64 * 100.0).round() as Speed;
+                    let average_speed = camera_mile1.abs_diff(camera_mile2)
+                        / p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp) as u16;
+                    // average_speed = average_speed.round() as u16;
 
                     if average_speed > camera_limit1 {
                         let new_ticket = OutboundMessageType::Ticket {
@@ -298,7 +298,7 @@ impl Db {
                             timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                             mile2: camera_mile1.max(camera_mile2),
                             timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
-                            speed: average_speed,
+                            speed: average_speed * 100,
                         };
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
