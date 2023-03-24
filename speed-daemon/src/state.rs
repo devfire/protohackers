@@ -2,7 +2,6 @@ pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
     sync::{Arc, Mutex},
-    time,
 };
 
 use log::{error, info, warn};
