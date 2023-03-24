@@ -80,7 +80,7 @@ impl Db {
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
     pub fn get_tickets_for_plate(&self, plate: &Plate) -> Option<Vec<OutboundMessageType>> {
         // Immutable borrow for now until later
-        let state = self
+        let mut state = self
             .shared
             .state
             .lock()
@@ -224,12 +224,7 @@ impl Db {
                 info!("Plate {} was never issued a ticket on day {}", plate, day);
                 let mut date_bool_hash = HashMap::new();
                 date_bool_hash.insert(day, true);
-
-                let mut state = self
-                    .shared
-                    .state
-                    .lock()
-                    .expect("Unable to lock shared state in two element special case");
+                info!("Marking day {} as ticketed.", day);
 
                 state
                     .issued_tickets_day
