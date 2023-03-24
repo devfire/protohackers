@@ -213,10 +213,10 @@ impl Db {
             // only return the tickets Vec if we have something in it
             if tickets.is_empty() {
                 info!("No tickets found for {}", plate);
-                return None
+                return None;
             } else {
                 info!("Found tickets for {} returning {:?}", plate, tickets);
-                return Some(tickets)
+                return Some(tickets);
             }
         }
 
@@ -382,12 +382,17 @@ impl Db {
             .state
             .lock()
             .expect("Unable to lock shared state in add_plate_ticket");
-
+        info!(
+            "Checking for previously issued tickets for plate {} day {}",
+            plate, day
+        );
+        
         if let Some(check_date) = state.issued_tickets_day.get(plate) {
             if let Some(_previously_issued_ticket) = check_date.get(&day) {
                 info!("{} was issued a ticket on day {}", plate, day);
                 true
             } else {
+                info!("{} was never issued a ticket on day {}", plate, day);
                 false
             }
         } else {
