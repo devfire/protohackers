@@ -181,8 +181,8 @@ impl Db {
 
                 if average_speed > camera_limit1 {
                     new_ticket = OutboundMessageType::Ticket {
-                        plate: plate.clone(), 
-                        road: road1,          //at this point, road1=road2
+                        plate: plate.clone(),
+                        road: road1, //at this point, road1=road2
                         mile1: camera_mile1.min(camera_mile2),
                         timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                         mile2: camera_mile1.max(camera_mile2),
@@ -282,10 +282,6 @@ impl Db {
                     );
                 };
 
-                info!(
-                    "Comparing {:?} {:?} \nwith {:?} {:?}",
-                    p_ts_pair1, camera1, p_ts_pair2, camera2
-                );
                 // Messages may arrive out of order, so we need to do abs_diff to ensure we don't go negative.
                 // Then, make sure we only compare same plate.
                 // Then, make sure we don't compare identical timestamps, otherwise div by 0.
@@ -294,6 +290,10 @@ impl Db {
                     && (p_ts_pair1.timestamp != p_ts_pair2.timestamp)
                     && (road1 == road2)
                 {
+                    info!(
+                        "Comparing {:?} {:?} \nwith {:?} {:?}",
+                        p_ts_pair1, camera1, p_ts_pair2, camera2
+                    );
                     // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                     let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
                         / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
