@@ -244,8 +244,8 @@ impl Db {
             }
         }
 
-        for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {
-            for (p_ts_pair2, camera2) in state.plate_timestamp_camera.iter() {
+        for (p_ts_pair1, camera1) in state.plate_timestamp_camera.clone().iter() {
+            for (p_ts_pair2, camera2) in state.plate_timestamp_camera.clone().iter() {
                 let mut camera_mile1: Mile = 0;
                 let mut camera_limit1: Speed = 0;
                 let mut camera_mile2: Mile = 0;
@@ -318,11 +318,6 @@ impl Db {
                             let mut date_bool_hash = HashMap::new();
                             date_bool_hash.insert(day, true);
 
-                            let mut state =
-                                self.shared.state.lock().expect(
-                                    "Unable to lock shared state in two element special case",
-                                );
-
                             state
                                 .issued_tickets_day
                                 .insert(plate.clone(), date_bool_hash);
@@ -334,12 +329,6 @@ impl Db {
                     info!("Plate {} was never issued a ticket on day {}", plate, day);
                     let mut date_bool_hash = HashMap::new();
                     date_bool_hash.insert(day, true);
-
-                    let mut state = self
-                        .shared
-                        .state
-                        .lock()
-                        .expect("Unable to lock shared state in two element special case");
 
                     state
                         .issued_tickets_day
