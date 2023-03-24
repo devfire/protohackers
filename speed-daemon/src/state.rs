@@ -100,6 +100,19 @@ impl Db {
         // Special case of two elements
         if state.plate_timestamp_camera.len() == 2 {
             info!("Special case of two elements.");
+
+            if let Some((p_ts_pair1, camera1)) = state.plate_timestamp_camera.iter().next() {
+                info!("First pair: {:?} {:?}", p_ts_pair1, camera1);
+            }
+
+            if let Some((p_ts_pair2, camera2)) = state
+                .plate_timestamp_camera
+                .iter()
+                .nth(1)
+                .map(|(k, v)| (k, v))
+            {
+                info!("Second pair: {:?} {:?}", p_ts_pair2, camera2);
+            }
         }
 
         for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {
