@@ -154,10 +154,10 @@ impl Db {
 
             // make sure we are comparing same plate and same road for avg speed calculations
             if p_ts_pair1.plate == *plate && road1 == road2 {
-                info!(
-                    "Comparing {:?} {:?} \nwith   {:?} {:?}",
-                    p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
-                );
+                // info!(
+                //     "Comparing {:?} {:?} \nwith   {:?} {:?}",
+                //     p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
+                // );
 
                 // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                 let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
@@ -202,10 +202,10 @@ impl Db {
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                     let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
                         .floor() as u32;
-                    warn!(
-                        "Plate {} speed {} exceeded limit {}, preparing {:?} day {}",
-                        plate, average_speed, camera_limit1, new_ticket, day
-                    );
+                    // warn!(
+                    //     "Plate {} speed {} exceeded limit {}, preparing {:?} day {}",
+                    //     plate, average_speed, camera_limit1, new_ticket, day
+                    // );
 
                     // check if we've previously issued ticket for that day
                     if let Some(check_date) = state.issued_tickets_day.get(plate) {
@@ -298,10 +298,10 @@ impl Db {
                     && (p_ts_pair1.timestamp != p_ts_pair2.timestamp)
                     && (road1 == road2)
                 {
-                    info!(
-                        "Comparing {:?} {:?} \nwith {:?} {:?}",
-                        p_ts_pair1, camera1, p_ts_pair2, camera2
-                    );
+                    // info!(
+                    //     "Comparing {:?} {:?} \nwith {:?} {:?}",
+                    //     p_ts_pair1, camera1, p_ts_pair2, camera2
+                    // );
                     // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                     let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
                     let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);

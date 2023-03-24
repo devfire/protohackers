@@ -25,10 +25,10 @@ pub async fn handle_plate(
 
     shared_db.add_plate_timestamp_camera(new_plate_ts.clone(), current_camera.clone());
 
-    info!(
-        "From {}: adding plate-timestamp struct {:?} from camera {:?}",
-        client_addr, new_plate_ts, current_camera
-    );
+    // info!(
+    //     "From {}: adding plate-timestamp struct {:?} from camera {:?}",
+    //     client_addr, new_plate_ts, current_camera
+    // );
 
     // Let's check if this observation resulted in any tickets.
     // NOTE: Really should only ever get one ticket back but just in case, let's run through the vec

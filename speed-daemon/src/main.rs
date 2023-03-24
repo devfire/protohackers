@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
             } = ticket
             {
                 if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
-                    info!("Ticket manager received {:?}", ticket);
+                    // info!("Ticket manager received {:?}", ticket);
                     send_ticket_to_dispatcher(ticket, dispatcher_tx);
                 } else {
                     // warn!("No dispatcher found, sending the ticket back");
@@ -103,7 +103,7 @@ async fn process(
     ticket_tx: mpsc::Sender<OutboundMessageType>,
     shared_db: Db,
 ) -> anyhow::Result<()> {
-    info!("Processing stream from {}", addr);
+    // info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
     let mut client_reader = FramedRead::new(client_reader, MessageCodec::new());
