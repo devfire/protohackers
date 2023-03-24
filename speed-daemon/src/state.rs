@@ -326,7 +326,7 @@ impl Db {
                             road: road1, // road1 = road2 here so we can pick either one
                             mile1: camera_mile1,
                             timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
-                            mile2: camera_mile1,
+                            mile2: camera_mile2,
                             timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
                             speed: (average_speed * 100) as Speed, //protocol spec requires this to be 100x miles per hour
                         };
