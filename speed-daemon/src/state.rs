@@ -311,7 +311,7 @@ impl Db {
                 if let Some(check_date) = state.issued_tickets_day.get(plate) {
                     if let Some(_previously_issued_ticket) = check_date.get(&day) {
                         info!("{} was previously issued a ticket on day {}", plate, day);
-                        return None;
+                        return None
                     } else {
                         {
                             info!("Plate {} was issued a ticket but not on day {}", plate, day);
