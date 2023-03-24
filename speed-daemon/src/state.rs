@@ -113,9 +113,6 @@ impl Db {
             let mut road1: Road = 0;
             let mut road2: Road = 0;
 
-            let mut day: u32 = 0;
-            let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
-
             // get the first value in the hash
             if let Some((p_ts_pair1, camera1)) = state.plate_timestamp_camera.iter().next() {
                 info!("First pair: {:?} {:?}", p_ts_pair1, camera1);
@@ -184,7 +181,7 @@ impl Db {
                 );
 
                 if average_speed > camera_limit1 {
-                    new_ticket = OutboundMessageType::Ticket {
+                    let new_ticket = OutboundMessageType::Ticket {
                         plate: plate.clone(),
                         road: road1, //at this point, road1=road2
                         mile1: camera_mile1.min(camera_mile2),
@@ -195,31 +192,40 @@ impl Db {
                     };
 
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                    day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor()
+                    let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor()
                         as u32;
                     warn!(
                         "Plate {} speed {} exceeded limit {}, preparing {:?} day {}",
                         plate, average_speed, camera_limit1, new_ticket, day
                     );
-                }
-            }
 
-            // check if we've previously issued ticket for that day
-            if let Some(check_date) = state.issued_tickets_day.get(plate) {
-                if let Some(_previously_issued_ticket) = check_date.get(&day) {
-                    info!("{} was previously issued a ticket on day {}", plate, day);
-                    return None;
-                } else {
-                    {
-                        info!("Plate {} was issued a ticket but not on day {}", plate, day);
+                    // check if we've previously issued ticket for that day
+                    if let Some(check_date) = state.issued_tickets_day.get(plate) {
+                        if let Some(_previously_issued_ticket) = check_date.get(&day) {
+                            info!("{} was previously issued a ticket on day {}", plate, day);
+                            return None;
+                        } else {
+                            {
+                                info!("Plate {} was issued a ticket but not on day {}", plate, day);
+                                let mut date_bool_hash = HashMap::new();
+                                date_bool_hash.insert(day, true);
+
+                                let mut state = self.shared.state.lock().expect(
+                                    "Unable to lock shared state in two element special case",
+                                );
+
+                                state
+                                    .issued_tickets_day
+                                    .insert(plate.clone(), date_bool_hash);
+
+                                tickets.push(new_ticket);
+                            }
+                        }
+                    } else {
+                        info!("Plate {} was never issued a ticket on day {}", plate, day);
                         let mut date_bool_hash = HashMap::new();
                         date_bool_hash.insert(day, true);
-
-                        let mut state = self
-                            .shared
-                            .state
-                            .lock()
-                            .expect("Unable to lock shared state in two element special case");
+                        info!("Marking day {} as ticketed.", day);
 
                         state
                             .issued_tickets_day
@@ -227,20 +233,9 @@ impl Db {
 
                         tickets.push(new_ticket);
                     }
+                    info!("Final tickets db {:?}", tickets);
                 }
-            } else {
-                info!("Plate {} was never issued a ticket on day {}", plate, day);
-                let mut date_bool_hash = HashMap::new();
-                date_bool_hash.insert(day, true);
-                info!("Marking day {} as ticketed.", day);
-
-                state
-                    .issued_tickets_day
-                    .insert(plate.clone(), date_bool_hash);
-
-                tickets.push(new_ticket);
             }
-            info!("Final tickets db {:?}", tickets);
 
             // only return the tickets Vec if we have something in it
             if tickets.is_empty() {
