@@ -284,7 +284,7 @@ impl Db {
                 // Messages may arrive out of order, so we need to figure out what to subtract from what.
                 // Observation 2 > Observation 1, plus make sure the plates match.
                 // This check is to ensure we don't add the same entries in reverse order.
-                if p_ts_pair1.plate == *plate {
+                if p_ts_pair1.plate == *plate && (p_ts_pair1.timestamp != p_ts_pair2.timestamp) {
                     let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
                         / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
                     average_speed = (average_speed as f64 * 100.0).round() as Speed;
