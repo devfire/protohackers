@@ -86,6 +86,8 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in get_plate_ts_camera");
 
+        info!("Processing {}", plate);
+
         // return immediately if there's only one observation (plate,timestamp)->camera
         if state.plate_timestamp_camera.len() < 2 {
             info!("Only one observation for plate {}, exiting.", plate);
@@ -152,7 +154,7 @@ impl Db {
 
             let p_ts_pair1 = pair_vector[0].0;
             let p_ts_pair2 = pair_vector[1].0;
-            
+
             info!(
                 "Comparing {:?} {:?} with {:?} {:?}",
                 p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
@@ -163,6 +165,16 @@ impl Db {
                     / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
                 average_speed = (average_speed as f64 * 100.0).round() as Speed;
 
+                info!(
+                    "For plate {} between {} {} and {} {} average speed is {}",
+                    plate,
+                    camera_mile1,
+                    p_ts_pair1.timestamp,
+                    camera_mile2,
+                    p_ts_pair2.timestamp,
+                    average_speed
+                );
+                
                 if average_speed > camera_limit1 {
                     new_ticket = OutboundMessageType::Ticket {
                         plate: plate.clone(),
