@@ -297,12 +297,16 @@ impl Db {
                         "Comparing {:?} {:?} \nwith {:?} {:?}",
                         p_ts_pair1, camera1, p_ts_pair2, camera2
                     );
-                    // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
+                    // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                     let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
                     let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
-                    let average_speed = ((distance_traveled / time_traveled) * 3600) as Speed;
+                    let average_speed = (distance_traveled * 3600) / time_traveled;
+                    info!(
+                        "For plate {} road {} distance {} time traveled {}",
+                        plate, road1, distance_traveled, time_traveled
+                    );
 
-                    if average_speed > camera_limit1 {
+                    if average_speed > camera_limit1.into() {
                         let new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
                             road: road1, // road1 = road2 here so we can pick either one
@@ -310,7 +314,7 @@ impl Db {
                             timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                             mile2: camera_mile1.max(camera_mile2),
                             timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
-                            speed: average_speed * 100, //protocol spec requires this to be 100x miles per hour
+                            speed: (average_speed * 100) as Speed, //protocol spec requires this to be 100x miles per hour
                         };
 
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
