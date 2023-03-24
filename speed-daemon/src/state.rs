@@ -110,7 +110,8 @@ impl Db {
             let mut camera_limit1: Speed = 0;
             let mut camera_mile2: Mile = 0;
 
-            let mut road1: Road = 0; // same as road2
+            let mut road1: Road = 0;
+            let mut road2: Road = 0;
 
             let mut day: u32 = 0;
             let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
@@ -143,7 +144,7 @@ impl Db {
             };
 
             if let InboundMessageType::IAmCamera { road, mile, limit } = pair_vector[1].1 {
-                _ = road; // road is the same as above
+                road2 = *road; // road is the same as above
                 camera_mile2 = *mile;
                 _ = limit;
             } else {
@@ -155,12 +156,14 @@ impl Db {
             let p_ts_pair1 = pair_vector[0].0;
             let p_ts_pair2 = pair_vector[1].0;
 
-            info!(
-                "Comparing {:?} {:?} with {:?} {:?}",
-                p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
-            );
+            // make sure we are comparing same plate and same road for avg speed calculations
+            if p_ts_pair1.plate == *plate && road1 == road2 {
+                info!(
+                    "Comparing {:?} {:?} \nwith   {:?} {:?}",
+                    p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
+                );
 
-            if p_ts_pair1.plate == *plate {
+                // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                 let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
                     / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
                 average_speed = (average_speed as f64).round() as Speed;
@@ -178,8 +181,8 @@ impl Db {
 
                 if average_speed > camera_limit1 {
                     new_ticket = OutboundMessageType::Ticket {
-                        plate: plate.clone(),
-                        road: road1, // road
+                        plate: plate.clone(), //at this point, road1=road2
+                        road: road1,          // road
                         mile1: camera_mile1.min(camera_mile2),
                         timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                         mile2: camera_mile1.max(camera_mile2),
@@ -251,7 +254,8 @@ impl Db {
                 let mut camera_limit1: Speed = 0;
                 let mut camera_mile2: Mile = 0;
 
-                let mut road1: Road = 0; // same as road2
+                let mut road1: Road = 0;
+                let mut road2: Road = 0;
 
                 // let mut day: u32 = 0;
                 // let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
@@ -269,7 +273,7 @@ impl Db {
 
                 // We are doing two passes through the same hash, this is value from pass 2
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera2 {
-                    _ = *road;
+                    road2 = *road;
                     camera_mile2 = *mile;
                     _ = *limit;
                 } else {
@@ -282,13 +286,18 @@ impl Db {
                     "Comparing {:?} {:?} with {:?} {:?}",
                     p_ts_pair1, camera1, p_ts_pair2, camera2
                 );
-                // Messages may arrive out of order, so we need to figure out what to subtract from what.
-                // Observation 2 > Observation 1, plus make sure the plates match.
-                // This check is to ensure we don't add the same entries in reverse order.
-                if p_ts_pair1.plate == *plate && (p_ts_pair1.timestamp != p_ts_pair2.timestamp) {
-                    let average_speed = camera_mile1.abs_diff(camera_mile2)
-                        / p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp) as u16;
-                    // average_speed = average_speed.round() as u16;
+                // Messages may arrive out of order, so we need to do abs_diff to ensure we don't go negative.
+                // Then, make sure we only compare same plate.
+                // Then, make sure we don't compare identical timestamps, otherwise div by 0.
+                // Then, make sure we only compare different timestamps for the same road
+                if p_ts_pair1.plate == *plate
+                    && (p_ts_pair1.timestamp != p_ts_pair2.timestamp)
+                    && (road1 == road2)
+                {
+                    // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
+                    let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
+                        / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
+                    average_speed = (average_speed as f64).round() as Speed;
 
                     if average_speed > camera_limit1 {
                         let new_ticket = OutboundMessageType::Ticket {
@@ -298,8 +307,9 @@ impl Db {
                             timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                             mile2: camera_mile1.max(camera_mile2),
                             timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
-                            speed: average_speed * 100,
+                            speed: average_speed * 100, //protocol spec requires this to be 100x miles per hour
                         };
+
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
                             .floor() as u32;
