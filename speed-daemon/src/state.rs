@@ -237,6 +237,16 @@ impl Db {
 
                 tickets.push(new_ticket);
             }
+            info!("Final tickets db {:?}", tickets);
+
+            // only return the tickets Vec if we have something in it
+            if tickets.is_empty() {
+                info!("No tickets found for {}", plate);
+                return None;
+            } else {
+                info!("Found tickets for {} returning {:?}", plate, tickets);
+                return Some(tickets);
+            }
         }
 
         for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {
