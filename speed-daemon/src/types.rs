@@ -25,6 +25,7 @@ pub struct PlateTimestamp {
 // This contains the (Plate,Timestamp) -> Camera mapping
 pub type PlateTimestampCameraDb = HashMap<PlateTimestamp, InboundMessageType>;
 
+
 // This maps a road ID to a hash of IP,tx
 pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;
 

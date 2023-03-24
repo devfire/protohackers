@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, IssuedTicketsDayDb, Mile, Plate, PlateTicketDb, PlateTimestamp,
-        PlateTimestampCameraDb, Road, Speed, TicketDispatcherDb,
+        CurrentCameraDb, IssuedTicketsDayDb, Mile, Plate, PlateTimestamp, PlateTimestampCameraDb,
+        Road, Speed, TicketDispatcherDb,
     },
 };
 
@@ -87,22 +87,29 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in get_plate_ts_camera");
 
-        // return immediately if there's only one observation
+        // return immediately if there's only one observation (plate,timestamp)->camera
         if state.plate_timestamp_camera.len() < 2 {
             info!("Only one observation for plate {}, exiting.", plate);
             return None;
         }
 
+        // this will have all the tickets we need to issue.
+        // NOTE: Should only be 1 since we keep track of days on which tickets were issued.
         let mut tickets = Vec::new();
+
+        // Special case of two elements
+        if state.plate_timestamp_camera.len() == 2 {
+            info!("Special case of two elements.");
+        }
 
         for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {
             for (p_ts_pair2, camera2) in state.plate_timestamp_camera.iter() {
                 let mut camera_mile1: Mile = 0;
                 let mut camera_limit1: Speed = 0;
                 let mut camera_mile2: Mile = 0;
-                let mut camera_limit2: Speed = 0;
+
                 let mut road1: Road = 0; // same as road2
-                let mut road2: Road = 0; // same as road1
+
                 let mut day: u32 = 0;
                 let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
 
@@ -119,9 +126,9 @@ impl Db {
 
                 // We are doing two passes through the same hash, this is value from pass 2
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera2 {
-                    road2 = *road;
+                    _ = *road;
                     camera_mile2 = *mile;
-                    camera_limit2 = *limit;
+                    _ = *limit;
                 } else {
                     error!(
                         "Something really bad happened in get_plate_ts_camera 2, values not found."
@@ -135,42 +142,21 @@ impl Db {
                 // Messages may arrive out of order, so we need to figure out what to subtract from what.
                 // Observation 2 > Observation 1, plus make sure the plates match.
                 // This check is to ensure we don't add the same entries in reverse order.
-                if camera_mile2 > camera_mile1 && p_ts_pair2.plate == *plate {
-                    let mut average_speed1: u16 = (camera_mile2.abs_diff(camera_mile1)) * 3600
-                        / (p_ts_pair2.timestamp.abs_diff(p_ts_pair1.timestamp)) as Speed;
-                    average_speed1 = (average_speed1 as f64 * 100.0).round() as Speed;
-
-                    if average_speed1 > camera_limit1 {
-                        new_ticket = OutboundMessageType::Ticket {
-                            plate: plate.clone(),
-                            road: road1,
-                            mile1: camera_mile1,
-                            timestamp1: p_ts_pair1.timestamp,
-                            mile2: camera_mile2,
-                            timestamp2: p_ts_pair2.timestamp,
-                            speed: average_speed1,
-                        };
-
-                        // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                        day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
-                    }
-                }
-
-                if camera_mile1 > camera_mile2 && p_ts_pair1.plate == *plate {
-                    let mut average_speed2: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
+                if p_ts_pair1.plate == *plate {
+                    let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
                         / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
-                    average_speed2 = (average_speed2 as f64 * 100.0).round() as Speed;
-                    if average_speed2 > camera_limit2 {
+                    average_speed = (average_speed as f64 * 100.0).round() as Speed;
+
+                    if average_speed > camera_limit1 {
                         new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
-                            road: road2,
-                            mile1: camera_mile2,
-                            timestamp1: p_ts_pair2.timestamp,
-                            mile2: camera_mile1,
-                            timestamp2: p_ts_pair1.timestamp,
-                            speed: average_speed2,
+                            road: road1, // road
+                            mile1: camera_mile1.min(camera_mile2),
+                            timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
+                            mile2: camera_mile1.max(camera_mile2),
+                            timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
+                            speed: average_speed,
                         };
-
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
                     }
@@ -270,16 +256,6 @@ impl Db {
             None
         }
     }
-
-    // pub fn add_plate_ticket(&self, plate: Plate, ticket: OutboundMessageType) {
-    //     let mut state = self
-    //         .shared
-    //         .state
-    //         .lock()
-    //         .expect("Unable to lock shared state in add_plate_ticket");
-
-    //     state.plates_tickets.insert(plate, ticket);
-    // }
 
     // Private function, returns T/F depending on whether there was a ticket for that Plate:Day combo
     fn get_plate_ticketed_day(&self, plate: &Plate, day: u32) -> bool {
