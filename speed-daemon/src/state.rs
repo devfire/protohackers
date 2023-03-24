@@ -103,7 +103,8 @@ impl Db {
                 let mut camera_limit2: Speed = 0;
                 let mut road1: Road = 0; // same as road2
                 let mut road2: Road = 0; // same as road1
-                let mut day: u32;
+                let mut day: u32 = 0;
+                let mut new_ticket: OutboundMessageType;
 
                 // We are doing two passes through the same hash, this is value from pass 1
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
@@ -140,7 +141,7 @@ impl Db {
                     average_speed1 = (average_speed1 as f64 * 100.0).round() as Speed;
 
                     if average_speed1 > camera_limit1 {
-                        let new_ticket = OutboundMessageType::Ticket {
+                        new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
                             road: road1,
                             mile1: camera_mile1,
@@ -153,19 +154,6 @@ impl Db {
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
 
-                        // See if this plate has been issued tickets before.
-                        // TRUE means there was a ticket, so we are skipping.
-                        if self.get_plate_ticketed_day(plate, day) {
-                            info!("{} was issued a ticket on day {}", plate, day);
-                            return None;
-                        } else {
-                            info!(
-                                "{} was never issued a ticket on day {}, storing.",
-                                plate, day
-                            );
-                            self.add_plate_ticketed_day(plate, day);
-                            tickets.push(new_ticket);
-                        }
                     }
                 }
 
@@ -174,16 +162,7 @@ impl Db {
                         / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
                     average_speed2 = (average_speed2 as f64 * 100.0).round() as Speed;
                     if average_speed2 > camera_limit2 {
-                        info!(
-                            "Issuing ticket, plate {} traveled at speed {} between {} and {} ts1 {} ts2 {}",
-                            plate,
-                            average_speed2,
-                            camera_mile2,
-                            camera_mile1,
-                            p_ts_pair1.timestamp,
-                            p_ts_pair2.timestamp
-                        );
-                        let new_ticket = OutboundMessageType::Ticket {
+                        new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
                             road: road2,
                             mile1: camera_mile2,
@@ -195,21 +174,21 @@ impl Db {
 
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
-
-                        // See if this plate has been issued tickets before.
-                        // TRUE means there was a ticket, so we are skipping.
-                        if self.get_plate_ticketed_day(plate, day) {
-                            info!("{} was issued a ticket on day {}", plate, day);
-                            return None;
-                        } else {
-                            info!(
-                                "{} was never issued a ticket on day {}, storing.",
-                                plate, day
-                            );
-                            self.add_plate_ticketed_day(plate, day);
-                            tickets.push(new_ticket);
-                        }
                     }
+                }
+
+                // See if this plate has been issued tickets before.
+                // TRUE means there was a ticket, so we are skipping.
+                if self.get_plate_ticketed_day(plate, day) {
+                    info!("{} was issued a ticket on day {}", plate, day);
+                    return None;
+                } else {
+                    info!(
+                        "{} was never issued a ticket on day {}, storing.",
+                        plate, day
+                    );
+                    self.add_plate_ticketed_day(plate, day);
+                    tickets.push(new_ticket);
                 }
             }
         }

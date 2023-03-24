@@ -1,6 +1,6 @@
-use crate::types::{Mile, Plate, Road, Timestamp, Speed};
+use crate::types::{Mile, Plate, Road, Speed, Timestamp};
 
-#[derive(Clone, Debug,Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum InboundMessageType {
     Plate { plate: Plate, timestamp: Timestamp },
     WantHeartbeat { interval: u32 },
@@ -34,4 +34,18 @@ pub enum OutboundMessageType {
         timestamp2: Timestamp,
         speed: Speed,
     },
+}
+
+impl Default for OutboundMessageType {
+    fn default() -> Self {
+        OutboundMessageType::Ticket {
+            plate: String::from(""),
+            road: 0,
+            mile1: 0,
+            timestamp1: 0,
+            mile2: 0,
+            timestamp2: 0,
+            speed: 0,
+        }
+    }
 }
