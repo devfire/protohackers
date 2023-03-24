@@ -285,7 +285,8 @@ impl Db {
                 // Then, make sure we only compare same plate.
                 // Then, make sure we don't compare identical timestamps, otherwise div by 0.
                 // Then, make sure we only compare different timestamps for the same road
-                if p_ts_pair1.plate == *plate
+                if p_ts_pair1.plate == p_ts_pair2.plate
+                    && p_ts_pair2.plate == *plate
                     && (p_ts_pair1.timestamp != p_ts_pair2.timestamp)
                     && (road1 == road2)
                 {
