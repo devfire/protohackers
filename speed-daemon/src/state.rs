@@ -181,8 +181,8 @@ impl Db {
 
                 if average_speed > camera_limit1 {
                     new_ticket = OutboundMessageType::Ticket {
-                        plate: plate.clone(), //at this point, road1=road2
-                        road: road1,          // road
+                        plate: plate.clone(), 
+                        road: road1,          //at this point, road1=road2
                         mile1: camera_mile1.min(camera_mile2),
                         timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                         mile2: camera_mile1.max(camera_mile2),
@@ -283,7 +283,7 @@ impl Db {
                 };
 
                 info!(
-                    "Comparing {:?} {:?} with {:?} {:?}",
+                    "Comparing {:?} {:?} \nwith {:?} {:?}",
                     p_ts_pair1, camera1, p_ts_pair2, camera2
                 );
                 // Messages may arrive out of order, so we need to do abs_diff to ensure we don't go negative.
@@ -302,7 +302,7 @@ impl Db {
                     if average_speed > camera_limit1 {
                         let new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
-                            road: road1, // road
+                            road: road1, // road1 = road2 here so we can pick either one
                             mile1: camera_mile1.min(camera_mile2),
                             timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                             mile2: camera_mile1.max(camera_mile2),
