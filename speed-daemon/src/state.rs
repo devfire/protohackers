@@ -100,11 +100,27 @@ impl Db {
         // Special case of two elements
         if state.plate_timestamp_camera.len() == 2 {
             info!("Special case of two elements.");
+            let camera1: InboundMessageType = InboundMessageType::default();
+            let camera2: InboundMessageType = InboundMessageType::default();
 
+            let p_ts_pair1: PlateTimestamp;
+            let p_ts_pair2: PlateTimestamp;
+            
+            let mut camera_mile1: Mile = 0;
+            let mut camera_limit1: Speed = 0;
+            let mut camera_mile2: Mile = 0;
+
+            let mut road1: Road = 0; // same as road2
+
+            let mut day: u32 = 0;
+            let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
+
+            // get the first value in the hash
             if let Some((p_ts_pair1, camera1)) = state.plate_timestamp_camera.iter().next() {
                 info!("First pair: {:?} {:?}", p_ts_pair1, camera1);
             }
 
+            // get the second value in the hash
             if let Some((p_ts_pair2, camera2)) = state
                 .plate_timestamp_camera
                 .iter()
@@ -113,6 +129,30 @@ impl Db {
             {
                 info!("Second pair: {:?} {:?}", p_ts_pair2, camera2);
             }
+
+            if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
+                road1 = road;
+                camera_mile1 = mile;
+                camera_limit1 = limit;
+            } else {
+                error!(
+                    "Something really bad happened in two element special case, values not found."
+                );
+            };
+
+            // We are doing two passes through the same hash, this is value from pass 2
+            if let InboundMessageType::IAmCamera { road, mile, limit } = camera2 {
+                _ = road;
+                camera_mile2 = mile;
+                _ = limit;
+            } else {
+                error!("Something really bad happened in get_plate_ts_camera 2, values not found.");
+            };
+
+            info!(
+                "Comparing {:?} {:?} with {:?} {:?}",
+                p_ts_pair1, camera1, p_ts_pair2, camera2
+            );
         }
 
         for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {
