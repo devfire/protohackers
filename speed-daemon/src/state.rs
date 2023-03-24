@@ -188,10 +188,11 @@ impl Db {
                     };
 
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                    day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor() as u32;
+                    day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor()
+                        as u32;
                     warn!(
-                        "Speed {} exceeded limit {}, preparing {:?} day {}",
-                        average_speed, camera_limit1, new_ticket, day
+                        "Plate {} speed {} exceeded limit {}, preparing {:?} day {}",
+                        plate, average_speed, camera_limit1, new_ticket, day
                     );
                 }
             }
@@ -252,8 +253,8 @@ impl Db {
 
                 let mut road1: Road = 0; // same as road2
 
-                let mut day: u32 = 0;
-                let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
+                // let mut day: u32 = 0;
+                // let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
 
                 // We are doing two passes through the same hash, this is value from pass 1
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
@@ -290,7 +291,7 @@ impl Db {
                     average_speed = (average_speed as f64 * 100.0).round() as Speed;
 
                     if average_speed > camera_limit1 {
-                        new_ticket = OutboundMessageType::Ticket {
+                        let new_ticket = OutboundMessageType::Ticket {
                             plate: plate.clone(),
                             road: road1, // road
                             mile1: camera_mile1.min(camera_mile2),
@@ -300,21 +301,36 @@ impl Db {
                             speed: average_speed,
                         };
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                        day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor() as u32;
+                        let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
+                            .floor() as u32;
                         warn!(
                             "Speed {} exceeded limit {}, preparing {:?} day {}",
                             average_speed, camera_limit1, new_ticket, day
                         );
-                    }
-                }
-                // check if we've previously issued ticket for that day
-                if let Some(check_date) = state.issued_tickets_day.get(plate) {
-                    if let Some(_previously_issued_ticket) = check_date.get(&day) {
-                        info!("{} was previously issued a ticket on day {}", plate, day);
-                        return None
-                    } else {
-                        {
-                            info!("Plate {} was issued a ticket but not on day {}", plate, day);
+
+                        // check if we've previously issued ticket for that day
+                        if let Some(check_date) = state.issued_tickets_day.get(plate) {
+                            if let Some(_previously_issued_ticket) = check_date.get(&day) {
+                                info!("{} was previously issued a ticket on day {}", plate, day);
+                                return None;
+                            } else {
+                                {
+                                    info!(
+                                        "Plate {} was issued a ticket but not on day {}",
+                                        plate, day
+                                    );
+                                    let mut date_bool_hash = HashMap::new();
+                                    date_bool_hash.insert(day, true);
+
+                                    state
+                                        .issued_tickets_day
+                                        .insert(plate.clone(), date_bool_hash);
+
+                                    tickets.push(new_ticket);
+                                }
+                            }
+                        } else {
+                            info!("Plate {} was never issued a ticket on day {}", plate, day);
                             let mut date_bool_hash = HashMap::new();
                             date_bool_hash.insert(day, true);
 
@@ -325,16 +341,6 @@ impl Db {
                             tickets.push(new_ticket);
                         }
                     }
-                } else {
-                    info!("Plate {} was never issued a ticket on day {}", plate, day);
-                    let mut date_bool_hash = HashMap::new();
-                    date_bool_hash.insert(day, true);
-
-                    state
-                        .issued_tickets_day
-                        .insert(plate.clone(), date_bool_hash);
-
-                    tickets.push(new_ticket);
                 }
             }
         }
