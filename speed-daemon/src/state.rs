@@ -44,7 +44,6 @@ struct Shared {
 struct State {
     dispatchers: TicketDispatcherDb,
     current_camera: CurrentCameraDb,
-    // plates_tickets: PlateTicketDb,
     plate_timestamp_camera: PlateTimestampCameraDb,
     issued_tickets_day: IssuedTicketsDayDb,
 }
@@ -103,9 +102,16 @@ impl Db {
             let camera1: InboundMessageType = InboundMessageType::default();
             let camera2: InboundMessageType = InboundMessageType::default();
 
-            let p_ts_pair1: PlateTimestamp;
-            let p_ts_pair2: PlateTimestamp;
-            
+            let p_ts_pair1: PlateTimestamp = PlateTimestamp {
+                plate: String::from(""),
+                timestamp: 0,
+            };
+
+            let p_ts_pair2: PlateTimestamp = PlateTimestamp {
+                plate: String::from(""),
+                timestamp: 0,
+            };
+
             let mut camera_mile1: Mile = 0;
             let mut camera_limit1: Speed = 0;
             let mut camera_mile2: Mile = 0;
@@ -146,13 +152,47 @@ impl Db {
                 camera_mile2 = mile;
                 _ = limit;
             } else {
-                error!("Something really bad happened in get_plate_ts_camera 2, values not found.");
+                error!("Something really bad happened in two element special case, values not found.");
             };
 
             info!(
                 "Comparing {:?} {:?} with {:?} {:?}",
                 p_ts_pair1, camera1, p_ts_pair2, camera2
             );
+
+            if p_ts_pair1.plate == *plate {
+                let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
+                    / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
+                average_speed = (average_speed as f64 * 100.0).round() as Speed;
+
+                if average_speed > camera_limit1 {
+                    new_ticket = OutboundMessageType::Ticket {
+                        plate: plate.clone(),
+                        road: road1, // road
+                        mile1: camera_mile1.min(camera_mile2),
+                        timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
+                        mile2: camera_mile1.max(camera_mile2),
+                        timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
+                        speed: average_speed,
+                    };
+                    // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
+                    day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+                }
+            }
+
+            // See if this plate has been issued tickets before.
+            // TRUE means there was a ticket, so we are skipping.
+            if self.get_plate_ticketed_day(plate, day) {
+                info!("{} was issued a ticket on day {}", plate, day);
+                return None;
+            } else {
+                info!(
+                    "{} was never issued a ticket on day {}, storing.",
+                    plate, day
+                );
+                self.add_plate_ticketed_day(plate, day);
+                tickets.push(new_ticket);
+            }
         }
 
         for (p_ts_pair1, camera1) in state.plate_timestamp_camera.iter() {

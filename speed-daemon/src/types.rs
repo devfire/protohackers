@@ -18,10 +18,6 @@ pub struct PlateTimestamp {
     pub timestamp: Timestamp,
 }
 
-impl PlateTimestamp {
-    pub fn new(plate: Plate, timestamp: Timestamp) -> Self { Self { plate, timestamp } }
-}
-
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
 // pub type PlateCameraDb = HashMap<Plate, TimestampCameraTuple>;
