@@ -190,7 +190,7 @@ impl Db {
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                     day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
                     warn!(
-                        "Speed {} exceeded limit {}, preparing ticket {:?} day {}",
+                        "Speed {} exceeded limit {}, preparing {:?} day {}",
                         average_speed, camera_limit1, new_ticket, day
                     );
                 }
@@ -208,6 +208,15 @@ impl Db {
                 );
                 self.add_plate_ticketed_day(plate, day);
                 tickets.push(new_ticket);
+            }
+
+            // only return the tickets Vec if we have something in it
+            if tickets.is_empty() {
+                info!("No tickets found for {}", plate);
+                return None
+            } else {
+                info!("Found tickets for {} returning {:?}", plate, tickets);
+                return Some(tickets)
             }
         }
 
