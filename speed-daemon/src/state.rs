@@ -196,27 +196,46 @@ impl Db {
                 }
             }
 
-            // See if this plate has been issued tickets before.
-            // TRUE means there was a ticket, so we are skipping.
-            if self.get_plate_ticketed_day(plate, day) {
-                info!("{} was issued a ticket on day {}", plate, day);
-                return None;
-            } else {
-                info!(
-                    "{} was never issued a ticket on day {}, storing.",
-                    plate, day
-                );
-                self.add_plate_ticketed_day(plate, day);
-                tickets.push(new_ticket);
-            }
+            // check if we've previously issued ticket for that day
+            if let Some(check_date) = state.issued_tickets_day.get(plate) {
+                if let Some(_previously_issued_ticket) = check_date.get(&day) {
+                    info!("{} was previously issued a ticket on day {}", plate, day);
+                    return None;
+                } else {
+                    {
+                        info!("Plate {} was issued a ticket but not on day {}", plate, day);
+                        let mut date_bool_hash = HashMap::new();
+                        date_bool_hash.insert(day, true);
 
-            // only return the tickets Vec if we have something in it
-            if tickets.is_empty() {
-                info!("No tickets found for {}", plate);
-                return None;
+                        let mut state = self
+                            .shared
+                            .state
+                            .lock()
+                            .expect("Unable to lock shared state in two element special case");
+
+                        state
+                            .issued_tickets_day
+                            .insert(plate.clone(), date_bool_hash);
+
+                        tickets.push(new_ticket);
+                    }
+                }
             } else {
-                info!("Found tickets for {} returning {:?}", plate, tickets);
-                return Some(tickets);
+                info!("Plate {} was never issued a ticket on day {}", plate, day);
+                let mut date_bool_hash = HashMap::new();
+                date_bool_hash.insert(day, true);
+
+                let mut state = self
+                    .shared
+                    .state
+                    .lock()
+                    .expect("Unable to lock shared state in two element special case");
+
+                state
+                    .issued_tickets_day
+                    .insert(plate.clone(), date_bool_hash);
+
+                tickets.push(new_ticket);
             }
         }
 
@@ -277,20 +296,50 @@ impl Db {
                         };
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+                        warn!(
+                            "Speed {} exceeded limit {}, preparing {:?} day {}",
+                            average_speed, camera_limit1, new_ticket, day
+                        );
                     }
                 }
+                // check if we've previously issued ticket for that day
+                if let Some(check_date) = state.issued_tickets_day.get(plate) {
+                    if let Some(_previously_issued_ticket) = check_date.get(&day) {
+                        info!("{} was previously issued a ticket on day {}", plate, day);
+                        return None;
+                    } else {
+                        {
+                            info!("Plate {} was issued a ticket but not on day {}", plate, day);
+                            let mut date_bool_hash = HashMap::new();
+                            date_bool_hash.insert(day, true);
 
-                // See if this plate has been issued tickets before.
-                // TRUE means there was a ticket, so we are skipping.
-                if self.get_plate_ticketed_day(plate, day) {
-                    info!("{} was issued a ticket on day {}", plate, day);
-                    return None;
+                            let mut state =
+                                self.shared.state.lock().expect(
+                                    "Unable to lock shared state in two element special case",
+                                );
+
+                            state
+                                .issued_tickets_day
+                                .insert(plate.clone(), date_bool_hash);
+
+                            tickets.push(new_ticket);
+                        }
+                    }
                 } else {
-                    info!(
-                        "{} was never issued a ticket on day {}, storing.",
-                        plate, day
-                    );
-                    self.add_plate_ticketed_day(plate, day);
+                    info!("Plate {} was never issued a ticket on day {}", plate, day);
+                    let mut date_bool_hash = HashMap::new();
+                    date_bool_hash.insert(day, true);
+
+                    let mut state = self
+                        .shared
+                        .state
+                        .lock()
+                        .expect("Unable to lock shared state in two element special case");
+
+                    state
+                        .issued_tickets_day
+                        .insert(plate.clone(), date_bool_hash);
+
                     tickets.push(new_ticket);
                 }
             }
@@ -373,47 +422,6 @@ impl Db {
             // warn!("No dispatcher found for road {} try again later", road);
             None
         }
-    }
-
-    // Private function, returns T/F depending on whether there was a ticket for that Plate:Day combo
-    fn get_plate_ticketed_day(&self, plate: &Plate, day: u32) -> bool {
-        let state = self
-            .shared
-            .state
-            .lock()
-            .expect("Unable to lock shared state in add_plate_ticket");
-        info!(
-            "Checking for previously issued tickets for plate {} day {}",
-            plate, day
-        );
-        
-        if let Some(check_date) = state.issued_tickets_day.get(plate) {
-            if let Some(_previously_issued_ticket) = check_date.get(&day) {
-                info!("{} was issued a ticket on day {}", plate, day);
-                true
-            } else {
-                info!("{} was never issued a ticket on day {}", plate, day);
-                false
-            }
-        } else {
-            info!("{} was never issued a ticket on day {}", plate, day);
-            false
-        }
-    }
-
-    fn add_plate_ticketed_day(&self, plate: &Plate, date: u32) {
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .expect("Unable to lock shared state in add_plate_ticketed_day");
-
-        let mut date_bool_hash = HashMap::new();
-        date_bool_hash.insert(date, true);
-
-        state
-            .issued_tickets_day
-            .insert(plate.clone(), date_bool_hash);
     }
 }
 
