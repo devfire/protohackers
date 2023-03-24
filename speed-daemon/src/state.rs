@@ -99,18 +99,10 @@ impl Db {
         // Special case of two elements
         if state.plate_timestamp_camera.len() == 2 {
             info!("Special case of two elements.");
-            let camera1: InboundMessageType = InboundMessageType::default();
-            let camera2: InboundMessageType = InboundMessageType::default();
 
-            let p_ts_pair1: PlateTimestamp = PlateTimestamp {
-                plate: String::from(""),
-                timestamp: 0,
-            };
-
-            let p_ts_pair2: PlateTimestamp = PlateTimestamp {
-                plate: String::from(""),
-                timestamp: 0,
-            };
+            // "if let Some" to get first & second value from the state.plate_timestamp_camera lose the var context inside if.
+            // this is to preserve it for later code.
+            let mut pair_vector: Vec<(&PlateTimestamp, &InboundMessageType)> = Vec::new();
 
             let mut camera_mile1: Mile = 0;
             let mut camera_limit1: Speed = 0;
@@ -124,6 +116,7 @@ impl Db {
             // get the first value in the hash
             if let Some((p_ts_pair1, camera1)) = state.plate_timestamp_camera.iter().next() {
                 info!("First pair: {:?} {:?}", p_ts_pair1, camera1);
+                pair_vector.push((p_ts_pair1, camera1));
             }
 
             // get the second value in the hash
@@ -134,30 +127,35 @@ impl Db {
                 .map(|(k, v)| (k, v))
             {
                 info!("Second pair: {:?} {:?}", p_ts_pair2, camera2);
+                pair_vector.push((p_ts_pair2, camera2));
             }
 
-            if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
-                road1 = road;
-                camera_mile1 = mile;
-                camera_limit1 = limit;
+            if let InboundMessageType::IAmCamera { road, mile, limit } = pair_vector[0].1 {
+                road1 = *road;
+                camera_mile1 = *mile;
+                camera_limit1 = *limit;
             } else {
                 error!(
                     "Something really bad happened in two element special case, values not found."
                 );
             };
 
-            // We are doing two passes through the same hash, this is value from pass 2
-            if let InboundMessageType::IAmCamera { road, mile, limit } = camera2 {
-                _ = road;
-                camera_mile2 = mile;
+            if let InboundMessageType::IAmCamera { road, mile, limit } = pair_vector[1].1 {
+                _ = road; // road is the same as above
+                camera_mile2 = *mile;
                 _ = limit;
             } else {
-                error!("Something really bad happened in two element special case, values not found.");
+                error!(
+                    "Something really bad happened in two element special case, values not found."
+                );
             };
 
+            let p_ts_pair1 = pair_vector[0].0;
+            let p_ts_pair2 = pair_vector[1].0;
+            
             info!(
                 "Comparing {:?} {:?} with {:?} {:?}",
-                p_ts_pair1, camera1, p_ts_pair2, camera2
+                p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
             );
 
             if p_ts_pair1.plate == *plate {
