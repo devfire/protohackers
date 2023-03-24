@@ -44,7 +44,7 @@ struct Shared {
 struct State {
     dispatchers: TicketDispatcherDb,
     current_camera: CurrentCameraDb,
-    plates_tickets: PlateTicketDb,
+    // plates_tickets: PlateTicketDb,
     plate_timestamp_camera: PlateTimestampCameraDb,
     issued_tickets_day: IssuedTicketsDayDb,
 }
@@ -55,7 +55,7 @@ impl Db {
             state: Mutex::new(State {
                 dispatchers: HashMap::new(),
                 current_camera: HashMap::new(),
-                plates_tickets: HashMap::new(),
+                // plates_tickets: HashMap::new(),
                 plate_timestamp_camera: HashMap::new(),
                 issued_tickets_day: HashMap::new(),
             }),
@@ -104,7 +104,7 @@ impl Db {
                 let mut road1: Road = 0; // same as road2
                 let mut road2: Road = 0; // same as road1
                 let mut day: u32 = 0;
-                let mut new_ticket: OutboundMessageType;
+                let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
 
                 // We are doing two passes through the same hash, this is value from pass 1
                 if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
@@ -153,7 +153,6 @@ impl Db {
 
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         day = (p_ts_pair2.timestamp as f32 / 86400.0).floor() as u32;
-
                     }
                 }
 
@@ -272,15 +271,15 @@ impl Db {
         }
     }
 
-    pub fn add_plate_ticket(&self, plate: Plate, ticket: OutboundMessageType) {
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .expect("Unable to lock shared state in add_plate_ticket");
+    // pub fn add_plate_ticket(&self, plate: Plate, ticket: OutboundMessageType) {
+    //     let mut state = self
+    //         .shared
+    //         .state
+    //         .lock()
+    //         .expect("Unable to lock shared state in add_plate_ticket");
 
-        state.plates_tickets.insert(plate, ticket);
-    }
+    //     state.plates_tickets.insert(plate, ticket);
+    // }
 
     // Private function, returns T/F depending on whether there was a ticket for that Plate:Day combo
     fn get_plate_ticketed_day(&self, plate: &Plate, day: u32) -> bool {
