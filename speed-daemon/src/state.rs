@@ -79,6 +79,7 @@ impl Db {
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
     pub fn get_tickets_for_plate(&self, plate: &Plate) -> Option<Vec<OutboundMessageType>> {
+        fn get_correct_mile(p_ts_combo1: &PlateTimestamp) -> Mile {}
         // Immutable borrow for now until later
         let mut state = self
             .shared
@@ -171,6 +172,13 @@ impl Db {
                     plate, road1, distance_traveled, time_traveled
                 );
 
+                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                if p_ts_pair1.timestamp > p_ts_pair2.timestamp {
+                    // observation 1 > observation 2, need to swap mile1 & mile2
+                    (camera_mile1, camera_mile2) = (camera_mile2, camera_mile1);
+                }
+
                 info!(
                     "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
                     plate,
@@ -186,9 +194,9 @@ impl Db {
                     let new_ticket = OutboundMessageType::Ticket {
                         plate: plate.clone(),
                         road: road1, //at this point, road1=road2
-                        mile1: camera_mile1.min(camera_mile2),
+                        mile1: camera_mile1,
                         timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
-                        mile2: camera_mile1.max(camera_mile2),
+                        mile2: camera_mile2,
                         timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
                         speed: (average_speed * 100) as Speed,
                     };
@@ -306,6 +314,13 @@ impl Db {
                         "For plate {} road {} distance {} time traveled {}",
                         plate, road1, distance_traveled, time_traveled
                     );
+
+                    // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                    // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                    if p_ts_pair1.timestamp > p_ts_pair2.timestamp {
+                        // observation 1 > observation 2, need to swap mile1 & mile2
+                        (camera_mile1, camera_mile2) = (camera_mile2, camera_mile1);
+                    }
 
                     if average_speed > camera_limit1.into() {
                         let new_ticket = OutboundMessageType::Ticket {
