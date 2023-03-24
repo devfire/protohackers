@@ -85,7 +85,7 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in get_plate_ts_camera");
 
-        info!("Processing {}", plate);
+        // info!("Processing {}", plate);
 
         // return immediately if there's only one observation (plate,timestamp)->camera
         if state.plate_timestamp_camera.len() < 2 {
@@ -334,10 +334,10 @@ impl Db {
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
                             .floor() as u32;
-                        warn!(
-                            "Speed {} exceeded limit {}, preparing {:?} day {}",
-                            average_speed, camera_limit1, new_ticket, day
-                        );
+                        // warn!(
+                        //     "Speed {} exceeded limit {}, preparing {:?} day {}",
+                        //     average_speed, camera_limit1, new_ticket, day
+                        // );
 
                         // check if we've previously issued ticket for that day
                         if let Some(check_date) = state.issued_tickets_day.get(plate) {

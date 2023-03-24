@@ -89,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
         let ticket_tx_process = ticket_tx.clone();
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
-            info!("Accepted connection from {}", addr);
+            // info!("Accepted connection from {}", addr);
             if let Err(e) = process(stream, addr, ticket_tx_process, shared_db_main).await {
                 error!("Error: {:?}", e);
             }
@@ -138,7 +138,7 @@ async fn process(
     });
 
     while let Some(message) = client_reader.next().await {
-        info!("From {}: {:?}", addr, message);
+        // info!("From {}: {:?}", addr, message);
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
