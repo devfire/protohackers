@@ -2,6 +2,7 @@ pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
     sync::{Arc, Mutex},
+    time,
 };
 
 use log::{error, info, warn};
@@ -163,7 +164,11 @@ impl Db {
                 // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                 let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
                 let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
-                let average_speed = (distance_traveled / time_traveled) * 3600 ;
+                let average_speed = (distance_traveled / time_traveled) * 3600;
+                info!(
+                    "For plate {} road {} distance {} time traveled {}",
+                    plate, road1, distance_traveled, time_traveled
+                );
 
                 // let mut average_speed = (camera_mile1.abs_diff(camera_mile2) as u32
                 // / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp))) * 3600;
@@ -192,8 +197,8 @@ impl Db {
                     };
 
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-                    let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0).floor()
-                        as u32;
+                    let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
+                        .floor() as u32;
                     warn!(
                         "Plate {} speed {} exceeded limit {}, preparing {:?} day {}",
                         plate, average_speed, camera_limit1, new_ticket, day
