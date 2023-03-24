@@ -163,9 +163,9 @@ impl Db {
                     p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
                 );
 
-                // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-                let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
-                    / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
+                // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
+                let mut average_speed = (camera_mile1.abs_diff(camera_mile2)
+                / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp) as u16)) * 3600;
                 average_speed = (average_speed as f64).round() as Speed;
 
                 info!(
@@ -295,8 +295,8 @@ impl Db {
                         p_ts_pair1, camera1, p_ts_pair2, camera2
                     );
                     // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-                    let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
-                        / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
+                    let mut average_speed = (camera_mile1.abs_diff(camera_mile2)
+                        / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp) as u16)) * 3600;
                     average_speed = (average_speed as f64).round() as Speed;
 
                     if average_speed > camera_limit1 {
