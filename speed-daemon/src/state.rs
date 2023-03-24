@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use log::{error, info};
+use log::{error, info, warn};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -163,18 +163,19 @@ impl Db {
             if p_ts_pair1.plate == *plate {
                 let mut average_speed: u16 = (camera_mile1.abs_diff(camera_mile2)) * 3600
                     / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp)) as Speed;
-                average_speed = (average_speed as f64 * 100.0).round() as Speed;
+                average_speed = (average_speed as f64).round() as Speed;
 
                 info!(
-                    "For plate {} between {} {} and {} {} average speed is {}",
+                    "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
                     plate,
                     camera_mile1,
                     p_ts_pair1.timestamp,
                     camera_mile2,
                     p_ts_pair2.timestamp,
-                    average_speed
+                    average_speed,
+                    camera_limit1
                 );
-                
+
                 if average_speed > camera_limit1 {
                     new_ticket = OutboundMessageType::Ticket {
                         plate: plate.clone(),
@@ -183,10 +184,15 @@ impl Db {
                         timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
                         mile2: camera_mile1.max(camera_mile2),
                         timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
-                        speed: average_speed,
+                        speed: average_speed * 100,
                     };
+
                     // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                     day = (p_ts_pair1.timestamp as f32 / 86400.0).floor() as u32;
+                    warn!(
+                        "Speed {} exceeded limit {}, preparing ticket {:?} day {}",
+                        average_speed, camera_limit1, new_ticket, day
+                    );
                 }
             }
 
