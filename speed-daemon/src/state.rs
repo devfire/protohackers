@@ -164,8 +164,8 @@ impl Db {
                 let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
                 let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
                 let average_speed =
-                    (((distance_traveled * 3600) / time_traveled) as f32).round() as u32; // we must round here
-                    
+                    ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32; // we must round here
+
                 info!(
                     "For plate {} road {} distance {} time traveled {}",
                     plate, road1, distance_traveled, time_traveled
@@ -300,7 +300,8 @@ impl Db {
                     let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
                     let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
                     let average_speed =
-                        (((distance_traveled * 3600) / time_traveled) as f32).round() as u32; // we must round here
+                        ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32; // we must round here
+
                     info!(
                         "For plate {} road {} distance {} time traveled {}",
                         plate, road1, distance_traveled, time_traveled
