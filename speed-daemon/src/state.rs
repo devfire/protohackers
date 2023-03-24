@@ -164,9 +164,13 @@ impl Db {
                 );
 
                 // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-                let mut average_speed = (camera_mile1.abs_diff(camera_mile2)
-                / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp) as u16)) * 3600;
-                average_speed = (average_speed as f64).round() as Speed;
+                let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
+                let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
+                let average_speed = ((distance_traveled / time_traveled) * 3600) as Speed;
+
+                // let mut average_speed = (camera_mile1.abs_diff(camera_mile2) as u32
+                // / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp))) * 3600;
+                // average_speed = (average_speed as f64).round() as Speed;
 
                 info!(
                     "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
@@ -295,9 +299,9 @@ impl Db {
                         p_ts_pair1, camera1, p_ts_pair2, camera2
                     );
                     // need to x 3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-                    let mut average_speed = (camera_mile1.abs_diff(camera_mile2)
-                        / (p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp) as u16)) * 3600;
-                    average_speed = (average_speed as f64).round() as Speed;
+                    let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
+                    let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
+                    let average_speed = ((distance_traveled / time_traveled) * 3600) as Speed;
 
                     if average_speed > camera_limit1 {
                         let new_ticket = OutboundMessageType::Ticket {
