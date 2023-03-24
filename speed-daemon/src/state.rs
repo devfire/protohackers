@@ -79,8 +79,6 @@ impl Db {
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
     pub fn get_tickets_for_plate(&self, plate: &Plate) -> Option<Vec<OutboundMessageType>> {
-        fn get_correct_mile(p_ts_combo1: &PlateTimestamp) -> Mile {}
-        // Immutable borrow for now until later
         let mut state = self
             .shared
             .state
