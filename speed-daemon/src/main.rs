@@ -24,7 +24,7 @@ use handlers::{handle_i_am_camera, handle_i_am_dispatcher, handle_want_hearbeat}
 
 use crate::handlers::{handle_error, handle_plate};
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> anyhow::Result<()> {
     // Setup the logging framework
     let env = Env::default()

@@ -13,7 +13,7 @@ pub fn handle_want_hearbeat(
     let interval = interval as f32 / 10.0;
     let mut tick_interval = time::interval(Duration::from_secs_f32(interval));
     info!("Setting tick interval to {}", interval);
-    tokio::spawn(async move {
+    tokio::task::spawn(async move {
         loop {
             match tx.send(OutboundMessageType::Heartbeat).await {
                 Ok(_) => {}
