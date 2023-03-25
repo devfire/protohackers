@@ -162,7 +162,7 @@ async fn process(
                     // info!("Interval is 0, no heartbeat.")
                 } else {
                     let tx_heartbeat = tx.clone();
-                    handle_want_hearbeat(interval, tx_heartbeat)?;
+                    handle_want_hearbeat(interval, tx_heartbeat).await?;
                 }
             }
 
