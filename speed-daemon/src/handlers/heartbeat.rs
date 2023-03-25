@@ -11,6 +11,8 @@ pub fn handle_want_hearbeat(
     tx: mpsc::Sender<OutboundMessageType>,
 ) -> anyhow::Result<()> {
     let interval = interval as f32 / 10.0;
+    let mut tick_interval = time::interval(Duration::from_secs_f32(interval));
+    info!("Setting tick interval to {}", interval);
     tokio::spawn(async move {
         loop {
             match tx.send(OutboundMessageType::Heartbeat).await {
@@ -22,8 +24,8 @@ pub fn handle_want_hearbeat(
             }
 
             // sleep(Duration::from_millis(interval as u64)).await;
-            info!("Setting tick interval to {}", interval);
-            let mut tick_interval = time::interval(Duration::from_secs_f32(interval));
+            
+
             tick_interval.tick().await;
         }
     });
