@@ -378,7 +378,7 @@ impl Db {
 
         // only return the tickets Vec if we have something in it
         if tickets.is_empty() {
-            info!("No tickets found for {}", plate);
+            // info!("No tickets found for {}", plate);
             None
         } else {
             info!("Found tickets for {} returning {:?}", plate, tickets);

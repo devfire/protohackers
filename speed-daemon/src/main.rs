@@ -26,6 +26,7 @@ use crate::handlers::{handle_error, handle_plate};
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> anyhow::Result<()> {
+    // console_subscriber::init();
     // Setup the logging framework
     let env = Env::default()
         .filter_or("LOG_LEVEL", "info")
