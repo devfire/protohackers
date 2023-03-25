@@ -334,22 +334,22 @@ impl Db {
                         // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
                         let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
                             .floor() as u32;
-                        warn!(
-                            "Speed {} exceeded limit {}, preparing {:?} day {}",
-                            average_speed, camera_limit1, new_ticket, day
-                        );
+                        // warn!(
+                        //     "Speed {} exceeded limit {}, preparing {:?} day {}",
+                        //     average_speed, camera_limit1, new_ticket, day
+                        // );
 
                         // check if we've previously issued ticket for that day
                         if let Some(check_date) = state.issued_tickets_day.get(plate) {
                             if let Some(_previously_issued_ticket) = check_date.get(&day) {
-                                info!("{} was previously issued a ticket on day {}", plate, day);
+                                // info!("{} was previously issued a ticket on day {}", plate, day);
                                 // return None;
                             } else {
                                 {
-                                    info!(
-                                        "Plate {} was issued a ticket but not on day {}",
-                                        plate, day
-                                    );
+                                    // info!(
+                                    //     "Plate {} was issued a ticket but not on day {}",
+                                    //     plate, day
+                                    // );
                                     let mut date_bool_hash = HashMap::new();
                                     date_bool_hash.insert(day, true);
 
@@ -361,7 +361,7 @@ impl Db {
                                 }
                             }
                         } else {
-                            info!("Plate {} was never issued a ticket on day {}", plate, day);
+                            // info!("Plate {} was never issued a ticket on day {}", plate, day);
                             let mut date_bool_hash = HashMap::new();
                             date_bool_hash.insert(day, true);
 
@@ -381,7 +381,7 @@ impl Db {
             // info!("No tickets found for {}", plate);
             None
         } else {
-            info!("Found tickets for {} returning {:?}", plate, tickets);
+            // info!("Found tickets for {} returning {:?}", plate, tickets);
             Some(tickets)
         }
     }
