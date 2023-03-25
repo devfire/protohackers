@@ -298,10 +298,10 @@ impl Db {
                     && (p_ts_pair1.timestamp != p_ts_pair2.timestamp)
                     && (road1 == road2)
                 {
-                    info!(
-                        "Comparing {:?} {:?} \nwith {:?} {:?}",
-                        p_ts_pair1, camera1, p_ts_pair2, camera2
-                    );
+                    // info!(
+                    //     "Comparing {:?} {:?} \nwith {:?} {:?}",
+                    //     p_ts_pair1, camera1, p_ts_pair2, camera2
+                    // );
                     // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
                     let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
                     let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);

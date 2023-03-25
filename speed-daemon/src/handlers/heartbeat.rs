@@ -2,7 +2,8 @@ use log::error;
 // use speed_daemon::errors::SpeedDaemonError;
 use speed_daemon::message::OutboundMessageType;
 use tokio::sync::mpsc;
-use tokio::time::sleep;
+use tokio::time;
+// use tokio::time::sleep;
 use tokio::time::Duration;
 
 pub fn handle_want_hearbeat(
@@ -20,7 +21,9 @@ pub fn handle_want_hearbeat(
                 }
             }
 
-            sleep(Duration::from_millis(interval as u64)).await;
+            // sleep(Duration::from_millis(interval as u64)).await;
+            let mut tick_interval = time::interval(Duration::from_millis(interval as u64));
+            tick_interval.tick().await;
         }
     });
 
