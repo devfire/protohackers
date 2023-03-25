@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, info};
 // use speed_daemon::errors::SpeedDaemonError;
 use speed_daemon::message::OutboundMessageType;
 use tokio::sync::mpsc;
@@ -22,6 +22,7 @@ pub fn handle_want_hearbeat(
             }
 
             // sleep(Duration::from_millis(interval as u64)).await;
+            info!("Setting tick interval to {}", interval);
             let mut tick_interval = time::interval(Duration::from_secs_f32(interval));
             tick_interval.tick().await;
         }
