@@ -151,15 +151,6 @@ impl Db {
                 let average_speed =
                     calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
 
-                let timestamp1 = vec_of_ts_cameras[0].timestamp;
-                let timestamp2 = vec_of_ts_cameras[1].timestamp;
-
-                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-                if timestamp1 > timestamp2 {
-                    // observation 1 > observation 2, need to swap mile1 & mile2
-                    (mile1, mile2) = (mile2, mile1);
-                }
                 if let InboundMessageType::IAmCamera {
                     road: _,
                     mile,
@@ -178,6 +169,17 @@ impl Db {
                 {
                     mile2 = mile;
                 };
+
+                let timestamp1 = vec_of_ts_cameras[0].timestamp;
+                let timestamp2 = vec_of_ts_cameras[1].timestamp;
+
+                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                if timestamp1 > timestamp2 {
+                    // observation 1 > observation 2, need to swap mile1 & mile2
+                    (mile1, mile2) = (mile2, mile1);
+                }
+
                 if average_speed > common_limit.into() {
                     let new_ticket = OutboundMessageType::Ticket {
                         plate: plate_road.plate.clone(),
