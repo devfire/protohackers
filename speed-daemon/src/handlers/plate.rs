@@ -39,22 +39,20 @@ pub async fn handle_plate(
     };
 
     info!("Adding {:?} {:?}", new_plate_road, new_ts_camera);
-    
+
     shared_db.add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera);
 
     task::spawn_blocking(move || {
-        if let Some(tickets_vec) = shared_db.get_tickets_for_plate(&new_plate_road) {
-            for ticket in tickets_vec.iter() {
-                // info!(
-                //     "Plate handler forwarding ticket {:?} to ticket manager",
-                //     ticket
-                // );
+        if let Some(ticket) = shared_db.get_ticket_for_plate(&new_plate_road) {
+            // info!(
+            //     "Plate handler forwarding ticket {:?} to ticket manager",
+            //     ticket
+            // );
 
-                // Send the ticket to the ticket dispatcher
-                ticket_tx
-                    .blocking_send(ticket.clone())
-                    .expect("Unable to send ticket");
-            }
+            // Send the ticket to the ticket dispatcher
+            ticket_tx
+                .blocking_send(ticket)
+                .expect("Unable to send ticket");
         }
     });
 

@@ -1,7 +1,8 @@
 pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
-    sync::{Arc, Mutex}, vec,
+    sync::{Arc, Mutex},
+    vec,
 };
 
 use log::{error, info, warn};
@@ -82,10 +83,42 @@ impl Db {
 
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
-    pub fn get_tickets_for_plate(
+    pub fn get_ticket_for_plate(
         &self,
         plate_road: &PlateRoadStruct,
-    ) -> Option<Vec<OutboundMessageType>> {
+    ) -> Option<OutboundMessageType> {
+        pub fn calculate_average_speed(
+            observation1: &TimestampCameraStruct,
+            observation2: &TimestampCameraStruct,
+        ) -> u32 {
+            let mut mile1: Mile = 0;
+            let mut mile2: Mile = 0;
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = observation1.camera
+            {
+                mile1 = mile;
+            };
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = observation2.camera
+            {
+                mile2 = mile;
+            };
+
+            // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
+            let distance_traveled = mile1.abs_diff(mile2) as u32;
+            let time_traveled = observation1.timestamp.abs_diff(observation2.timestamp);
+
+            ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32
+        }
+
         let mut state = self
             .shared
             .state
@@ -96,312 +129,77 @@ impl Db {
 
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.get(plate_road) {
+            let mut mile1: Mile = 0;
+            let mut mile2: Mile = 0;
+            let mut common_limit: u16 = 0;
+
             if vec_of_ts_cameras.len() < 2 {
-                info!("{:?} has fewer than 2 elements in {:?}, no tickets.", plate_road,vec_of_ts_cameras);
-                return None
+                warn!(
+                    "{:?} has fewer than 2 elements in {:?}, no tickets.",
+                    plate_road, vec_of_ts_cameras
+                );
+                // return None;
             }
 
+            if vec_of_ts_cameras.len() == 2 {
+                info!(
+                    "{:?} has 2 elements in {:?}, special case.",
+                    plate_road, vec_of_ts_cameras
+                );
 
-        }
+                // First, let's calculate the average speed between two observations
+                let average_speed =
+                    calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
 
-        
+                let timestamp1 = vec_of_ts_cameras[0].timestamp;
+                let timestamp2 = vec_of_ts_cameras[1].timestamp;
 
-        // this will have all the tickets we need to issue.
-        // NOTE: Should only be 1 since we keep track of days on which tickets were issued.
-        let mut tickets = Vec::new();
+                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                if timestamp1 > timestamp2 {
+                    // observation 1 > observation 2, need to swap mile1 & mile2
+                    (mile1, mile2) = (mile2, mile1);
+                }
+                if let InboundMessageType::IAmCamera {
+                    road: _,
+                    mile,
+                    limit,
+                } = vec_of_ts_cameras[0].camera
+                {
+                    mile1 = mile;
+                    common_limit = limit;
+                };
 
-        // // Special case of two elements
-        // if state.plate_road_timestamp_camera.len() == 2 {
-        //     // info!("Special case of two elements.");
+                if let InboundMessageType::IAmCamera {
+                    road: _,
+                    mile,
+                    limit: _,
+                } = vec_of_ts_cameras[1].camera
+                {
+                    mile2 = mile;
+                };
+                if average_speed > common_limit.into() {
+                    let new_ticket = OutboundMessageType::Ticket {
+                        plate: plate_road.plate.clone(),
+                        road: plate_road.road,
+                        mile1,
+                        timestamp1: timestamp1.min(timestamp2),
+                        mile2,
+                        timestamp2: timestamp1.max(timestamp2),
+                        speed: (average_speed * 100) as Speed,
+                    };
 
-        //     // "if let Some" statement to get first & second value from the state.plate_road_timestamp_camera will lose the context inside itself.
-        //     // We need this mini vector to preserve it for later.
-        //     let mut observation_pair_vector: Vec<(&PlateRoadStruct, &TimestampCameraStruct)> =
-        //         Vec::new();
-
-        //     let mut camera_mile1: Mile = 0;
-        //     let mut camera_limit1: Speed = 0;
-        //     let mut camera_mile2: Mile = 0;
-
-        //     let mut road1: Road = 0;
-        //     let mut road2: Road = 0;
-
-        //     // get the first value in the hash
-        //     // if let Some((p_ts_pair1, camera1)) = state.plate_road_timestamp_camera.iter().next() {
-        //     if let Some((plate_road_pair1, camera1)) = state.plate_road_timestamp_camera.get(k) .iter().next() {
-        //         info!("First pair: {:?} {:?}", plate_road_pair1, camera1);
-        //         observation_pair_vector.push((plate_road_pair1, camera1));
-        //     }
-
-        //     // get the second value in the hash
-        //     if let Some((p_ts_pair2, camera2)) = state
-        //         .plate_road_timestamp_camera
-        //         .iter()
-        //         .nth(1)
-        //         .map(|(k, v)| (k, v))
-        //     {
-        //         // info!("Second pair: {:?} {:?}", p_ts_pair2, camera2);
-        //         observation_pair_vector.push((p_ts_pair2, camera2));
-        //     }
-
-        //     if let InboundMessageType::IAmCamera { road, mile, limit } =
-        //         observation_pair_vector[0].1
-        //     {
-        //         road1 = *road;
-        //         camera_mile1 = *mile;
-        //         camera_limit1 = *limit;
-        //     } else {
-        //         error!(
-        //             "Something really bad happened in two element special case, values not found."
-        //         );
-        //     };
-
-        //     if let InboundMessageType::IAmCamera { road, mile, limit } =
-        //         observation_pair_vector[1].1
-        //     {
-        //         road2 = *road; // road is the same as above
-        //         camera_mile2 = *mile;
-        //         _ = limit;
-        //     } else {
-        //         error!(
-        //             "Something really bad happened in two element special case, values not found."
-        //         );
-        //     };
-
-        //     let p_ts_pair1 = observation_pair_vector[0].0;
-        //     let p_ts_pair2 = observation_pair_vector[1].0;
-
-        //     // make sure we are comparing same plate and same road for avg speed calculations
-        //     if p_ts_pair1.plate == *plate && road1 == road2 {
-        //         // info!(
-        //         //     "Comparing {:?} {:?} \nwith   {:?} {:?}",
-        //         //     p_ts_pair1, pair_vector[0].1, p_ts_pair2, pair_vector[1].1
-        //         // );
-
-        //         // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-        //         let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
-        //         let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
-        //         let average_speed =
-        //             ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32; // we must round here
-
-        //         // info!(
-        //         //     "For plate {} road {} distance {} time traveled {}",
-        //         //     plate, road1, distance_traveled, time_traveled
-        //         // );
-
-        //         // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-        //         // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-        //         if p_ts_pair1.timestamp > p_ts_pair2.timestamp {
-        //             // observation 1 > observation 2, need to swap mile1 & mile2
-        //             (camera_mile1, camera_mile2) = (camera_mile2, camera_mile1);
-        //         }
-
-        //         // info!(
-        //         //     "For plate {} between {} {} and {} {} average speed is {} for limit of {}",
-        //         //     plate,
-        //         //     camera_mile1,
-        //         //     p_ts_pair1.timestamp,
-        //         //     camera_mile2,
-        //         //     p_ts_pair2.timestamp,
-        //         //     average_speed,
-        //         //     camera_limit1
-        //         // );
-
-        //         if average_speed > camera_limit1.into() {
-        //             let new_ticket = OutboundMessageType::Ticket {
-        //                 plate: plate.clone(),
-        //                 road: road1, //at this point, road1=road2
-        //                 mile1: camera_mile1,
-        //                 timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
-        //                 mile2: camera_mile2,
-        //                 timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
-        //                 speed: (average_speed * 100) as Speed,
-        //             };
-
-        //             // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-        //             let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
-        //                 .floor() as u32;
-        //             // warn!(
-        //             //     "Plate {} speed {} exceeded limit {}, preparing {:?} day {}",
-        //             //     plate, average_speed, camera_limit1, new_ticket, day
-        //             // );
-
-        //             // check if we've previously issued ticket for that day
-        //             if let Some(check_date) = state.issued_tickets_day.get(plate) {
-        //                 if let Some(_previously_issued_ticket) = check_date.get(&day) {
-        //                     // info!("{} was previously issued a ticket on day {}", plate, day);
-        //                     // return None;
-        //                 } else {
-        //                     {
-        //                         // info!("Plate {} was issued a ticket but not on day {}", plate, day);
-        //                         let mut date_bool_hash = HashMap::new();
-        //                         date_bool_hash.insert(day, true);
-
-        //                         let mut state = self.shared.state.lock().expect(
-        //                             "Unable to lock shared state in two element special case",
-        //                         );
-
-        //                         state
-        //                             .issued_tickets_day
-        //                             .insert(plate.clone(), date_bool_hash);
-
-        //                         tickets.push(new_ticket);
-        //                     }
-        //                 }
-        //             } else {
-        //                 // info!("Plate {} was never issued a ticket on day {}", plate, day);
-        //                 let mut date_bool_hash = HashMap::new();
-        //                 date_bool_hash.insert(day, true);
-        //                 // info!("Marking day {} as ticketed.", day);
-
-        //                 state
-        //                     .issued_tickets_day
-        //                     .insert(plate.clone(), date_bool_hash);
-
-        //                 tickets.push(new_ticket);
-        //             }
-        //             // info!("Final tickets db {:?}", tickets);
-        //         }
-        //     }
-
-        //     // only return the tickets Vec if we have something in it
-        //     if tickets.is_empty() {
-        //         // info!("No tickets found for {}", plate);
-        //         return None;
-        //     } else {
-        //         // info!("Found tickets for {} returning {:?}", plate, tickets);
-        //         return Some(tickets);
-        //     }
-        // }
-
-        // for (p_ts_pair1, camera1) in state.plate_road_timestamp_camera.clone().iter() {
-        //     for (p_ts_pair2, camera2) in state.plate_road_timestamp_camera.clone().iter() {
-        //         let mut camera_mile1: Mile = 0;
-        //         let mut camera_limit1: Speed = 0;
-        //         let mut camera_mile2: Mile = 0;
-
-        //         let mut road1: Road = 0;
-        //         let mut road2: Road = 0;
-
-        //         // let mut day: u32 = 0;
-        //         // let mut new_ticket: OutboundMessageType = OutboundMessageType::default();
-
-        //         // We are doing two passes through the same hash, this is value from pass 1
-        //         if let InboundMessageType::IAmCamera { road, mile, limit } = camera1 {
-        //             road1 = *road;
-        //             camera_mile1 = *mile;
-        //             camera_limit1 = *limit;
-        //         } else {
-        //             error!(
-        //                 "Something really bad happened in get_plate_ts_camera 1, values not found."
-        //             );
-        //         };
-
-        //         // We are doing two passes through the same hash, this is value from pass 2
-        //         if let InboundMessageType::IAmCamera { road, mile, limit } = camera2 {
-        //             road2 = *road;
-        //             camera_mile2 = *mile;
-        //             _ = *limit;
-        //         } else {
-        //             error!(
-        //                 "Something really bad happened in get_plate_ts_camera 2, values not found."
-        //             );
-        //         };
-
-        //         // Messages may arrive out of order, so we need to do abs_diff to ensure we don't go negative.
-        //         // Then, make sure we only compare same plate.
-        //         // Then, make sure we don't compare identical timestamps, otherwise div by 0.
-        //         // Then, make sure we only compare different timestamps for the same road
-        //         if p_ts_pair1.plate == p_ts_pair2.plate
-        //             && p_ts_pair2.plate == *plate
-        //             && (p_ts_pair1.timestamp != p_ts_pair2.timestamp)
-        //             && (road1 == road2)
-        //         {
-        //             // info!(
-        //             //     "Comparing {:?} {:?} \nwith {:?} {:?}",
-        //             //     p_ts_pair1, camera1, p_ts_pair2, camera2
-        //             // );
-        //             // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-        //             let distance_traveled = camera_mile1.abs_diff(camera_mile2) as u32;
-        //             let time_traveled = p_ts_pair1.timestamp.abs_diff(p_ts_pair2.timestamp);
-        //             let average_speed =
-        //                 ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32; // we must round here
-
-        //             // info!(
-        //             //     "For plate {} road {} distance {} time traveled {}",
-        //             //     plate, road1, distance_traveled, time_traveled
-        //             // );
-
-        //             // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-        //             // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-        //             if p_ts_pair1.timestamp > p_ts_pair2.timestamp {
-        //                 // observation 1 > observation 2, need to swap mile1 & mile2
-        //                 (camera_mile1, camera_mile2) = (camera_mile2, camera_mile1);
-        //             }
-
-        //             if average_speed > camera_limit1.into() {
-        //                 let new_ticket = OutboundMessageType::Ticket {
-        //                     plate: plate.clone(),
-        //                     road: road1, // road1 = road2 here so we can pick either one
-        //                     mile1: camera_mile1,
-        //                     timestamp1: p_ts_pair1.timestamp.min(p_ts_pair2.timestamp),
-        //                     mile2: camera_mile2,
-        //                     timestamp2: p_ts_pair1.timestamp.max(p_ts_pair2.timestamp),
-        //                     speed: (average_speed * 100) as Speed, //protocol spec requires this to be 100x miles per hour
-        //                 };
-
-        //                 // Since timestamps do not count leap seconds, days are defined by floor(timestamp / 86400).
-        //                 let day = (p_ts_pair1.timestamp.max(p_ts_pair2.timestamp) as f32 / 86400.0)
-        //                     .floor() as u32;
-        //                 // warn!(
-        //                 //     "Speed {} exceeded limit {}, preparing {:?} day {}",
-        //                 //     average_speed, camera_limit1, new_ticket, day
-        //                 // );
-
-        //                 // check if we've previously issued ticket for that day
-        //                 if let Some(check_date) = state.issued_tickets_day.get(plate) {
-        //                     if let Some(_previously_issued_ticket) = check_date.get(&day) {
-        //                         // info!("{} was previously issued a ticket on day {}", plate, day);
-        //                         // return None;
-        //                     } else {
-        //                         {
-        //                             // info!(
-        //                             //     "Plate {} was issued a ticket but not on day {}",
-        //                             //     plate, day
-        //                             // );
-        //                             let mut date_bool_hash = HashMap::new();
-        //                             date_bool_hash.insert(day, true);
-
-        //                             state
-        //                                 .issued_tickets_day
-        //                                 .insert(plate.clone(), date_bool_hash);
-
-        //                             tickets.push(new_ticket);
-        //                         }
-        //                     }
-        //                 } else {
-        //                     // info!("Plate {} was never issued a ticket on day {}", plate, day);
-        //                     let mut date_bool_hash = HashMap::new();
-        //                     date_bool_hash.insert(day, true);
-
-        //                     state
-        //                         .issued_tickets_day
-        //                         .insert(plate.clone(), date_bool_hash);
-
-        //                     tickets.push(new_ticket);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // only return the tickets Vec if we have something in it
-        if tickets.is_empty() {
-            // info!("No tickets found for {}", plate);
-            None
+                    Some(new_ticket)
+                } else {
+                    None
+                }
+            } else {
+                info!("More than 2 entries for {:?}, analyzing.", plate_road);
+                None
+            }
         } else {
-            // info!("Found tickets for {} returning {:?}", plate, tickets);
-            Some(tickets)
+            warn!("No entries found for {:?}, exiting.", plate_road);
+            None
         }
     }
 
