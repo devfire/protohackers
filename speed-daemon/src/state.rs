@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, IssuedTicketsDayDb, Mile, Plate, PlateTimestamp, PlateTimestampCameraDb,
-        Road, Speed, TicketDispatcherDb,
+        CurrentCameraDb, IssuedTicketsDayDb, Mile, Plate, PlateTimestampCameraDb,
+        Road, Speed, TicketDispatcherDb, PlateRoadStruct, TimestampCameraStruct,
     },
 };
 
@@ -62,10 +62,10 @@ impl Db {
         Db { shared }
     }
 
-    pub fn add_plate_timestamp_camera(
+    pub fn add_plate_road_timestamp_camera(
         &self,
-        plate_timestamp: PlateTimestamp,
-        camera: InboundMessageType,
+        plate_road: PlateRoadStruct,
+        ts_camera: TimestampCameraStruct,
     ) {
         let mut state = self
             .shared
@@ -73,7 +73,12 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in add_plate_timestamp_camera");
 
-        state.plate_timestamp_camera.insert(plate_timestamp, camera);
+        if let Some(temp_vec) = state.plate_timestamp_camera.get(&plate_road) {
+            temp_vec.push(ts_camera);
+            state.plate_timestamp_camera.insert(plate_road, *temp_vec);
+        }
+
+        
     }
 
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between

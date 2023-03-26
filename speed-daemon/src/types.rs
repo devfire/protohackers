@@ -10,21 +10,36 @@ pub type Limit = u16;
 pub type Timestamp = u32;
 pub type Speed = u16;
 pub type Plate = String;
-pub type TimestampCameraTuple = (Timestamp, InboundMessageType);
+// pub type TimestampCameraTuple = (Timestamp, InboundMessageType);
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct PlateTimestamp {
-    pub plate: Plate,
+pub struct TimestampCameraStruct {
     pub timestamp: Timestamp,
+    pub camera: InboundMessageType
 }
+
+// #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+// pub struct PlateTimestamp {
+//     pub plate: Plate,
+//     pub timestamp: Timestamp,
+// }
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct PlateRoadStruct {
+    pub plate: Plate,
+    pub road: Road,
+}
+
 
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)
 // pub type PlateCameraDb = HashMap<Plate, TimestampCameraTuple>;
 
 // This contains the (Plate,Timestamp) -> Camera mapping
-pub type PlateTimestampCameraDb = HashMap<PlateTimestamp, InboundMessageType>;
+// pub type PlateTimestampCameraDb = HashMap<PlateTimestamp, InboundMessageType>;
 
+// This contains the Plate -> Vec<Timestamp,Camera> mapping
+pub type PlateTimestampCameraDb = HashMap<PlateRoadStruct, Vec<TimestampCameraStruct>>;
 
 // This maps a road ID to a hash of IP,tx
 pub type TicketDispatcherDb = HashMap<Road, HashMap<SocketAddr, mpsc::Sender<OutboundMessageType>>>;
