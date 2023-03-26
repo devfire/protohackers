@@ -34,7 +34,7 @@ pub async fn handle_plate(
     task::spawn_blocking(move || {
         // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
 
-        if let Some(tickets_vec) = shared_db.get_tickets_for_plate(&new_plate) {
+        if let Some(tickets_vec) = shared_db.get_tickets_for_plate(&new_plate_road) {
             for ticket in tickets_vec.iter() {
                 // info!(
                 //     "Plate handler forwarding ticket {:?} to ticket manager",
