@@ -8,7 +8,7 @@ use speed_daemon::{
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::mpsc,
+    sync::mpsc, task,
 };
 
 use env_logger::Env;
@@ -124,7 +124,7 @@ async fn process(
     // Spawn off a writer manager loop.
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
-    let manager = tokio::spawn(async move {
+    let _manager = tokio::spawn(async move {
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
@@ -136,7 +136,10 @@ async fn process(
             }
         }
         Ok(())
-    });
+    }).await;
+
+
+
 
     while let Some(message) = client_reader.next().await {
         // info!("From {}: {:?}", addr, message);
@@ -186,9 +189,9 @@ async fn process(
         }
     }
 
-    if let Err(e) = manager.await? {
-        error!("Error from the tx manager: {}", e)
-    }
+    // if let Err(e) = manager.await? {
+    //     error!("Error from the tx manager: {}", e)
+    // }
     Ok(())
 }
 
