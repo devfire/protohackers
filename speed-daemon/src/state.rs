@@ -143,7 +143,12 @@ impl Db {
             }
 
             for observation1 in 0..vec_of_ts_cameras.len() {
-                for observation2 in (observation1 + 1)..vec_of_ts_cameras.len() {
+                for observation2 in (observation1)..vec_of_ts_cameras.len() {
+                    info!(
+                        "Comparing {:?} with {:?}",
+                        vec_of_ts_cameras[observation1], vec_of_ts_cameras[observation2]
+                    );
+                    
                     // First, let's calculate the average speed between two observations
                     let average_speed = calculate_average_speed(
                         &vec_of_ts_cameras[observation1],
