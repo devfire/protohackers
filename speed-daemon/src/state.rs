@@ -188,7 +188,7 @@ impl Db {
                         timestamp2: timestamp1.max(timestamp2),
                         speed: (average_speed * 100) as Speed,
                     };
-
+                    info!("{:?} ready, sending for dispatch.", new_ticket);
                     Some(new_ticket)
                 } else {
                     None
