@@ -15,7 +15,7 @@ pub type Plate = String;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TimestampCameraStruct {
     pub timestamp: Timestamp,
-    pub camera: InboundMessageType
+    pub camera: InboundMessageType,
 }
 
 // #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -30,6 +30,12 @@ pub struct PlateRoadStruct {
     pub road: Road,
 }
 
+impl PlateRoadStruct {
+    pub fn new(plate: Plate, road: Road) -> Self {
+        Self { plate, road }
+    }
+    
+}
 
 // ----------------Shared state data structures----------------
 // A hash of Plate -> (timestamp, IAmCamera)

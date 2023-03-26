@@ -1,7 +1,7 @@
 pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, vec,
 };
 
 use log::{error, info, warn};
@@ -94,11 +94,17 @@ impl Db {
 
         // info!("Processing {}", plate);
 
-        // return immediately if there's only one observation (plate,timestamp)->camera
+        // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.get(plate_road) {
-            // info!("Only one observation for plate {}, exiting.", plate);
-            return None;
+            if vec_of_ts_cameras.len() < 2 {
+                info!("{:?} has fewer than 2 elements in {:?}, no tickets.", plate_road,vec_of_ts_cameras);
+                return None
+            }
+
+
         }
+
+        
 
         // this will have all the tickets we need to issue.
         // NOTE: Should only be 1 since we keep track of days on which tickets were issued.

@@ -2,7 +2,7 @@ use log::info;
 use speed_daemon::{
     message::{InboundMessageType, OutboundMessageType},
     state::Db,
-    types::{Plate, PlateRoadStruct, PlateTimestamp, Timestamp, TimestampCameraStruct},
+    types::{Plate, PlateRoadStruct, Timestamp, TimestampCameraStruct},
 };
 use tokio::{sync::mpsc, task};
 
@@ -15,25 +15,34 @@ pub async fn handle_plate(
     ticket_tx: mpsc::Sender<OutboundMessageType>,
     shared_db: Db,
 ) -> anyhow::Result<()> {
+    // Get the camera that reported this plate
     let current_camera = shared_db.get_current_camera(client_addr);
 
-    if let InboundMessageType::IAmCamera { road, mile, limit } = current_camera {
-        let new_plate_road = PlateRoadStruct {
+    // Init an empty struct
+    let mut new_plate_road = PlateRoadStruct::new(String::from(""), 0);
+
+    if let InboundMessageType::IAmCamera {
+        road,
+        mile: _,
+        limit: _,
+    } = current_camera
+    {
+        new_plate_road = PlateRoadStruct {
             road,
             plate: new_plate,
         };
-
-        let new_ts_camera = TimestampCameraStruct {
-            timestamp: new_timestamp,
-            camera: current_camera,
-        };
-
-        shared_db.add_plate_road_timestamp_camera(new_plate_road, new_ts_camera);
     };
 
-    task::spawn_blocking(move || {
-        // At this point, current_camera contains the InboundMessageType::IAmCamera enum with the current tokio task values
+    let new_ts_camera = TimestampCameraStruct {
+        timestamp: new_timestamp,
+        camera: current_camera,
+    };
 
+    info!("Adding {:?} {:?}", new_plate_road, new_ts_camera);
+    
+    shared_db.add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera);
+
+    task::spawn_blocking(move || {
         if let Some(tickets_vec) = shared_db.get_tickets_for_plate(&new_plate_road) {
             for ticket in tickets_vec.iter() {
                 // info!(
