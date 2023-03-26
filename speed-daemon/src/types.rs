@@ -10,7 +10,7 @@ pub type Limit = u16;
 pub type Timestamp = u32;
 pub type Speed = u16;
 pub type Plate = String;
-// pub type TimestampCameraTuple = (Timestamp, InboundMessageType);
+pub type Day = u32;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TimestampCameraStruct {
@@ -34,7 +34,7 @@ impl PlateRoadStruct {
     pub fn new(plate: Plate, road: Road) -> Self {
         Self { plate, road }
     }
-    
+
 }
 
 // ----------------Shared state data structures----------------
@@ -60,5 +60,5 @@ pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
 
 // This keeps a mapping Plate to a hash of (day, BOOL), where days are defined by floor(timestamp / 86400)
 // i.e. a plate "FOO" could have been ticketed on multiple days
-pub type IssuedTicketsDayDb = HashMap<Plate, HashMap<u32, bool>>;
+pub type IssuedTicketsDayDb = HashMap<PlateRoadStruct, Vec<Day>>;
 // ------------------------------------------------------------
