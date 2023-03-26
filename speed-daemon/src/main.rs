@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(8192);
+    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(8192000);
     // NOTE: These are cheap clones, pointers only.
     let ticket_tx_queue = ticket_tx.clone();
     let shared_ticket_db = shared_db.clone();
@@ -124,7 +124,7 @@ async fn process(
     // Spawn off a writer manager loop.
     // In order to send a message back to the clients, all threads must use mpsc channel to publish data.
     // The manager will then proxy the data and send it on behalf of threads.
-    let _manager = tokio::spawn(async move {
+    let manager = tokio::spawn(async move {
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
@@ -136,7 +136,7 @@ async fn process(
             }
         }
         Ok(())
-    }).await;
+    });
 
     while let Some(message) = client_reader.next().await {
         // info!("From {}: {:?}", addr, message);
@@ -186,9 +186,9 @@ async fn process(
         }
     }
 
-    // if let Err(e) = manager.await? {
-    //     error!("Error from the tx manager: {}", e)
-    // }
+    if let Err(e) = manager.await? {
+        error!("Error from the tx manager: {}", e)
+    }
     Ok(())
 }
 
