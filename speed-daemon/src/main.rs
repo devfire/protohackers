@@ -138,9 +138,6 @@ async fn process(
         Ok(())
     }).await;
 
-
-
-
     while let Some(message) = client_reader.next().await {
         // info!("From {}: {:?}", addr, message);
 
