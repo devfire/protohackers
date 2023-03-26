@@ -3,7 +3,7 @@ use log::info;
 use speed_daemon::{message::InboundMessageType, state::Db};
 use std::net::SocketAddr;
 
-pub fn handle_i_am_camera(
+pub async fn handle_i_am_camera(
     client_addr: &SocketAddr,
     new_camera: InboundMessageType,
     mut shared_db: Db,

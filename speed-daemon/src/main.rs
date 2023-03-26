@@ -169,7 +169,7 @@ async fn process(
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(&addr, new_camera, shared_db.clone())?;
+                handle_i_am_camera(&addr, new_camera, shared_db.clone()).await?;
             }
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
