@@ -115,9 +115,9 @@ async fn process(
     // Creating the channel returns two values, a sender and a receiver.
     // The two handles are used separately. They may be moved to different tasks.
     //
-    // NOTE: The channel is created with a capacity of 32.
+    // NOTE: The channel is created with a certain capacity.
     // If messages are sent faster than they are received, the channel will store them.
-    // Once the 32 messages are stored in the channel,
+    // Once the N messages are stored in the channel,
     // calling send(...).await will go to sleep until a message has been removed by the receiver.
     let (tx, mut rx) = mpsc::channel::<OutboundMessageType>(819600);
 
