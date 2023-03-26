@@ -58,7 +58,8 @@ pub type PlateTicketDb = HashMap<Plate, OutboundMessageType>;
 // we need to check the camera's mile marker and speed limit to calculate the avg speed.
 pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
 
-// This keeps a mapping Plate to a hash of (day, BOOL), where days are defined by floor(timestamp / 86400)
+// This keeps a mapping Plate to a Vec of days, where days are defined by floor(timestamp / 86400)
 // i.e. a plate "FOO" could have been ticketed on multiple days
+// Every day that contributed to a ticket gets stored.
 pub type IssuedTicketsDayDb = HashMap<PlateRoadStruct, Vec<Day>>;
 // ------------------------------------------------------------

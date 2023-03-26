@@ -2,7 +2,6 @@ pub(crate) use std::collections::HashMap;
 use std::{
     net::SocketAddr,
     sync::{Arc, Mutex},
-    vec,
 };
 
 use log::{error, info, warn};
@@ -11,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, IssuedTicketsDayDb, Mile, Plate, PlateRoadStruct,
-        PlateRoadTimestampCameraDb, Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
+        CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct, PlateRoadTimestampCameraDb,
+        Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
     },
 };
 
@@ -87,7 +86,7 @@ impl Db {
         &self,
         plate_road: &PlateRoadStruct,
     ) -> Option<OutboundMessageType> {
-        pub fn calculate_average_speed(
+        fn calculate_average_speed(
             observation1: &TimestampCameraStruct,
             observation2: &TimestampCameraStruct,
         ) -> u32 {
@@ -125,10 +124,10 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in get_plate_ts_camera");
 
-        // info!("Processing {}", plate);
+        let mut ticket = None;
 
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
-        if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.get(plate_road) {
+        if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
             let mut common_limit: u16 = 0;
@@ -138,69 +137,97 @@ impl Db {
                     "{:?} has fewer than 2 elements in {:?}, no tickets.",
                     plate_road, vec_of_ts_cameras
                 );
-                // return None;
-            }
-
-            if vec_of_ts_cameras.len() == 2 {
-                info!(
-                    "{:?} has 2 elements in {:?}, special case.",
-                    plate_road, vec_of_ts_cameras
-                );
-
-                // First, let's calculate the average speed between two observations
-                let average_speed =
-                    calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
-
-                if let InboundMessageType::IAmCamera {
-                    road: _,
-                    mile,
-                    limit,
-                } = vec_of_ts_cameras[0].camera
-                {
-                    mile1 = mile;
-                    common_limit = limit;
-                };
-
-                if let InboundMessageType::IAmCamera {
-                    road: _,
-                    mile,
-                    limit: _,
-                } = vec_of_ts_cameras[1].camera
-                {
-                    mile2 = mile;
-                };
-
-                let timestamp1 = vec_of_ts_cameras[0].timestamp;
-                let timestamp2 = vec_of_ts_cameras[1].timestamp;
-
-                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-                if timestamp1 > timestamp2 {
-                    // observation 1 > observation 2, need to swap mile1 & mile2
-                    (mile1, mile2) = (mile2, mile1);
-                }
-
-                if average_speed > common_limit.into() {
-                    let new_ticket = OutboundMessageType::Ticket {
-                        plate: plate_road.plate.clone(),
-                        road: plate_road.road,
-                        mile1,
-                        timestamp1: timestamp1.min(timestamp2),
-                        mile2,
-                        timestamp2: timestamp1.max(timestamp2),
-                        speed: (average_speed * 100) as Speed,
-                    };
-                    info!("{:?} ready, sending for dispatch.", new_ticket);
-                    Some(new_ticket)
-                } else {
-                    None
-                }
+                return None;
             } else {
                 info!("More than 2 entries for {:?}, analyzing.", plate_road);
-                None
             }
+
+            for observation1 in 0..vec_of_ts_cameras.len() {
+                for observation2 in (observation1 + 1)..vec_of_ts_cameras.len() {
+                    // First, let's calculate the average speed between two observations
+                    let average_speed = calculate_average_speed(
+                        &vec_of_ts_cameras[observation1],
+                        &vec_of_ts_cameras[observation2],
+                    );
+
+                    if let InboundMessageType::IAmCamera {
+                        road: _,
+                        mile,
+                        limit,
+                    } = vec_of_ts_cameras[observation1].camera
+                    {
+                        mile1 = mile;
+                        common_limit = limit;
+                    };
+
+                    if let InboundMessageType::IAmCamera {
+                        road: _,
+                        mile,
+                        limit: _,
+                    } = vec_of_ts_cameras[observation2].camera
+                    {
+                        mile2 = mile;
+                    };
+
+                    let timestamp1 = vec_of_ts_cameras[observation1].timestamp;
+                    let timestamp2 = vec_of_ts_cameras[observation2].timestamp;
+
+                    // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                    // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                    if timestamp1 > timestamp2 {
+                        // observation 1 > observation 2, need to swap mile1 & mile2
+                        (mile1, mile2) = (mile2, mile1);
+                    }
+
+                    // calculate the days for both observations
+                    let day1 = (timestamp1 as f32 / 86400.0).floor() as u32;
+                    let day2 = (timestamp2 as f32 / 86400.0).floor() as u32;
+
+                    // Returns True if none of these days were previously issued a ticket on
+                    let mut issue_ticket: bool = false;
+
+                    if let Some(days) = state.issued_tickets_day.get(plate_road) {
+                        for day in days.iter() {
+                            if *day >= day1 || *day <= day2 {
+                                issue_ticket = true;
+                            }
+                        }
+                    }
+
+                    if average_speed > common_limit.into() && issue_ticket {
+                        let new_ticket = OutboundMessageType::Ticket {
+                            plate: plate_road.plate.clone(),
+                            road: plate_road.road,
+                            mile1,
+                            timestamp1: timestamp1.min(timestamp2),
+                            mile2,
+                            timestamp2: timestamp1.max(timestamp2),
+                            speed: (average_speed * 100) as Speed,
+                        };
+
+                        info!("{:?} ready, sending for dispatch.", new_ticket);
+
+                        state
+                            .issued_tickets_day
+                            .entry(plate_road.to_owned())
+                            .or_default()
+                            .push(day1);
+                        state
+                            .issued_tickets_day
+                            .entry(plate_road.to_owned())
+                            .or_default()
+                            .push(day2);
+
+                        ticket = Some(new_ticket);
+                        break;
+                    }
+                }
+                if ticket.is_some() {
+                    break;
+                }
+            }
+            ticket
         } else {
-            warn!("No entries found for {:?}, exiting.", plate_road);
             None
         }
     }
