@@ -128,8 +128,7 @@ impl Db {
         ) -> OutboundMessageType {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
-            let mut common_limit: u16 = 0;
-
+            
             info!(
                 "Between {:?} and {:?} average speed was {}",
                 observation1, observation2, average_speed
@@ -138,11 +137,10 @@ impl Db {
             if let InboundMessageType::IAmCamera {
                 road: _,
                 mile,
-                limit,
+                limit: _,
             } = observation1.camera
             {
                 mile1 = mile;
-                common_limit = limit;
             };
 
             if let InboundMessageType::IAmCamera {
@@ -166,7 +164,10 @@ impl Db {
                 (mile1, mile2) = (mile2, mile1);
             }
 
-            let new_ticket = OutboundMessageType::Ticket {
+            
+
+            // Return the generated ticket
+            OutboundMessageType::Ticket {
                 plate: plate_road.plate.clone(),
                 road: plate_road.road,
                 mile1,
@@ -174,10 +175,7 @@ impl Db {
                 mile2,
                 timestamp2: timestamp1.max(timestamp2),
                 speed: (average_speed * 100) as Speed,
-            };
-
-            // Return the generated ticket
-            new_ticket
+            }
         }
 
         let mut state = self
