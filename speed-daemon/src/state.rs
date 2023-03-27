@@ -186,23 +186,6 @@ impl Db {
             .lock()
             .expect("Unable to lock shared state in get_plate_ts_camera");
 
-        let mut ticket = None;
-
-        // Returns True if none of these days were previously issued a ticket on
-        let mut issue_ticket: bool = false;
-        if let Some(days) = state.issued_tickets_day.get(plate_road) {
-            for day in days.iter() {
-                if *day >= days[0] || *day <= days[1] {
-                    issue_ticket = true;
-                }
-            }
-
-            if !issue_ticket {
-                warn!("Previously issued tickets for {:?}", days);
-                return None;
-            }
-        }
-
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
             let mut common_limit = 0;
@@ -215,6 +198,8 @@ impl Db {
             {
                 common_limit = limit;
             };
+
+            let mut ticket = None;
 
             match vec_of_ts_cameras.len() {
                 0 | 1 => {
@@ -231,6 +216,29 @@ impl Db {
                     let average_speed =
                         calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
 
+                    // Returns True if none of these days were previously issued a ticket on
+                    let mut issue_ticket: bool = true;
+
+                    // calculate the days for both observations
+                    let day1 = (vec_of_ts_cameras[0].timestamp as f32 / 86400.0).floor() as u32;
+                    let day2 = (vec_of_ts_cameras[1].timestamp as f32 / 86400.0).floor() as u32;
+
+                    if let Some(days) = state.issued_tickets_day.get(plate_road) {
+                        for day in days.iter() {
+                            // skip if day 1 matches, or
+                            // day 2 matches, or
+                            //
+                            if *day == day1 || *day == day2 {
+                                issue_ticket = false;
+                            }
+                        }
+
+                        if !issue_ticket {
+                            warn!("Previously issued tickets for {:?}", days);
+                            return None;
+                        }
+                    }
+
                     if average_speed > common_limit.into() {
                         let new_ticket = generate_ticket(
                             &vec_of_ts_cameras[0],
@@ -238,10 +246,6 @@ impl Db {
                             plate_road,
                             average_speed,
                         );
-
-                        // calculate the days for both observations
-                        let day1 = (vec_of_ts_cameras[0].timestamp as f32 / 86400.0).floor() as u32;
-                        let day2 = (vec_of_ts_cameras[1].timestamp as f32 / 86400.0).floor() as u32;
 
                         info!(
                             "{:?} ready, sending for dispatch. Day1: {} day2: {}",
@@ -283,11 +287,30 @@ impl Db {
                                     average_speed,
                                 );
 
+                                // Returns True if none of these days were previously issued a ticket on
+                                let mut issue_ticket: bool = true;
+
                                 // calculate the days for both observations
-                                let day1 = (vec_of_ts_cameras[i].timestamp as f32 / 86400.0).floor()
+                                let day1 = (vec_of_ts_cameras[0].timestamp as f32 / 86400.0).floor()
                                     as u32;
-                                let day2 = (vec_of_ts_cameras[j].timestamp as f32 / 86400.0).floor()
+                                let day2 = (vec_of_ts_cameras[1].timestamp as f32 / 86400.0).floor()
                                     as u32;
+
+                                if let Some(days) = state.issued_tickets_day.get(plate_road) {
+                                    for day in days.iter() {
+                                        // skip if day 1 matches, or
+                                        // day 2 matches, or
+                                        //
+                                        if *day == day1 || *day == day2 {
+                                            issue_ticket = false;
+                                        }
+                                    }
+
+                                    if !issue_ticket {
+                                        warn!("Previously issued tickets for {:?}", days);
+                                        return None;
+                                    }
+                                }
 
                                 info!(
                                     "{:?} ready, storing day1: {} day2: {}, dispatching.",
