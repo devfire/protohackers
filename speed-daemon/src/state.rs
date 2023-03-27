@@ -316,6 +316,40 @@ impl Db {
                             );
 
                             if average_speed > common_limit.into() {
+                                info!(
+                                    "Between {:?} and {:?} average speed was {}",
+                                    vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
+                                );
+        
+                                if let InboundMessageType::IAmCamera {
+                                    road: _,
+                                    mile,
+                                    limit: _,
+                                } = vec_of_ts_cameras[i].camera
+                                {
+                                    mile1 = mile;
+                                };
+        
+                                if let InboundMessageType::IAmCamera {
+                                    road: _,
+                                    mile,
+                                    limit: _,
+                                } = vec_of_ts_cameras[j].camera
+                                {
+                                    mile2 = mile;
+                                };
+        
+                                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                                let timestamp1 = vec_of_ts_cameras[i].timestamp;
+                                let timestamp2 = vec_of_ts_cameras[j].timestamp;
+        
+                                // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                                // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                                if timestamp1 > timestamp2 {
+                                    // observation 1 > observation 2, need to swap mile1 & mile2
+                                    (mile1, mile2) = (mile2, mile1);
+                                }
                                 let new_ticket = OutboundMessageType::Ticket {
                                     plate: plate_road.plate.clone(),
                                     road: plate_road.road,
