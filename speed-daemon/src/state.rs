@@ -270,7 +270,11 @@ impl Db {
                     }
                 }
                 _ => {
-                    info!("More than 2 entries for {:?}, analyzing.", plate_road);
+                    info!(
+                        "Total {} entries for {:?}, analyzing.",
+                        vec_of_ts_cameras.len(),
+                        plate_road
+                    );
 
                     for i in 0..vec_of_ts_cameras.len() {
                         for j in (i + 1)..vec_of_ts_cameras.len() {
@@ -284,7 +288,7 @@ impl Db {
                                 "Comparing {:?} with {:?} avg speed {}",
                                 vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
                             );
-                            
+
                             // Returns True if none of these days were previously issued a ticket on
                             let mut issue_ticket: bool = true;
 
