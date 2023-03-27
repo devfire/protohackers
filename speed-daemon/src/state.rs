@@ -1,13 +1,13 @@
 pub(crate) use std::collections::HashMap;
-use std::{
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{net::SocketAddr, sync::Arc};
+
+use tokio::sync::Mutex;
 
 use log::{error, info, warn};
 use tokio::sync::mpsc;
 
 use crate::{
+    errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
     types::{
         CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct, PlateRoadTimestampCameraDb,
@@ -86,11 +86,11 @@ impl Db {
         &self,
         plate_road: &PlateRoadStruct,
     ) -> Option<OutboundMessageType> {
-        fn calculate_average_speed(
+        async fn calculate_average_speed(
             observation1: &TimestampCameraStruct,
             observation2: &TimestampCameraStruct,
             plate_road: &PlateRoadStruct,
-        ) -> u32 {
+        ) -> Result<u32, SpeedDaemonError> {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
 
@@ -121,17 +121,17 @@ impl Db {
             let distance_traveled = mile1.abs_diff(mile2) as u32;
             let time_traveled = observation1.timestamp.abs_diff(observation2.timestamp);
 
-            ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32
+            Ok(((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32)
         }
 
         // This returns a tuple of Vec of days where the ticket was generated,
         // plus the ticket. Or None.
-        fn generate_ticket(
+        async fn generate_ticket(
             observation1: &TimestampCameraStruct,
             observation2: &TimestampCameraStruct,
             plate_road: &PlateRoadStruct,
             average_speed: u32,
-        ) -> OutboundMessageType {
+        ) -> Result<OutboundMessageType, SpeedDaemonError> {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
 
@@ -171,7 +171,7 @@ impl Db {
             }
 
             // Return the generated ticket
-            OutboundMessageType::Ticket {
+            Ok(OutboundMessageType::Ticket {
                 plate: plate_road.plate.clone(),
                 road: plate_road.road,
                 mile1,
@@ -179,15 +179,15 @@ impl Db {
                 mile2,
                 timestamp2: timestamp1.max(timestamp2),
                 speed: (average_speed * 100) as Speed,
-            }
+            })
         }
 
         let mut state = self
             .shared
             .state
-            .lock()
-            .expect("Unable to lock shared state in get_plate_ts_camera");
+            .lock().await;
 
+        
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
             let mut common_limit = 0;
@@ -219,7 +219,9 @@ impl Db {
                         &vec_of_ts_cameras[0],
                         &vec_of_ts_cameras[1],
                         plate_road,
-                    );
+                    )
+                    .await
+                    .expect("Failed to get average speed");
 
                     // Returns True if none of these days were previously issued a ticket on
                     let mut issue_ticket: bool = true;
@@ -250,7 +252,9 @@ impl Db {
                             &vec_of_ts_cameras[1],
                             plate_road,
                             average_speed,
-                        );
+                        )
+                        .await
+                        .expect("Failed to generate new ticket");
 
                         info!(
                             "{:?} ready, sending for dispatch. Day1: {} day2: {}",
@@ -292,7 +296,9 @@ impl Db {
                                 &vec_of_ts_cameras[i],
                                 &vec_of_ts_cameras[j],
                                 plate_road,
-                            );
+                            )
+                            .await
+                            .expect("Failed to calculate average speed");
 
                             info!(
                                 "Comparing {:?} with {:?} avg speed {}",
@@ -329,7 +335,9 @@ impl Db {
                                     &vec_of_ts_cameras[j],
                                     plate_road,
                                     average_speed,
-                                );
+                                )
+                                .await
+                                .expect("Failed to generate new ticket");
 
                                 info!(
                                     "{:?} ready, storing day1: {} day2: {}, dispatching.",
@@ -371,22 +379,22 @@ impl Db {
     }
 
     // This is invoked by handle_i_am_camera when a new camera comes online.
-    pub fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
+    pub async fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
         let mut state = self
             .shared
             .state
             .lock()
-            .expect("Unable to lock shared state in get_camera");
+            .await;
 
         state.current_camera.insert(addr, new_camera);
     }
 
-    pub fn get_current_camera(&self, addr: &SocketAddr) -> InboundMessageType {
+    pub async fn get_current_camera(&self, addr: &SocketAddr) -> InboundMessageType {
         let state = self
             .shared
             .state
             .lock()
-            .expect("Unable to lock shared state in get_current_camera");
+            .await;
 
         let camera = state
             .current_camera
@@ -395,7 +403,7 @@ impl Db {
         camera.clone()
     }
 
-    pub fn add_ticket_dispatcher(
+    pub async fn add_ticket_dispatcher(
         &mut self,
         road: Road,
         addr: SocketAddr,
@@ -407,17 +415,17 @@ impl Db {
             .shared
             .state
             .lock()
-            .expect("Unable to lock shared state in add_ticket_dispatcher");
+            .await;
 
         state.dispatchers.insert(road, addr_tx_hash);
     }
 
-    pub fn get_ticket_dispatcher(&self, road: Road) -> Option<mpsc::Sender<OutboundMessageType>> {
+    pub async fn  get_ticket_dispatcher(&self, road: Road) -> Option<mpsc::Sender<OutboundMessageType>> {
         let state = self
             .shared
             .state
             .lock()
-            .expect("Unable to lock shared state in add_ticket_dispatcher");
+            .await;
 
         // First, we get the hash mapping the road num to the client address-tx hash
         // Second, we get the tx from the client address.
