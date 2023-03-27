@@ -1,8 +1,6 @@
-use log::error;
-// use speed_daemon::errors::SpeedDaemonError;
 use speed_daemon::message::OutboundMessageType;
 use tokio::sync::mpsc;
-use tokio::{task, time};
+use tokio::task;
 // use tokio::time::sleep;
 use tokio::time::Duration;
 

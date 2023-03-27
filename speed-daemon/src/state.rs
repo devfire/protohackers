@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, Day, IssuedTicketsDayDb, Mile, PlateRoadStruct,
+        CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct,
         PlateRoadTimestampCameraDb, Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
     },
 };
@@ -266,6 +266,11 @@ impl Db {
                         ticket = Some(new_ticket);
 
                         return ticket;
+                    } else {
+                        info!(
+                            "{:?} had avg speed of {} limit {}, no ticket.",
+                            plate_road, average_speed, common_limit
+                        );
                     }
                 }
                 _ => {
@@ -279,6 +284,30 @@ impl Db {
                                 &vec_of_ts_cameras[j],
                             );
 
+                            // Returns True if none of these days were previously issued a ticket on
+                            let mut issue_ticket: bool = true;
+
+                            // calculate the days for both observations
+                            let day1 =
+                                (vec_of_ts_cameras[i].timestamp as f32 / 86400.0).floor() as u32;
+                            let day2 =
+                                (vec_of_ts_cameras[j].timestamp as f32 / 86400.0).floor() as u32;
+
+                            if let Some(days) = state.issued_tickets_day.get(plate_road) {
+                                for day in days.iter() {
+                                    // skip if day 1 matches, or
+                                    // day 2 matches, or
+                                    //
+                                    if *day == day1 || *day == day2 {
+                                        issue_ticket = false;
+                                    }
+                                }
+
+                                if !issue_ticket {
+                                    warn!("Previously issued tickets for {:?}", days);
+                                    return None;
+                                }
+                            }
                             if average_speed > common_limit.into() {
                                 let new_ticket = generate_ticket(
                                     &vec_of_ts_cameras[i],
@@ -286,31 +315,6 @@ impl Db {
                                     plate_road,
                                     average_speed,
                                 );
-
-                                // Returns True if none of these days were previously issued a ticket on
-                                let mut issue_ticket: bool = true;
-
-                                // calculate the days for both observations
-                                let day1 = (vec_of_ts_cameras[0].timestamp as f32 / 86400.0).floor()
-                                    as u32;
-                                let day2 = (vec_of_ts_cameras[1].timestamp as f32 / 86400.0).floor()
-                                    as u32;
-
-                                if let Some(days) = state.issued_tickets_day.get(plate_road) {
-                                    for day in days.iter() {
-                                        // skip if day 1 matches, or
-                                        // day 2 matches, or
-                                        //
-                                        if *day == day1 || *day == day2 {
-                                            issue_ticket = false;
-                                        }
-                                    }
-
-                                    if !issue_ticket {
-                                        warn!("Previously issued tickets for {:?}", days);
-                                        return None;
-                                    }
-                                }
 
                                 info!(
                                     "{:?} ready, storing day1: {} day2: {}, dispatching.",
@@ -330,6 +334,11 @@ impl Db {
 
                                 ticket = Some(new_ticket);
                                 break;
+                            } else {
+                                info!(
+                                    "{:?} had avg speed of {} limit {}, no ticket.",
+                                    plate_road, average_speed, common_limit
+                                );
                             }
                         }
                         if ticket.is_some() {

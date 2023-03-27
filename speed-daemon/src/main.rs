@@ -8,7 +8,7 @@ use speed_daemon::{
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::mpsc, task,
+    sync::mpsc,
 };
 
 use env_logger::Env;
@@ -154,10 +154,10 @@ async fn process(
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                info!(
-                    "Client {} requested a heartbeat every {} deciseconds.",
-                    addr, interval
-                );
+                // info!(
+                //     "Client {} requested a heartbeat every {} deciseconds.",
+                //     addr, interval
+                // );
                 // if interal is 0 then no heartbeat
                 if interval == 0 {
                     // info!("Interval is 0, no heartbeat.")
