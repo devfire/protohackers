@@ -1,4 +1,4 @@
-use log::info;
+// use log::info;
 
 use speed_daemon::{message::InboundMessageType, state::Db};
 use std::net::SocketAddr;

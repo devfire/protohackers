@@ -4,7 +4,7 @@ use speed_daemon::{
     state::Db,
     types::{Plate, PlateRoadStruct, Timestamp, TimestampCameraStruct},
 };
-use tokio::{sync::mpsc, task};
+use tokio::sync::mpsc;
 
 use std::net::SocketAddr;
 
@@ -42,24 +42,17 @@ pub async fn handle_plate(
 
     shared_db.add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera);
 
-    task::spawn_blocking(move || {
-        if let Some(ticket) = shared_db.get_ticket_for_plate(&new_plate_road) {
-            // info!(
-            //     "Plate handler forwarding ticket {:?} to ticket manager",
-            //     ticket
-            // );
+    tokio::spawn(async move {
+        if let Some(ticket) = shared_db.get_ticket_for_plate(&new_plate_road).await {
+            info!(
+                "Plate handler forwarding ticket {:?} to ticket manager",
+                ticket
+            );
 
             // Send the ticket to the ticket dispatcher
-            ticket_tx
-                .blocking_send(ticket)
-                .expect("Unable to send ticket");
+            ticket_tx.send(ticket).await.expect("Unable to send ticket");
         }
     });
-
-    // info!(
-    //     "From {}: adding plate-timestamp struct {:?} from camera {:?}",
-    //     client_addr, new_plate_ts, current_camera
-    // );
 
     Ok(())
 }

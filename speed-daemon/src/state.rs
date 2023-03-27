@@ -82,7 +82,7 @@ impl Db {
 
     // This will return a Vec of tickets in a given road where the average speed exceeded the limit between
     // any pair of observations on the same road, even if the observations were not from adjacent cameras.
-    pub fn get_ticket_for_plate(
+    pub async fn get_ticket_for_plate(
         &self,
         plate_road: &PlateRoadStruct,
     ) -> Option<OutboundMessageType> {

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use log::info;
+// use log::info;
 use speed_daemon::{message::OutboundMessageType, state::Db, types::Road};
 use tokio::sync::mpsc;
 
