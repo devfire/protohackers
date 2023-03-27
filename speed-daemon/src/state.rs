@@ -93,6 +93,11 @@ impl Db {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
 
+            info!(
+                "Calculating avg speed between {:?} and {:?}",
+                observation1, observation2
+            );
+
             if let InboundMessageType::IAmCamera {
                 road: _,
                 mile,
