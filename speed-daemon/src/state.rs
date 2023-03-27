@@ -62,7 +62,7 @@ impl Db {
         Db { shared }
     }
 
-    pub fn add_plate_road_timestamp_camera(
+    pub async fn add_plate_road_timestamp_camera(
         &self,
         plate_road: PlateRoadStruct,
         ts_camera: TimestampCameraStruct,
@@ -71,7 +71,7 @@ impl Db {
             .shared
             .state
             .lock()
-            .expect("Unable to lock shared state in add_plate_road_timestamp_camera");
+            .await;
 
         state
             .plate_road_timestamp_camera

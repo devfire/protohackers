@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
                 speed: _,
             } = ticket
             {
-                if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road) {
+                if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road).await {
                     // info!("Ticket manager received {:?}", ticket);
                     send_ticket_to_dispatcher(ticket, dispatcher_tx);
                 } else {

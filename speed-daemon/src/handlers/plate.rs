@@ -16,7 +16,7 @@ pub async fn handle_plate(
     shared_db: Db,
 ) -> anyhow::Result<()> {
     // Get the camera that reported this plate
-    let current_camera = shared_db.get_current_camera(client_addr);
+    let current_camera = shared_db.get_current_camera(client_addr).await;
 
     // Init an empty struct
     let mut new_plate_road = PlateRoadStruct::new(String::from(""), 0);
@@ -40,7 +40,7 @@ pub async fn handle_plate(
 
     info!("Adding {:?} {:?}", new_plate_road, new_ts_camera);
 
-    shared_db.add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera);
+    shared_db.add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera).await;
 
     tokio::spawn(async move {
         if let Some(ticket) = shared_db.get_ticket_for_plate(&new_plate_road).await {
