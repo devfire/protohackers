@@ -86,6 +86,64 @@ impl Db {
         &self,
         plate_road: &PlateRoadStruct,
     ) -> Option<OutboundMessageType> {
+        // This returns a tuple of Vec of days where the ticket was generated,
+        // plus the ticket. Or None.
+        fn generate_ticket(
+            observation1: &TimestampCameraStruct,
+            observation2: &TimestampCameraStruct,
+            plate_road: &PlateRoadStruct,
+            average_speed: u32,
+        ) -> OutboundMessageType {
+            let mut mile1: Mile = 0;
+            let mut mile2: Mile = 0;
+
+            info!(
+                "Between {:?} and {:?} average speed was {}",
+                observation1, observation2, average_speed
+            );
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = observation1.camera
+            {
+                mile1 = mile;
+            };
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = observation2.camera
+            {
+                mile2 = mile;
+            };
+
+            // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+            // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+            let timestamp1 = observation1.timestamp;
+            let timestamp2 = observation2.timestamp;
+
+            // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+            // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+            if timestamp1 > timestamp2 {
+                // observation 1 > observation 2, need to swap mile1 & mile2
+                (mile1, mile2) = (mile2, mile1);
+            }
+
+            // Return the generated ticket
+            OutboundMessageType::Ticket {
+                plate: plate_road.plate.clone(),
+                road: plate_road.road,
+                mile1,
+                timestamp1: timestamp1.min(timestamp2),
+                mile2,
+                timestamp2: timestamp1.max(timestamp2),
+                speed: (average_speed * 100) as Speed,
+            }
+        }
+
         let mut state = self
             .shared
             .state
@@ -208,7 +266,7 @@ impl Db {
                             (mile1, mile2) = (mile2, mile1);
                         }
 
-                        // Create a ticket
+                        // Return the generated ticket
                         let new_ticket = OutboundMessageType::Ticket {
                             plate: plate_road.plate.clone(),
                             road: plate_road.road,
@@ -254,6 +312,7 @@ impl Db {
 
                     for i in 0..vec_of_ts_cameras.len() {
                         for j in (i + 1)..vec_of_ts_cameras.len() {
+                            
                             let mut mile1: Mile = 0;
                             let mut mile2: Mile = 0;
 
@@ -316,19 +375,13 @@ impl Db {
                             );
 
                             if average_speed > common_limit.into() {
-                                let new_ticket = OutboundMessageType::Ticket {
-                                    plate: plate_road.plate.clone(),
-                                    road: plate_road.road,
-                                    mile1,
-                                    timestamp1: vec_of_ts_cameras[i]
-                                        .timestamp
-                                        .min(vec_of_ts_cameras[j].timestamp),
-                                    mile2,
-                                    timestamp2: vec_of_ts_cameras[i]
-                                        .timestamp
-                                        .max(vec_of_ts_cameras[j].timestamp),
-                                    speed: (average_speed * 100) as Speed,
-                                };
+                                let new_ticket = generate_ticket(
+                                    &vec_of_ts_cameras[i],
+                                    &vec_of_ts_cameras[j],
+                                    plate_road,
+                                    average_speed,
+                                );
+
                                 info!(
                                     "{:?} ready, storing day1: {} day2: {}, dispatching.",
                                     new_ticket, day1, day2
