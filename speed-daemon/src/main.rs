@@ -45,53 +45,17 @@ async fn main() -> anyhow::Result<()> {
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind(&addr).await?;
 
-    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(8192000);
-    // NOTE: These are cheap clones, pointers only.
-    let ticket_tx_queue = ticket_tx.clone();
-    let shared_ticket_db = shared_db.clone();
-
-    // Spawn off a ticket manager loop.
-    tokio::spawn(async move {
-        // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
-        // This method blocks until a message is received.
-        while let Some(ticket) = ticket_rx.recv().await {
-            if let OutboundMessageType::Ticket {
-                plate: _,
-                road,
-                mile1: _,
-                timestamp1: _,
-                mile2: _,
-                timestamp2: _,
-                speed: _,
-            } = ticket
-            {
-                if let Some(dispatcher_tx) = shared_ticket_db.get_ticket_dispatcher(road).await {
-                    // info!("Ticket manager received {:?}", ticket);
-                    send_ticket_to_dispatcher(ticket, dispatcher_tx);
-                } else {
-                    // warn!("No dispatcher found, sending the ticket back");
-                    ticket_tx_queue
-                        .send(ticket)
-                        .await
-                        .expect("Unable to send ticket");
-                }
-            }
-        }
-    });
-
     info!("Server running on {}", addr);
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-
-        // Clone the handle to the shared state.
         let shared_db_main = shared_db.clone();
-        let ticket_tx_process = ticket_tx.clone();
+
         // Spawn our handler to be run asynchronously.
         tokio::spawn(async move {
             // info!("Accepted connection from {}", addr);
-            if let Err(e) = process(stream, addr, ticket_tx_process, shared_db_main).await {
+            if let Err(e) = process(stream, addr, shared_db_main).await {
                 error!("Error: {:?}", e);
             }
         });
@@ -101,9 +65,8 @@ async fn main() -> anyhow::Result<()> {
 async fn process(
     stream: TcpStream,
     addr: SocketAddr,
-    ticket_tx: mpsc::Sender<OutboundMessageType>,
     shared_db: Db,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(), SpeedDaemonError> {
     // info!("Processing stream from {}", addr);
     let (client_reader, client_writer) = stream.into_split();
 
@@ -132,8 +95,46 @@ async fn process(
 
             if let Err(e) = client_writer.send(msg).await {
                 error!("Client {} disconnected: {}", addr, e);
-                return Err(SpeedDaemonError::DisconnectedClient);
+                return Err(e);
             }
+        }
+        Ok(())
+    });
+
+    let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(8192000);
+
+    // Clone the handle to the shared state.
+    let shared_db_main = shared_db.clone();
+
+    // NOTE: These are cheap clones, pointers only.
+    let ticket_tx_queue = ticket_tx.clone();
+
+    // Spawn off a ticket manager loop.
+    let ticket_manager = tokio::spawn(async move {
+        // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
+        // This method blocks until a message is received.
+        while let Some(ticket) = ticket_rx.recv().await {
+            if let OutboundMessageType::Ticket {
+                plate: _,
+                road,
+                mile1: _,
+                timestamp1: _,
+                mile2: _,
+                timestamp2: _,
+                speed: _,
+            } = ticket
+            {
+                if let Some(dispatcher_tx) = shared_db_main.get_ticket_dispatcher(road).await {
+                    // info!("Ticket manager received {:?}", ticket);
+                    send_ticket_to_dispatcher(ticket, dispatcher_tx);
+                } else {
+                    // warn!("No dispatcher found, sending the ticket back");
+                    ticket_tx_queue
+                        .send(ticket)
+                        .await
+                        .expect("Unable to send ticket");
+                }
+            } 
         }
         Ok(())
     });
@@ -179,16 +180,24 @@ async fn process(
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
-                error!("{}", err_message);
+                // error!("{}", err_message);
                 let tx_error = tx.clone();
                 handle_error(err_message, tx_error)?;
             }
         }
     }
 
-    if let Err(e) = manager.await? {
+    if let Err(e) = manager.await.expect("Unable to await msg manager") {
         error!("Error from the tx manager: {}", e)
     }
+
+    if let Err(e) = ticket_manager
+        .await
+        .expect("Unable to await ticket manager")
+    {
+        error!("Error from the tx manager: {}", e)
+    }
+
     Ok(())
 }
 

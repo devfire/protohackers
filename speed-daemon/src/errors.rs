@@ -1,20 +1,16 @@
+use anyhow::Error;
 use thiserror::Error;
 
 /// SpeedDaemonError enumerates all possible errors returned by this library.
 #[derive(Error, Debug)]
+#[error(transparent)]
 pub enum SpeedDaemonError {
-    /// Nom parser was unable to parse the in-bound message
-    #[error("Unable to parse message")]
-    ParseFailure,
+    #[error(transparent)]
+    Anyhow(#[from] Error),
 
-    /// Nom parser was unable to parse the in-bound message
-    #[error("Duplicate camera detected")]
-    DuplicateCamera,
-
-    #[error("Client disconnected")]
-    DisconnectedClient,
+    #[error("Error message: {0}")]
+    CustomError(#[from]String),
 
     /// Represents all other cases of `std::io::Error`.
-    #[error(transparent)]
     IOError(#[from] std::io::Error),
 }

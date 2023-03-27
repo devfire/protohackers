@@ -46,7 +46,10 @@ impl Decoder for MessageCodec {
                 Ok(Some(parsed_message))
             }
             Err(Err::Incomplete(Needed::Size(_))) => Ok(None),
-            Err(_) => Err(SpeedDaemonError::ParseFailure),
+            Err(_) => {
+                let custom_error = SpeedDaemonError::CustomError("Bad parse".to_string());
+                Err(custom_error)
+            },
         }
     }
 }
