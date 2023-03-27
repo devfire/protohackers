@@ -134,9 +134,9 @@ async fn process(
                         .await
                         .expect("Unable to send ticket");
                 }
-            } 
+            }
         }
-        Ok(())
+        Ok::<(),SpeedDaemonError>(())
     });
 
     while let Some(message) = client_reader.next().await {
@@ -151,7 +151,8 @@ async fn process(
                     ticket_tx.clone(),
                     shared_db.clone(),
                 )
-                .await?
+                .await
+                .expect("unable to handle plates");
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -164,25 +165,31 @@ async fn process(
                     // info!("Interval is 0, no heartbeat.")
                 } else {
                     let tx_heartbeat = tx.clone();
-                    handle_want_hearbeat(interval, tx_heartbeat).await?;
+                    handle_want_hearbeat(interval, tx_heartbeat)
+                        .await
+                        .expect("Unable to heartbeat");
                 }
             }
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(&addr, new_camera, shared_db.clone()).await?;
+                handle_i_am_camera(&addr, new_camera, shared_db.clone())
+                    .await
+                    .expect("Unable to handle camera");
             }
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 // info!("Dispatcher detected at address {}", addr);
 
-                handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone()).await?;
+                handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone())
+                    .await
+                    .expect("Unable to handle dispatcher");
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
                 // error!("{}", err_message);
                 let tx_error = tx.clone();
-                handle_error(err_message, tx_error)?;
+                handle_error(err_message, tx_error).expect("Unable to handle error");
             }
         }
     }
