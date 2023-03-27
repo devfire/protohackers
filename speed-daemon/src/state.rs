@@ -89,13 +89,14 @@ impl Db {
         fn calculate_average_speed(
             observation1: &TimestampCameraStruct,
             observation2: &TimestampCameraStruct,
+            plate_road: &PlateRoadStruct,
         ) -> u32 {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
 
             info!(
-                "Calculating avg speed between {:?} and {:?}",
-                observation1, observation2
+                "For {:?} Calculating avg speed between {:?} and {:?}",
+                plate_road, observation1, observation2
             );
 
             if let InboundMessageType::IAmCamera {
@@ -214,8 +215,11 @@ impl Db {
                     info!("Special case of 2 entries for {:?}, analyzing.", plate_road);
 
                     // First, let's calculate the average speed between two observations
-                    let average_speed =
-                        calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
+                    let average_speed = calculate_average_speed(
+                        &vec_of_ts_cameras[0],
+                        &vec_of_ts_cameras[1],
+                        plate_road,
+                    );
 
                     // Returns True if none of these days were previously issued a ticket on
                     let mut issue_ticket: bool = true;
@@ -287,6 +291,7 @@ impl Db {
                             let average_speed = calculate_average_speed(
                                 &vec_of_ts_cameras[i],
                                 &vec_of_ts_cameras[j],
+                                plate_road,
                             );
 
                             info!(
