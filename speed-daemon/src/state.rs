@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct, PlateRoadTimestampCameraDb,
-        Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
+        CurrentCameraDb, Day, IssuedTicketsDayDb, Mile, PlateRoadStruct,
+        PlateRoadTimestampCameraDb, Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
     },
 };
 
@@ -118,6 +118,68 @@ impl Db {
             ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32
         }
 
+        // This returns a tuple of Vec of days where the ticket was generated,
+        // plus the ticket. Or None.
+        fn generate_ticket(
+            observation1: &TimestampCameraStruct,
+            observation2: &TimestampCameraStruct,
+            plate_road: &PlateRoadStruct,
+            average_speed: u32,
+        ) -> OutboundMessageType {
+            let mut mile1: Mile = 0;
+            let mut mile2: Mile = 0;
+            let mut common_limit: u16 = 0;
+
+            info!(
+                "Between {:?} and {:?} average speed was {}",
+                observation1, observation2, average_speed
+            );
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit,
+            } = observation1.camera
+            {
+                mile1 = mile;
+                common_limit = limit;
+            };
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile,
+                limit: _,
+            } = observation2.camera
+            {
+                mile2 = mile;
+            };
+
+            // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+            // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+            let timestamp1 = observation1.timestamp;
+            let timestamp2 = observation2.timestamp;
+
+            // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+            // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+            if timestamp1 > timestamp2 {
+                // observation 1 > observation 2, need to swap mile1 & mile2
+                (mile1, mile2) = (mile2, mile1);
+            }
+
+            let new_ticket = OutboundMessageType::Ticket {
+                plate: plate_road.plate.clone(),
+                road: plate_road.road,
+                mile1,
+                timestamp1: timestamp1.min(timestamp2),
+                mile2,
+                timestamp2: timestamp1.max(timestamp2),
+                speed: (average_speed * 100) as Speed,
+            };
+
+            // Return the generated ticket
+            new_ticket
+        }
+
         let mut state = self
             .shared
             .state
@@ -126,12 +188,23 @@ impl Db {
 
         let mut ticket = None;
 
+        // Returns True if none of these days were previously issued a ticket on
+        let mut issue_ticket: bool = false;
+        if let Some(days) = state.issued_tickets_day.get(plate_road) {
+            for day in days.iter() {
+                if *day >= days[0] || *day <= days[1] {
+                    issue_ticket = true;
+                }
+            }
+
+            if !issue_ticket {
+                warn!("Previously issued tickets for {:?}", days);
+                return None;
+            }
+        }
+
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
-            let mut mile1: Mile = 0;
-            let mut mile2: Mile = 0;
-            let mut common_limit: u16 = 0;
-
             if vec_of_ts_cameras.len() < 2 {
                 warn!(
                     "{:?} has fewer than 2 elements in {:?}, no tickets.",
@@ -139,78 +212,40 @@ impl Db {
                 );
                 return None;
             } else {
+                // TODO: Add for exactly 2 entries
                 info!("More than 2 entries for {:?}, analyzing.", plate_road);
             }
 
-            for observation1 in 0..vec_of_ts_cameras.len() {
-                for observation2 in (observation1)..vec_of_ts_cameras.len() {
-                    info!(
-                        "Comparing {:?} with {:?}",
-                        vec_of_ts_cameras[observation1], vec_of_ts_cameras[observation2]
-                    );
-                    
+            let mut common_limit = 0;
+
+            if let InboundMessageType::IAmCamera {
+                road: _,
+                mile: _,
+                limit,
+            } = vec_of_ts_cameras[0].camera
+            {
+                common_limit = limit;
+            };
+
+            for i in 0..vec_of_ts_cameras.len() {
+                for j in (i + 1)..vec_of_ts_cameras.len() {
                     // First, let's calculate the average speed between two observations
-                    let average_speed = calculate_average_speed(
-                        &vec_of_ts_cameras[observation1],
-                        &vec_of_ts_cameras[observation2],
-                    );
+                    let average_speed =
+                        calculate_average_speed(&vec_of_ts_cameras[i], &vec_of_ts_cameras[j]);
 
-                    if let InboundMessageType::IAmCamera {
-                        road: _,
-                        mile,
-                        limit,
-                    } = vec_of_ts_cameras[observation1].camera
-                    {
-                        mile1 = mile;
-                        common_limit = limit;
-                    };
-
-                    if let InboundMessageType::IAmCamera {
-                        road: _,
-                        mile,
-                        limit: _,
-                    } = vec_of_ts_cameras[observation2].camera
-                    {
-                        mile2 = mile;
-                    };
-
-                    let timestamp1 = vec_of_ts_cameras[observation1].timestamp;
-                    let timestamp2 = vec_of_ts_cameras[observation2].timestamp;
-
-                    // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-                    // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-                    if timestamp1 > timestamp2 {
-                        // observation 1 > observation 2, need to swap mile1 & mile2
-                        (mile1, mile2) = (mile2, mile1);
-                    }
-
-                    // calculate the days for both observations
-                    let day1 = (timestamp1 as f32 / 86400.0).floor() as u32;
-                    let day2 = (timestamp2 as f32 / 86400.0).floor() as u32;
-
-                    // Returns True if none of these days were previously issued a ticket on
-                    let mut issue_ticket: bool = false;
-
-                    if let Some(days) = state.issued_tickets_day.get(plate_road) {
-                        for day in days.iter() {
-                            if *day >= day1 || *day <= day2 {
-                                issue_ticket = true;
-                            }
-                        }
-                    }
-
-                    if average_speed > common_limit.into() && issue_ticket {
-                        let new_ticket = OutboundMessageType::Ticket {
-                            plate: plate_road.plate.clone(),
-                            road: plate_road.road,
-                            mile1,
-                            timestamp1: timestamp1.min(timestamp2),
-                            mile2,
-                            timestamp2: timestamp1.max(timestamp2),
-                            speed: (average_speed * 100) as Speed,
-                        };
+                    if average_speed > common_limit.into() {
+                        let new_ticket = generate_ticket(
+                            &vec_of_ts_cameras[i],
+                            &vec_of_ts_cameras[j],
+                            plate_road,
+                            average_speed,
+                        );
 
                         info!("{:?} ready, sending for dispatch.", new_ticket);
+
+                        // calculate the days for both observations
+                        let day1 = (vec_of_ts_cameras[i].timestamp as f32 / 86400.0).floor() as u32;
+                        let day2 = (vec_of_ts_cameras[j].timestamp as f32 / 86400.0).floor() as u32;
 
                         state
                             .issued_tickets_day
