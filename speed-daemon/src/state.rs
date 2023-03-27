@@ -86,38 +86,6 @@ impl Db {
         &self,
         plate_road: &PlateRoadStruct,
     ) -> Option<OutboundMessageType> {
-        fn calculate_average_speed(
-            observation1: &TimestampCameraStruct,
-            observation2: &TimestampCameraStruct,
-        ) -> u32 {
-            let mut mile1: Mile = 0;
-            let mut mile2: Mile = 0;
-
-            if let InboundMessageType::IAmCamera {
-                road: _,
-                mile,
-                limit: _,
-            } = observation1.camera
-            {
-                mile1 = mile;
-            };
-
-            if let InboundMessageType::IAmCamera {
-                road: _,
-                mile,
-                limit: _,
-            } = observation2.camera
-            {
-                mile2 = mile;
-            };
-
-            // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
-            let distance_traveled = mile1.abs_diff(mile2) as u32;
-            let time_traveled = observation1.timestamp.abs_diff(observation2.timestamp);
-
-            ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32
-        }
-
         // This returns a tuple of Vec of days where the ticket was generated,
         // plus the ticket. Or None.
         fn generate_ticket(
@@ -208,9 +176,36 @@ impl Db {
                 2 => {
                     info!("Special case of 2 entries for {:?}, analyzing.", plate_road);
 
+                    let mut mile1: Mile = 0;
+                    let mut mile2: Mile = 0;
+
+                    if let InboundMessageType::IAmCamera {
+                        road: _,
+                        mile,
+                        limit: _,
+                    } = vec_of_ts_cameras[0].camera
+                    {
+                        mile1 = mile;
+                    };
+
+                    if let InboundMessageType::IAmCamera {
+                        road: _,
+                        mile,
+                        limit: _,
+                    } = vec_of_ts_cameras[1].camera
+                    {
+                        mile2 = mile;
+                    };
+
+                    // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
+                    let distance_traveled = mile1.abs_diff(mile2) as u32;
+                    let time_traveled = vec_of_ts_cameras[0]
+                        .timestamp
+                        .abs_diff(vec_of_ts_cameras[1].timestamp);
+
                     // First, let's calculate the average speed between two observations
                     let average_speed =
-                        calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
+                        ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32;
 
                     // Returns True if none of these days were previously issued a ticket on
                     let mut issue_ticket: bool = true;
@@ -236,12 +231,51 @@ impl Db {
                     }
 
                     if average_speed > common_limit.into() {
-                        let new_ticket = generate_ticket(
-                            &vec_of_ts_cameras[0],
-                            &vec_of_ts_cameras[1],
-                            plate_road,
-                            average_speed,
+                        info!(
+                            "Between {:?} and {:?} average speed was {}",
+                            vec_of_ts_cameras[0], vec_of_ts_cameras[1], average_speed
                         );
+
+                        if let InboundMessageType::IAmCamera {
+                            road: _,
+                            mile,
+                            limit: _,
+                        } = vec_of_ts_cameras[0].camera
+                        {
+                            mile1 = mile;
+                        };
+
+                        if let InboundMessageType::IAmCamera {
+                            road: _,
+                            mile,
+                            limit: _,
+                        } = vec_of_ts_cameras[1].camera
+                        {
+                            mile2 = mile;
+                        };
+
+                        // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                        // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                        let timestamp1 = vec_of_ts_cameras[0].timestamp;
+                        let timestamp2 = vec_of_ts_cameras[1].timestamp;
+
+                        // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
+                        // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
+                        if timestamp1 > timestamp2 {
+                            // observation 1 > observation 2, need to swap mile1 & mile2
+                            (mile1, mile2) = (mile2, mile1);
+                        }
+
+                        // Return the generated ticket
+                        let new_ticket = OutboundMessageType::Ticket {
+                            plate: plate_road.plate.clone(),
+                            road: plate_road.road,
+                            mile1,
+                            timestamp1: timestamp1.min(timestamp2),
+                            mile2,
+                            timestamp2: timestamp1.max(timestamp2),
+                            speed: (average_speed * 100) as Speed,
+                        };
 
                         info!(
                             "{:?} ready, sending for dispatch. Day1: {} day2: {}",
@@ -278,16 +312,38 @@ impl Db {
 
                     for i in 0..vec_of_ts_cameras.len() {
                         for j in (i + 1)..vec_of_ts_cameras.len() {
-                            // First, let's calculate the average speed between two observations
-                            let average_speed = calculate_average_speed(
-                                &vec_of_ts_cameras[i],
-                                &vec_of_ts_cameras[j],
-                            );
+                            
+                            let mut mile1: Mile = 0;
+                            let mut mile2: Mile = 0;
 
-                            info!(
-                                "Comparing {:?} with {:?} avg speed {}",
-                                vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
-                            );
+                            if let InboundMessageType::IAmCamera {
+                                road: _,
+                                mile,
+                                limit: _,
+                            } = vec_of_ts_cameras[0].camera
+                            {
+                                mile1 = mile;
+                            };
+
+                            if let InboundMessageType::IAmCamera {
+                                road: _,
+                                mile,
+                                limit: _,
+                            } = vec_of_ts_cameras[1].camera
+                            {
+                                mile2 = mile;
+                            };
+
+                            // need to x3600 to convert mi/sec to mi/hr. Later, we'll x100 the actual ticket to comply with the spec.
+                            let distance_traveled = mile1.abs_diff(mile2) as u32;
+                            let time_traveled = vec_of_ts_cameras[i]
+                                .timestamp
+                                .abs_diff(vec_of_ts_cameras[j].timestamp);
+
+                            // First, let's calculate the average speed between two observations
+                            let average_speed = ((distance_traveled as f32 * 3600.0)
+                                / time_traveled as f32)
+                                .round() as u32;
 
                             // Returns True if none of these days were previously issued a ticket on
                             let mut issue_ticket: bool = true;
@@ -313,6 +369,11 @@ impl Db {
                                     return None;
                                 }
                             }
+                            info!(
+                                "Comparing {:?} with {:?} avg speed {}",
+                                vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
+                            );
+
                             if average_speed > common_limit.into() {
                                 let new_ticket = generate_ticket(
                                     &vec_of_ts_cameras[i],
