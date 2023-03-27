@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
-        CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct,
-        PlateRoadTimestampCameraDb, Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
+        CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct, PlateRoadTimestampCameraDb,
+        Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
     },
 };
 
@@ -128,7 +128,7 @@ impl Db {
         ) -> OutboundMessageType {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
-            
+
             info!(
                 "Between {:?} and {:?} average speed was {}",
                 observation1, observation2, average_speed
@@ -163,8 +163,6 @@ impl Db {
                 // observation 1 > observation 2, need to swap mile1 & mile2
                 (mile1, mile2) = (mile2, mile1);
             }
-
-            
 
             // Return the generated ticket
             OutboundMessageType::Ticket {
@@ -334,8 +332,8 @@ impl Db {
                                 break;
                             } else {
                                 info!(
-                                    "{:?} had avg speed of {} limit {}, no ticket.",
-                                    plate_road, average_speed, common_limit
+                                    "{:?} from {:?} to {:?} had avg speed of {} limit {}, no ticket.",
+                                    plate_road, vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed, common_limit
                                 );
                             }
                         }
