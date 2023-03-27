@@ -205,17 +205,6 @@ impl Db {
 
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
-            if vec_of_ts_cameras.len() < 2 {
-                warn!(
-                    "{:?} has fewer than 2 elements in {:?}, no tickets.",
-                    plate_road, vec_of_ts_cameras
-                );
-                return None;
-            } else {
-                // TODO: Add for exactly 2 entries
-                info!("More than 2 entries for {:?}, analyzing.", plate_road);
-            }
-
             let mut common_limit = 0;
 
             if let InboundMessageType::IAmCamera {
@@ -227,25 +216,37 @@ impl Db {
                 common_limit = limit;
             };
 
-            for i in 0..vec_of_ts_cameras.len() {
-                for j in (i + 1)..vec_of_ts_cameras.len() {
+            match vec_of_ts_cameras.len() {
+                0 | 1 => {
+                    warn!(
+                        "{:?} has fewer than 2 elements in {:?}, no tickets.",
+                        plate_road, vec_of_ts_cameras
+                    );
+                    return None;
+                }
+                2 => {
+                    info!("Special case of 2 entries for {:?}, analyzing.", plate_road);
+
                     // First, let's calculate the average speed between two observations
                     let average_speed =
-                        calculate_average_speed(&vec_of_ts_cameras[i], &vec_of_ts_cameras[j]);
+                        calculate_average_speed(&vec_of_ts_cameras[0], &vec_of_ts_cameras[1]);
 
                     if average_speed > common_limit.into() {
                         let new_ticket = generate_ticket(
-                            &vec_of_ts_cameras[i],
-                            &vec_of_ts_cameras[j],
+                            &vec_of_ts_cameras[0],
+                            &vec_of_ts_cameras[1],
                             plate_road,
                             average_speed,
                         );
 
-                        info!("{:?} ready, sending for dispatch.", new_ticket);
-
                         // calculate the days for both observations
-                        let day1 = (vec_of_ts_cameras[i].timestamp as f32 / 86400.0).floor() as u32;
-                        let day2 = (vec_of_ts_cameras[j].timestamp as f32 / 86400.0).floor() as u32;
+                        let day1 = (vec_of_ts_cameras[0].timestamp as f32 / 86400.0).floor() as u32;
+                        let day2 = (vec_of_ts_cameras[1].timestamp as f32 / 86400.0).floor() as u32;
+
+                        info!(
+                            "{:?} ready, sending for dispatch. Day1: {} day2: {}",
+                            new_ticket, day1, day2
+                        );
 
                         state
                             .issued_tickets_day
@@ -259,15 +260,65 @@ impl Db {
                             .push(day2);
 
                         ticket = Some(new_ticket);
-                        break;
+
+                        return ticket;
                     }
                 }
-                if ticket.is_some() {
-                    break;
+                _ => {
+                    info!("More than 2 entries for {:?}, analyzing.", plate_road);
+
+                    for i in 0..vec_of_ts_cameras.len() {
+                        for j in (i + 1)..vec_of_ts_cameras.len() {
+                            // First, let's calculate the average speed between two observations
+                            let average_speed = calculate_average_speed(
+                                &vec_of_ts_cameras[i],
+                                &vec_of_ts_cameras[j],
+                            );
+
+                            if average_speed > common_limit.into() {
+                                let new_ticket = generate_ticket(
+                                    &vec_of_ts_cameras[i],
+                                    &vec_of_ts_cameras[j],
+                                    plate_road,
+                                    average_speed,
+                                );
+
+                                // calculate the days for both observations
+                                let day1 = (vec_of_ts_cameras[i].timestamp as f32 / 86400.0).floor()
+                                    as u32;
+                                let day2 = (vec_of_ts_cameras[j].timestamp as f32 / 86400.0).floor()
+                                    as u32;
+
+                                info!(
+                                    "{:?} ready, storing day1: {} day2: {}, dispatching.",
+                                    new_ticket, day1, day2
+                                );
+
+                                state
+                                    .issued_tickets_day
+                                    .entry(plate_road.to_owned())
+                                    .or_default()
+                                    .push(day1);
+                                state
+                                    .issued_tickets_day
+                                    .entry(plate_road.to_owned())
+                                    .or_default()
+                                    .push(day2);
+
+                                ticket = Some(new_ticket);
+                                break;
+                            }
+                        }
+                        if ticket.is_some() {
+                            break;
+                        }
+                    }
                 }
             }
+
             ticket
         } else {
+            warn!("No entries found for {:?}, exiting.", plate_road);
             None
         }
     }
