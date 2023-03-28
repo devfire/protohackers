@@ -273,13 +273,13 @@ impl Db {
                 }
                 _ => {
                     info!(
-                        "Total {} entries for {:?}, analyzing.",
-                        vec_of_ts_cameras.len(),
-                        plate_road
+                        "For {:?} we have entries {:?}, analyzing.",
+                        plate_road,
+                        vec_of_ts_cameras,
                     );
 
                     for i in 0..vec_of_ts_cameras.len() {
-                        for j in 0..vec_of_ts_cameras.len() {
+                        for j in (i + 1)..vec_of_ts_cameras.len() {
                             // First, let's calculate the average speed between two observations
                             let average_speed = calculate_average_speed(
                                 &vec_of_ts_cameras[i],
@@ -290,8 +290,11 @@ impl Db {
                             .expect("Failed to calculate average speed");
 
                             info!(
-                                "Comparing {:?} with {:?} avg speed {}",
-                                vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
+                                "For {:?} comparing {:?} with {:?} avg speed {}",
+                                plate_road,
+                                vec_of_ts_cameras[i],
+                                vec_of_ts_cameras[j],
+                                average_speed
                             );
 
                             // Returns True if none of these days were previously issued a ticket on
