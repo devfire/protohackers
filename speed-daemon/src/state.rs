@@ -289,10 +289,10 @@ impl Db {
                             .await
                             .expect("Failed to calculate average speed");
 
-                            // info!(
-                            //     "Comparing {:?} with {:?} avg speed {}",
-                            //     vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
-                            // );
+                            info!(
+                                "Comparing {:?} with {:?} avg speed {}",
+                                vec_of_ts_cameras[i], vec_of_ts_cameras[j], average_speed
+                            );
 
                             // Returns True if none of these days were previously issued a ticket on
                             let mut issue_ticket: bool = true;
