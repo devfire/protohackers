@@ -67,11 +67,7 @@ impl Db {
         plate_road: PlateRoadStruct,
         ts_camera: TimestampCameraStruct,
     ) {
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .await;
+        let mut state = self.shared.state.lock().await;
 
         state
             .plate_road_timestamp_camera
@@ -95,7 +91,7 @@ impl Db {
             let mut mile2: Mile = 0;
 
             info!(
-                "For {:?} Calculating avg speed between {:?} and {:?}",
+                "For {:?} calculating avg speed between {:?} and {:?}",
                 plate_road, observation1, observation2
             );
 
@@ -136,8 +132,8 @@ impl Db {
             let mut mile2: Mile = 0;
 
             info!(
-                "Between {:?} and {:?} average speed was {}",
-                observation1, observation2, average_speed
+                "For {:?} between {:?} and {:?} average speed was {}",
+                plate_road, observation1, observation2, average_speed
             );
 
             if let InboundMessageType::IAmCamera {
@@ -170,8 +166,7 @@ impl Db {
                 (mile1, mile2) = (mile2, mile1);
             }
 
-            // Return the generated ticket
-            Ok(OutboundMessageType::Ticket {
+            let ticket = OutboundMessageType::Ticket {
                 plate: plate_road.plate.clone(),
                 road: plate_road.road,
                 mile1,
@@ -179,15 +174,16 @@ impl Db {
                 mile2,
                 timestamp2: timestamp1.max(timestamp2),
                 speed: (average_speed * 100) as Speed,
-            })
+            };
+
+            info!("{:?}", ticket);
+
+            // Return the generated ticket
+            Ok(ticket)
         }
 
-        let mut state = self
-            .shared
-            .state
-            .lock().await;
+        let mut state = self.shared.state.lock().await;
 
-        
         // For a given (plate,road) combo let's get all the (timestamp, camera) observations in the Vec
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
             let mut common_limit = 0;
@@ -380,21 +376,13 @@ impl Db {
 
     // This is invoked by handle_i_am_camera when a new camera comes online.
     pub async fn add_camera(&mut self, addr: SocketAddr, new_camera: InboundMessageType) {
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .await;
+        let mut state = self.shared.state.lock().await;
 
         state.current_camera.insert(addr, new_camera);
     }
 
     pub async fn get_current_camera(&self, addr: &SocketAddr) -> InboundMessageType {
-        let state = self
-            .shared
-            .state
-            .lock()
-            .await;
+        let state = self.shared.state.lock().await;
 
         let camera = state
             .current_camera
@@ -411,21 +399,16 @@ impl Db {
     ) {
         let mut addr_tx_hash = HashMap::new();
         addr_tx_hash.insert(addr, tx);
-        let mut state = self
-            .shared
-            .state
-            .lock()
-            .await;
+        let mut state = self.shared.state.lock().await;
 
         state.dispatchers.insert(road, addr_tx_hash);
     }
 
-    pub async fn  get_ticket_dispatcher(&self, road: Road) -> Option<mpsc::Sender<OutboundMessageType>> {
-        let state = self
-            .shared
-            .state
-            .lock()
-            .await;
+    pub async fn get_ticket_dispatcher(
+        &self,
+        road: Road,
+    ) -> Option<mpsc::Sender<OutboundMessageType>> {
+        let state = self.shared.state.lock().await;
 
         // First, we get the hash mapping the road num to the client address-tx hash
         // Second, we get the tx from the client address.
