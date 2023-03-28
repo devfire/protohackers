@@ -1,6 +1,6 @@
 use log::info;
 use speed_daemon::{
-    message::{InboundMessageType, OutboundMessageType},
+    message::InboundMessageType,
     state::Db,
     types::{Plate, PlateRoadStruct, Timestamp, TimestampCameraStruct},
 };
@@ -12,7 +12,7 @@ pub async fn handle_plate(
     client_addr: &SocketAddr,
     new_plate: Plate,
     new_timestamp: Timestamp,
-    ticket_tx: mpsc::Sender<OutboundMessageType>,
+    plate_tx: mpsc::Sender<PlateRoadStruct>,
     shared_db: Db,
 ) -> anyhow::Result<()> {
     // Get the camera that reported this plate
@@ -21,6 +21,7 @@ pub async fn handle_plate(
     // Init an empty struct
     let mut new_plate_road = PlateRoadStruct::new(String::from(""), 0);
 
+    // deconstruct the IAmCamera message to get the plate+road combo
     if let InboundMessageType::IAmCamera {
         road,
         mile: _,
@@ -28,8 +29,8 @@ pub async fn handle_plate(
     } = current_camera
     {
         new_plate_road = PlateRoadStruct {
-            road,
             plate: new_plate,
+            road,
         };
     };
 
@@ -40,19 +41,13 @@ pub async fn handle_plate(
 
     info!("Adding {:?} {:?}", new_plate_road, new_ts_camera);
 
-    shared_db.add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera).await;
+    // add the newly observed plate:road combo to the shared db
+    shared_db
+        .add_plate_road_timestamp_camera(new_plate_road.clone(), new_ts_camera)
+        .await;
 
-    tokio::spawn(async move {
-        if let Some(ticket) = shared_db.get_ticket_for_plate(&new_plate_road).await {
-            info!(
-                "Plate handler forwarding ticket {:?} to ticket manager",
-                ticket
-            );
-
-            // Send the ticket to the ticket dispatcher
-            ticket_tx.send(ticket).await.expect("Unable to send ticket");
-        }
-    });
+    // send it off to the ticket_manager for processing
+    plate_tx.send(new_plate_road).await?;
 
     Ok(())
 }

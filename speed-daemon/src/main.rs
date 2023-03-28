@@ -3,6 +3,7 @@ use speed_daemon::{
     errors::SpeedDaemonError,
     message::{InboundMessageType, OutboundMessageType},
     state::Db,
+    types::PlateRoadStruct,
 };
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -136,7 +137,33 @@ async fn process(
                 }
             }
         }
-        Ok::<(),SpeedDaemonError>(())
+        Ok::<(), SpeedDaemonError>(())
+    });
+
+    let (plate_tx, mut plate_rx) = mpsc::channel::<PlateRoadStruct>(8192000);
+    // this channel is for plate handler -> plate ticket checker
+    let plate_tx_queue = ticket_tx.clone();
+
+    let shared_db_plate = shared_db.clone();
+
+    // This receives messages from the plate_handler. Checks each one to see if we need to generate at ticket.
+    // Sends a ticket to the ticket dispatcher if yes.
+    let plate_manager = tokio::spawn(async move {
+        while let Some(new_plate_road) = plate_rx.recv().await {
+            if let Some(ticket) = shared_db_plate.get_ticket_for_plate(&new_plate_road).await {
+                info!(
+                    "Plate manager forwarding ticket {:?} to ticket manager",
+                    ticket
+                );
+
+                // Send the ticket to the ticket dispatcher
+                plate_tx_queue
+                    .send(ticket)
+                    .await
+                    .expect("Unable to send ticket");
+            }
+        }
+        Ok::<(), SpeedDaemonError>(())
     });
 
     while let Some(message) = client_reader.next().await {
@@ -144,15 +171,9 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(
-                    &addr,
-                    plate,
-                    timestamp,
-                    ticket_tx.clone(),
-                    shared_db.clone(),
-                )
-                .await
-                .expect("unable to handle plates");
+                handle_plate(&addr, plate, timestamp, plate_tx.clone(), shared_db.clone())
+                    .await
+                    .expect("unable to handle plates");
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
@@ -202,6 +223,10 @@ async fn process(
         .await
         .expect("Unable to await ticket manager")
     {
+        error!("Error from the tx manager: {}", e)
+    }
+
+    if let Err(e) = plate_manager.await.expect("Unable to await msg manager") {
         error!("Error from the tx manager: {}", e)
     }
 
