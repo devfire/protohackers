@@ -90,11 +90,6 @@ impl Db {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
 
-            info!(
-                "For {:?} calculating avg speed between {:?} and {:?}",
-                plate_road, observation1, observation2
-            );
-
             if let InboundMessageType::IAmCamera {
                 road: _,
                 mile,
@@ -117,7 +112,15 @@ impl Db {
             let distance_traveled = mile1.abs_diff(mile2) as u32;
             let time_traveled = observation1.timestamp.abs_diff(observation2.timestamp);
 
-            Ok(((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32)
+            let average_speed =
+                ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32;
+                
+            info!(
+                "For {:?} avg speed between {:?} and {:?} was {}",
+                plate_road, observation1, observation2, average_speed
+            );
+
+            Ok(average_speed)
         }
 
         // This returns a tuple of Vec of days where the ticket was generated,
