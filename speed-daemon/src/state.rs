@@ -274,8 +274,7 @@ impl Db {
                 _ => {
                     info!(
                         "For {:?} we have entries {:?}, analyzing.",
-                        plate_road,
-                        vec_of_ts_cameras,
+                        plate_road, vec_of_ts_cameras,
                     );
 
                     for i in 0..vec_of_ts_cameras.len() {
@@ -297,9 +296,6 @@ impl Db {
                                 average_speed
                             );
 
-                            // Returns True if none of these days were previously issued a ticket on
-                            let mut issue_ticket: bool = true;
-
                             // calculate the days for both observations
                             let day1 =
                                 (vec_of_ts_cameras[i].timestamp as f32 / 86400.0).floor() as u32;
@@ -311,14 +307,13 @@ impl Db {
                                     // skip if day 1 matches, or
                                     // day 2 matches, or
                                     //
-                                    if *day == day1 || *day == day2 {
-                                        issue_ticket = false;
+                                    if *day == day2 {
+                                        warn!(
+                                            "{:?} was previously issued tickets on days {:?}, exiting.",
+                                            plate_road, days
+                                        );
+                                        return None;
                                     }
-                                }
-
-                                if !issue_ticket {
-                                    warn!("Previously issued tickets for {:?}", days);
-                                    return None;
                                 }
                             }
                             if average_speed > common_limit.into() {
