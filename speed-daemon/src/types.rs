@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, net::SocketAddr, cmp::Ordering};
+use std::{collections::{HashMap, HashSet}, hash::Hash, net::SocketAddr, cmp::Ordering};
 
 use tokio::sync::mpsc;
 
@@ -72,6 +72,6 @@ pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
 
 // This keeps a mapping Plate to a Vec of days, where days are defined by floor(timestamp / 86400)
 // i.e. a plate "FOO" could have been ticketed on multiple days
-// Every day that contributed to a ticket gets stored.
-pub type IssuedTicketsDayDb = HashMap<PlateRoadStruct, Day>;
+// Every day that contributed to a ticket gets stored, unique values only.
+pub type IssuedTicketsDayDb = HashMap<PlateRoadStruct, HashSet<Day>>;
 // ------------------------------------------------------------
