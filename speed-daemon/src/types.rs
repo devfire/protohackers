@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, net::SocketAddr};
+use std::{collections::HashMap, hash::Hash, net::SocketAddr, cmp::Ordering};
 
 use tokio::sync::mpsc;
 
@@ -12,17 +12,30 @@ pub type Speed = u16;
 pub type Plate = String;
 pub type Day = u32;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash)]
 pub struct TimestampCameraStruct {
     pub timestamp: Timestamp,
     pub camera: InboundMessageType,
 }
 
-// #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-// pub struct PlateTimestamp {
-//     pub plate: Plate,
-//     pub timestamp: Timestamp,
-// }
+impl PartialOrd for TimestampCameraStruct {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TimestampCameraStruct {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.timestamp.cmp(&other.timestamp)
+    }
+}
+
+impl PartialEq for TimestampCameraStruct {
+    fn eq(&self, other: &Self) -> bool {
+        self.timestamp == other.timestamp
+    }
+}
+
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PlateRoadStruct {
@@ -34,7 +47,6 @@ impl PlateRoadStruct {
     pub fn new(plate: Plate, road: Road) -> Self {
         Self { plate, road }
     }
-
 }
 
 // ----------------Shared state data structures----------------
@@ -61,5 +73,5 @@ pub type CurrentCameraDb = HashMap<SocketAddr, InboundMessageType>;
 // This keeps a mapping Plate to a Vec of days, where days are defined by floor(timestamp / 86400)
 // i.e. a plate "FOO" could have been ticketed on multiple days
 // Every day that contributed to a ticket gets stored.
-pub type IssuedTicketsDayDb = HashMap<PlateRoadStruct, Vec<Day>>;
+pub type IssuedTicketsDayDb = HashMap<PlateRoadStruct, Day>;
 // ------------------------------------------------------------
