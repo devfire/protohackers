@@ -157,9 +157,9 @@ impl Db {
         let mut ticket = None;
 
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
-            let last_position = vec_of_ts_cameras.len();
+            
 
-            if last_position < 2 {
+            if vec_of_ts_cameras.len() < 2 {
                 warn!(
                     "{:?} has fewer than 2 elements in {:?}, no ticket.",
                     plate_road, vec_of_ts_cameras
@@ -172,6 +172,7 @@ impl Db {
                 plate_road, vec_of_ts_cameras
             );
 
+            let last_position = vec_of_ts_cameras.len() - 1;
             let next_last = last_position - 1;
 
             // Get the speed limit, it will be common across both observations since there's only 1 limit per road
