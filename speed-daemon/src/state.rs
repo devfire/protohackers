@@ -193,7 +193,7 @@ impl Db {
                             //
                             if *day == day2 {
                                 warn!(
-                                    "{:?} was previously issued tickets on days {:?}, no ticket.",
+                                    "2E: {:?} was previously issued tickets on days {:?}, no ticket.",
                                     plate_road, days
                                 );
                             } else {
@@ -203,7 +203,7 @@ impl Db {
                                     let mut mile2: Mile = 0;
 
                                     info!(
-                                        "For {:?} between {:?} and {:?} average speed was {}",
+                                        "2E: for {:?} between {:?} and {:?} average speed was {}",
                                         plate_road,
                                         vec_of_ts_cameras[0],
                                         vec_of_ts_cameras[1],
@@ -251,7 +251,7 @@ impl Db {
                                     };
 
                                     info!(
-                                        "{:?} ready, storing day2: {}, dispatching.",
+                                        "2E: {:?} ready, storing day2: {}, dispatching.",
                                         new_ticket, day2
                                     );
 
@@ -270,87 +270,12 @@ impl Db {
                                     break;
                                 } else {
                                     info!(
-                                        "{:?} from {:?} to {:?} had avg speed of {} limit {}, no ticket.",
+                                        "2E: {:?} from {:?} to {:?} had avg speed of {} limit {}, no ticket.",
                                         plate_road, vec_of_ts_cameras[0], vec_of_ts_cameras[1], average_speed, common_limit
                                     );
                                 }
                             }
                         }
-                    }
-
-                    if average_speed > common_limit.into() {
-                        let mut mile1: Mile = 0;
-                        let mut mile2: Mile = 0;
-
-                        info!(
-                            "For {:?} between {:?} and {:?} average speed was {}",
-                            plate_road, vec_of_ts_cameras[0], vec_of_ts_cameras[1], average_speed
-                        );
-
-                        if let InboundMessageType::IAmCamera {
-                            road: _,
-                            mile,
-                            limit: _,
-                        } = vec_of_ts_cameras[0].camera
-                        {
-                            mile1 = mile;
-                        };
-
-                        if let InboundMessageType::IAmCamera {
-                            road: _,
-                            mile,
-                            limit: _,
-                        } = vec_of_ts_cameras[1].camera
-                        {
-                            mile2 = mile;
-                        };
-
-                        // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-                        // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-                        let timestamp1 = vec_of_ts_cameras[0].timestamp;
-                        let timestamp2 = vec_of_ts_cameras[1].timestamp;
-
-                        // mile1 and timestamp1 must refer to the earlier of the 2 observations (the smaller timestamp),
-                        // and mile2 and timestamp2 must refer to the later of the 2 observations (the larger timestamp).
-                        if timestamp1 > timestamp2 {
-                            // observation 1 > observation 2, need to swap mile1 & mile2
-                            (mile1, mile2) = (mile2, mile1);
-                        }
-
-                        let new_ticket = OutboundMessageType::Ticket {
-                            plate: plate_road.plate.clone(),
-                            road: plate_road.road,
-                            mile1,
-                            timestamp1: timestamp1.min(timestamp2),
-                            mile2,
-                            timestamp2: timestamp1.max(timestamp2),
-                            speed: (average_speed * 100) as Speed,
-                        };
-
-                        info!(
-                            "{:?} ready, storing day2: {}, dispatching.",
-                            new_ticket, day2
-                        );
-
-                        // state
-                        //     .issued_tickets_day
-                        //     .entry(plate_road.to_owned())
-                        //     .or_default()
-                        //     .push(day1);
-                        state
-                            .issued_tickets_day
-                            .entry(plate_road.to_owned())
-                            .or_default()
-                            .push(day2);
-
-                        ticket = Some(new_ticket);
-
-                        return ticket;
-                    } else {
-                        info!(
-                            "{:?} had avg speed of {} limit {}, no ticket.",
-                            plate_road, average_speed, common_limit
-                        );
                     }
                 }
                 _ => {
