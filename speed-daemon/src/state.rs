@@ -11,7 +11,7 @@ use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
         CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct, PlateRoadTimestampCameraDb,
-        Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
+        PlateTicketDb, Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
     },
 };
 
@@ -302,6 +302,15 @@ impl Db {
                             let day2 =
                                 (vec_of_ts_cameras[j].timestamp as f32 / 86400.0).floor() as u32;
 
+                            info!(
+                                "For {:?} timestamp1: {} timestamp2: {} day1: {} day2: {}",
+                                plate_road,
+                                vec_of_ts_cameras[i].timestamp,
+                                vec_of_ts_cameras[j].timestamp,
+                                day1,
+                                day2
+                            );
+                            
                             if let Some(days) = state.issued_tickets_day.get(plate_road) {
                                 for day in days.iter() {
                                     // skip if day 1 matches, or
