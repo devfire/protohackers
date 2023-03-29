@@ -254,6 +254,12 @@ impl Db {
                                 .issued_tickets_day
                                 .entry(plate_road.clone())
                                 .or_default()
+                                .insert(day1);
+
+                            state
+                                .issued_tickets_day
+                                .entry(plate_road.clone())
+                                .or_default()
                                 .insert(day2);
 
                             info!(
