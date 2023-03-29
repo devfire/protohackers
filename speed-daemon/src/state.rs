@@ -75,7 +75,7 @@ impl Db {
             .or_default()
             .binary_search(&ts_camera)
         {
-            Ok(position) => {}
+            Ok(_) => {}
             Err(position) => {
                 state
                     .plate_road_timestamp_camera
