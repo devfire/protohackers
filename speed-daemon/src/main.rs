@@ -150,17 +150,19 @@ async fn process(
     // Sends a ticket to the ticket dispatcher if yes.
     let plate_manager = tokio::spawn(async move {
         while let Some(new_plate_road) = plate_rx.recv().await {
-            if let Some(ticket) = shared_db_plate.get_ticket_for_plate(&new_plate_road).await {
+            if let Some(tickets) = shared_db_plate.get_ticket_for_plate(&new_plate_road).await {
                 info!(
-                    "Plate manager forwarding ticket {:?} to ticket manager",
-                    ticket
+                    "Plate manager forwarding tickets {:?} to ticket manager",
+                    tickets
                 );
 
-                // Send the ticket to the ticket dispatcher
-                plate_tx_queue
-                    .send(ticket)
-                    .await
-                    .expect("Unable to send ticket");
+                for ticket in tickets.iter() {
+                    // Send the ticket to the ticket dispatcher
+                    plate_tx_queue
+                        .send(ticket.to_owned())
+                        .await
+                        .expect("Unable to send ticket");
+                }
             }
         }
         Ok::<(), SpeedDaemonError>(())
