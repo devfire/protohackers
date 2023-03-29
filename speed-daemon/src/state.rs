@@ -190,7 +190,7 @@ impl Db {
                         if let Some(days) = state.issued_tickets_day.get(plate_road) {
                             // check the current second day against every day we've issued tickets before
                             for day in days.iter() {
-                                if *day == day2 {
+                                if *day == day1 || *day == day2 {
                                     warn!(
                                     "{:?} was previously issued tickets on day {:?}, no ticket.",
                                     plate_road, day
@@ -263,8 +263,8 @@ impl Db {
                                 .insert(day2);
 
                             info!(
-                                "{:?} ready, stored day2: {}, dispatching.",
-                                new_ticket, day2
+                                "{:?} ready, stored day1: {} day2: {}, dispatching.",
+                                new_ticket, day1, day2
                             );
                             tickets.push(new_ticket);
                         }
