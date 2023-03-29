@@ -181,8 +181,8 @@ impl Db {
                         let day2 = (second.timestamp as f32 / 86400.0).floor() as u32;
 
                         info!(
-                            "For {:?} timestamp1: {} timestamp2: {} day1: {} day2: {}",
-                            plate_road, first.timestamp, second.timestamp, day1, day2
+                            "For {:?} timestamp1: {} timestamp2: {} day1: {} day2: {} avg speed: {}",
+                            plate_road, first.timestamp, second.timestamp, day1, day2, average_speed
                         );
 
                         // Assume we are going to create a ticket unless it was already issued this day
@@ -267,6 +267,11 @@ impl Db {
                                 new_ticket, day1, day2
                             );
                             tickets.push(new_ticket);
+                        } else {
+                            info!(
+                                "For {:?} avg speed was {} but limit was {}, no ticket",
+                                plate_road, average_speed, common_limit
+                            );
                         }
                     }
                     [first] => info!("For {:?} only {:?} remains", plate_road, first),
