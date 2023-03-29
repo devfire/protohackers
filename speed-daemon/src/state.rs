@@ -310,7 +310,7 @@ impl Db {
                                 day1,
                                 day2
                             );
-                            
+
                             if let Some(days) = state.issued_tickets_day.get(plate_road) {
                                 for day in days.iter() {
                                     // skip if day 1 matches, or
@@ -318,10 +318,10 @@ impl Db {
                                     //
                                     if *day == day2 {
                                         warn!(
-                                            "{:?} was previously issued tickets on days {:?}, exiting.",
+                                            "{:?} was previously issued tickets on days {:?}, breaking.",
                                             plate_road, days
                                         );
-                                        return None;
+                                        break;
                                     }
                                 }
                             }
