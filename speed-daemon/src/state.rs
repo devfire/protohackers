@@ -145,10 +145,10 @@ impl Db {
             let average_speed =
                 ((distance_traveled as f32 * 3600.0) / time_traveled as f32).round() as u32;
 
-            info!(
-                "For {:?} avg speed between {:?} and {:?} was {}",
-                plate_road, observation1, observation2, average_speed
-            );
+            // info!(
+            //     "For {:?} avg speed between {:?} and {:?} was {}",
+            //     plate_road, observation1, observation2, average_speed
+            // );
 
             Ok(average_speed)
         }
