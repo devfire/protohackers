@@ -11,7 +11,7 @@ use crate::{
     message::{InboundMessageType, OutboundMessageType},
     types::{
         CurrentCameraDb, IssuedTicketsDayDb, Mile, PlateRoadStruct, PlateRoadTimestampCameraDb,
-        PlateTicketDb, Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
+        Road, Speed, TicketDispatcherDb, TimestampCameraStruct,
     },
 };
 
