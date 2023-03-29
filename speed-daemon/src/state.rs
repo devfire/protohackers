@@ -115,7 +115,6 @@ impl Db {
         async fn calculate_average_speed(
             observation1: &TimestampCameraStruct,
             observation2: &TimestampCameraStruct,
-            plate_road: &PlateRoadStruct,
         ) -> Result<u32, SpeedDaemonError> {
             let mut mile1: Mile = 0;
             let mut mile2: Mile = 0;
@@ -191,7 +190,6 @@ impl Db {
             let average_speed = calculate_average_speed(
                 &vec_of_ts_cameras[next_last],
                 &vec_of_ts_cameras[last_position],
-                plate_road,
             )
             .await
             .expect("Failed to get average speed");
@@ -274,7 +272,7 @@ impl Db {
 
                 state.issued_tickets_day.insert(plate_road.clone(), day2);
                 info!(
-                    "2E: {:?} ready, stored day2: {}, dispatching.",
+                    "{:?} ready, stored day2: {}, dispatching.",
                     new_ticket, day2
                 );
                 ticket = Some(new_ticket);
