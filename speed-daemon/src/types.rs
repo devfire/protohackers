@@ -12,7 +12,7 @@ pub type Speed = u16;
 pub type Plate = String;
 pub type Day = u32;
 
-#[derive(Clone, Debug, Eq, Hash)]
+#[derive(Clone, Debug, Eq)]
 pub struct TimestampCameraStruct {
     pub timestamp: Timestamp,
     pub camera: InboundMessageType,
