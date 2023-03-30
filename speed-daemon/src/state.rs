@@ -302,15 +302,17 @@ impl Db {
         state.current_camera.get(addr).cloned()
     }
 
-    // pub async fn ticket_dispatcher_exists(&self, road: &Road, addr: &SocketAddr) -> bool {
-    //     let state = self.shared.state.lock().await;
-    //     for (road_key, addr_to_tx_hashmap) in state.dispatchers.iter() {
-    //         if road_key == road && addr_to_tx_hashmap.contains_key(addr) {
-    //             return true;
-    //         }
-    //     }
-    //     false
-    // }
+    pub async fn ticket_dispatcher_already_exists(&self, road: &Road, addr: &SocketAddr) -> bool {
+        let state = self.shared.state.lock().await;
+
+        if let Some(addr_to_tx_hashmap) = state.dispatchers.get(road) {
+            if addr_to_tx_hashmap.contains_key(addr) {
+                return true;
+            }
+        }
+        
+        false
+    }
 
     pub async fn add_ticket_dispatcher(
         &mut self,
