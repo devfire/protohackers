@@ -24,20 +24,12 @@ pub async fn handle_i_am_dispatcher(
     }
 
     for road in roads.iter() {
-        if let Some(existing_dispatcher) = shared_db.get_ticket_dispatcher(road).await {
-            error!(
-                "{:?} already is a dispatcher {:?}",
-                client_addr, existing_dispatcher
-            );
-            return Err(SpeedDaemonError::DuplicateDispatcher);
-        } else {
-            // for every road this dispatcher is responsible for, add the corresponding tx reference
-            // info!("Adding dispatcher {} for road {}", client_addr, road);
-            let tx = tx.clone();
-            shared_db
-                .add_ticket_dispatcher(*road, *client_addr, tx)
-                .await
-        }
+        // for every road this dispatcher is responsible for, add the corresponding tx reference
+        // info!("Adding dispatcher {} for road {}", client_addr, road);
+        let tx = tx.clone();
+        shared_db
+            .add_ticket_dispatcher(*road, *client_addr, tx)
+            .await
     }
     Ok(())
 }
