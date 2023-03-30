@@ -15,7 +15,7 @@ pub async fn handle_i_am_camera(
             "{:?} sent a duplicate camera message {:?}",
             client_addr, existing_camera
         );
-        return Err(SpeedDaemonError::DuplicateClient);
+        return Err(SpeedDaemonError::DuplicateCamera);
     } else {
         shared_db.add_camera(*client_addr, new_camera).await;
     }

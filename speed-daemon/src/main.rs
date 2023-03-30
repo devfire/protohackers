@@ -92,7 +92,8 @@ async fn process(
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
-            info!("Writer manager: sending {:?} to {}", msg, addr);
+            
+            // info!("Writer manager: sending {:?} to {}", msg, addr);
 
             client_writer.send(msg).await?
         }

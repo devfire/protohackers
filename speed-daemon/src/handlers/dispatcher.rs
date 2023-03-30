@@ -20,7 +20,7 @@ pub async fn handle_i_am_dispatcher(
             "{:?} sent a duplicate camera message {:?}",
             client_addr, existing_camera
         );
-        return Err(SpeedDaemonError::DuplicateClient);
+        return Err(SpeedDaemonError::DuplicateCamera);
     }
 
     for road in roads.iter() {
@@ -29,7 +29,7 @@ pub async fn handle_i_am_dispatcher(
                 "{:?} already is a dispatcher {:?}",
                 client_addr, existing_dispatcher
             );
-            return Err(SpeedDaemonError::DuplicateClient);
+            return Err(SpeedDaemonError::DuplicateDispatcher);
         } else {
             // for every road this dispatcher is responsible for, add the corresponding tx reference
             // info!("Adding dispatcher {} for road {}", client_addr, road);

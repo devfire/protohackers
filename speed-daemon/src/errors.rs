@@ -1,4 +1,3 @@
-
 use thiserror::Error;
 
 /// SpeedDaemonError enumerates all possible errors returned by this library.
@@ -9,8 +8,12 @@ pub enum SpeedDaemonError {
     ParseFailure,
 
     /// Duplicate client
-    #[error("Duplicate client detected")]
-    DuplicateClient,
+    #[error("Duplicate camera detected")]
+    DuplicateCamera,
+
+    /// Duplicate client
+    #[error("Duplicate dispatcher detected")]
+    DuplicateDispatcher,
 
     #[error("Client disconnected")]
     DisconnectedClient,
