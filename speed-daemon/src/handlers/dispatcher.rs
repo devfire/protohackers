@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use log::error;
+use log::{error, info};
 use speed_daemon::{
     errors::SpeedDaemonError, message::OutboundMessageType, state::Db, types::Road,
 };
@@ -12,7 +12,7 @@ pub async fn handle_i_am_dispatcher(
     tx: &mpsc::Sender<OutboundMessageType>,
     mut shared_db: Db,
 ) -> anyhow::Result<(), SpeedDaemonError> {
-    // info!("Adding a dispatcher for roads {:?}", roads);
+    info!("Adding a dispatcher for roads {:?}", roads);
 
     // make sure this client hasn't identified itself as a camera before
     if let Some(existing_camera) = shared_db.get_current_camera(client_addr).await {
