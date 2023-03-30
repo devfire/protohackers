@@ -201,9 +201,14 @@ async fn process(
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 // info!("Dispatcher detected at address {}", addr);
-                handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone())
-                    .await
-                    .expect("Unable to handle dispatcher");
+                match handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone()).await {
+                    Ok(_) => {},
+                    Err(_) => {
+                        let err_message = String::from("Duplicate IAmDispatcher message");
+                        let tx_error = tx.clone();
+                        handle_error(err_message, tx_error)?;
+                    },
+                }
             }
             Err(_) => {
                 let err_message = String::from("Unknown message detected");
