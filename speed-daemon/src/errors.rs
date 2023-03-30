@@ -1,3 +1,4 @@
+
 use thiserror::Error;
 
 /// SpeedDaemonError enumerates all possible errors returned by this library.

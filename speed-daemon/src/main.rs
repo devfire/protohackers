@@ -232,8 +232,8 @@ async fn process(
         error!("Error from the tx manager: {}", e)
     }
 
-    if let Err(e) = plate_manager.await.expect("Unable to await msg manager") {
-        error!("Error from the tx manager: {}", e)
+    if plate_manager.await.expect("Unable to await msg manager").is_err() {
+        // error!("Error from the tx manager: {}", e)
     }
 
     Ok(())
