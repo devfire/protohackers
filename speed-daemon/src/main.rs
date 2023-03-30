@@ -94,12 +94,9 @@ async fn process(
         while let Some(msg) = rx.recv().await {
             // info!("Writer manager: sending {:?} to {}", msg, addr);
 
-            if let Err(e) = client_writer.send(msg).await {
-                error!("Client {} disconnected: {}", addr, e);
-                return Err(e);
-            }
+            client_writer.send(msg).await?
         }
-        Ok(())
+        Ok::<(), SpeedDaemonError>(())
     });
 
     let (ticket_tx, mut ticket_rx) = mpsc::channel::<OutboundMessageType>(8192000);
