@@ -145,10 +145,10 @@ impl Db {
                 return None;
             }
 
-            info!(
-                "{:?} has more than 2 elements in {:?}, proceeding.",
-                plate_road, vec_of_ts_cameras
-            );
+            // info!(
+            //     "{:?} has more than 2 elements in {:?}, proceeding.",
+            //     plate_road, vec_of_ts_cameras
+            // );
 
             // Master checker loop, looking at consecutive pairs of observations
             // for pair in vec_of_ts_cameras.chunks(2) {
@@ -164,10 +164,10 @@ impl Db {
                     break; // last index, bailing
                 }
 
-                info!(
-                    "For {:?} comparing {:?} with {:?}",
-                    plate_road, first, second
-                );
+                // info!(
+                //     "For {:?} comparing {:?} with {:?}",
+                //     plate_road, first, second
+                // );
 
                 // Get the speed limit, it will be common across both observations since there's only 1 limit per road
                 let mut common_limit = 0;
@@ -190,10 +190,10 @@ impl Db {
                 let day1 = (first.timestamp as f32 / 86400.0).floor() as u32;
                 let day2 = (second.timestamp as f32 / 86400.0).floor() as u32;
 
-                info!(
-                    "For {:?} timestamp1: {} timestamp2: {} day1: {} day2: {} avg speed: {}",
-                    plate_road, first.timestamp, second.timestamp, day1, day2, average_speed
-                );
+                // info!(
+                //     "For {:?} timestamp1: {} timestamp2: {} day1: {} day2: {} avg speed: {}",
+                //     plate_road, first.timestamp, second.timestamp, day1, day2, average_speed
+                // );
 
                 // Assume we are going to create a ticket unless it was already issued this day
                 let mut issue_ticket = true;
@@ -215,10 +215,10 @@ impl Db {
                     let mut mile1: Mile = 0;
                     let mut mile2: Mile = 0;
 
-                    info!(
-                        "For {:?} between {:?} and {:?} average speed was {}",
-                        plate_road, first, second, average_speed
-                    );
+                    // info!(
+                    //     "For {:?} between {:?} and {:?} average speed was {}",
+                    //     plate_road, first, second, average_speed
+                    // );
 
                     if let InboundMessageType::IAmCamera {
                         road: _,
@@ -272,16 +272,16 @@ impl Db {
                         .or_default()
                         .insert(day2);
 
-                    info!(
-                        "{:?} ready, stored day1: {} day2: {}, dispatching.",
-                        new_ticket, day1, day2
-                    );
+                    // info!(
+                    //     "{:?} ready, stored day1: {} day2: {}, dispatching.",
+                    //     new_ticket, day1, day2
+                    // );
                     tickets.push(new_ticket);
                 } else {
-                    info!(
-                        "For {:?} avg speed was {} but limit was {}, no ticket",
-                        plate_road, average_speed, common_limit
-                    );
+                    // info!(
+                    //     "For {:?} avg speed was {} but limit was {}, no ticket",
+                    //     plate_road, average_speed, common_limit
+                    // );
                 }
             }
         }

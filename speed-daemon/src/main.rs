@@ -148,10 +148,10 @@ async fn process(
     let plate_manager = tokio::spawn(async move {
         while let Some(new_plate_road) = plate_rx.recv().await {
             if let Some(tickets) = shared_db_plate.get_ticket_for_plate(&new_plate_road).await {
-                info!(
-                    "Plate manager forwarding tickets {:?} to ticket manager",
-                    tickets
-                );
+                // info!(
+                //     "Plate manager forwarding tickets {:?} to ticket manager",
+                //     tickets
+                // );
 
                 for ticket in tickets.iter() {
                     // Send the ticket to the ticket dispatcher

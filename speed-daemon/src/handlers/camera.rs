@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, info};
 
 use speed_daemon::{errors::SpeedDaemonError, message::InboundMessageType, state::Db};
 use std::net::SocketAddr;
@@ -8,7 +8,7 @@ pub async fn handle_i_am_camera(
     new_camera: InboundMessageType,
     mut shared_db: Db,
 ) -> anyhow::Result<(), SpeedDaemonError> {
-    // info!("Adding camera: {:?} to client {}", new_camera, client_addr);
+    info!("Adding camera: {:?} to client {}", new_camera, client_addr);
 
     if let Some(existing_camera) = shared_db.get_current_camera(client_addr).await {
         error!(
