@@ -122,7 +122,7 @@ async fn process(
                 speed: _,
             } = ticket
             {
-                if let Some(dispatcher_tx) = shared_db_main.get_ticket_dispatcher(road).await {
+                if let Some(dispatcher_tx) = shared_db_main.get_ticket_dispatcher(&road).await {
                     // info!("Ticket manager received {:?}", ticket);
                     send_ticket_to_dispatcher(ticket, dispatcher_tx);
                 } else {
@@ -189,9 +189,14 @@ async fn process(
 
             Ok(InboundMessageType::IAmCamera { road, mile, limit }) => {
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
-                handle_i_am_camera(&addr, new_camera, shared_db.clone())
-                    .await
-                    .expect("Unable to handle camera");
+                match handle_i_am_camera(&addr, new_camera, shared_db.clone()).await {
+                    Ok(_) => {}
+                    Err(_) => {
+                        let err_message = String::from("Duplicate IAmCamera message");
+                        let tx_error = tx.clone();
+                        handle_error(err_message, tx_error)?;
+                    }
+                }
             }
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
@@ -204,7 +209,7 @@ async fn process(
                 let err_message = String::from("Unknown message detected");
                 // error!("{}", err_message);
                 let tx_error = tx.clone();
-                handle_error(err_message, tx_error).expect("Unable to handle error");
+                handle_error(err_message, tx_error)?;
             }
         }
     }

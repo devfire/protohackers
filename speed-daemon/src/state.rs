@@ -317,14 +317,14 @@ impl Db {
 
     pub async fn get_ticket_dispatcher(
         &self,
-        road: Road,
+        road: &Road,
     ) -> Option<mpsc::Sender<OutboundMessageType>> {
         let state = self.shared.state.lock().await;
 
         // First, we get the hash mapping the road num to the client address-tx hash
         // Second, we get the tx from the client address.
         // NOTE: this overrides the previous ticket dispatcher for the same road. PROBLEM?
-        if let Some(addr_tx_hash) = state.dispatchers.get(&road) {
+        if let Some(addr_tx_hash) = state.dispatchers.get(road) {
             if let Some((_client_addr, tx)) = addr_tx_hash.iter().next() {
                 // info!("Found a dispatcher for road {} at {}", road, client_addr);
                 Some(tx.clone())

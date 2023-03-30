@@ -1,10 +1,10 @@
-use speed_daemon::message::OutboundMessageType;
+use speed_daemon::{errors::SpeedDaemonError, message::OutboundMessageType};
 use tokio::sync::mpsc;
 
 pub fn handle_error(
     error_message: String,
     tx: mpsc::Sender<OutboundMessageType>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(), SpeedDaemonError> {
     tokio::spawn(async move {
         tx.send(OutboundMessageType::Error(error_message))
             .await
