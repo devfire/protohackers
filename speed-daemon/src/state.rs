@@ -156,7 +156,8 @@ impl Db {
                 let first: &TimestampCameraStruct;
                 let second: &TimestampCameraStruct;
 
-                if i < vec_of_ts_cameras.len() {
+                // index starts at 0 but the length is one more
+                if i < (vec_of_ts_cameras.len() - 1) {
                     first = &vec_of_ts_cameras[i];
                     second = &vec_of_ts_cameras[i + 1];
                 } else {
