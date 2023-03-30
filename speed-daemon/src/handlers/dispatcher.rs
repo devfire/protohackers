@@ -24,8 +24,8 @@ pub async fn handle_i_am_dispatcher(
     }
 
     for road in roads.iter() {
-        if shared_db.ticket_dispatcher_exists(road, client_addr).await {
-            error!("Road {road} already has a dispatcher at {client_addr}");
+        if let Some(_tx) = shared_db.get_ticket_dispatcher(road).await {
+            error!("Road {road} already has a dispatcher.");
             return Err(SpeedDaemonError::DuplicateDispatcher);
         } else {
             // for every road this dispatcher is responsible for, add the corresponding tx reference

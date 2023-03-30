@@ -71,7 +71,7 @@ impl Encoder<OutboundMessageType> for MessageCodec {
                 dst.put_u8(0x10); // msg type
                 dst.put_u8(err_msg.len() as u8); // string length
                 dst.put(err_msg.as_bytes()); // error message
-                info!("Encoded error message: {:#?}", dst);
+                // info!("Encoded error message: {:#?}", dst);
             }
 
             OutboundMessageType::Ticket {
