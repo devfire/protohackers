@@ -138,10 +138,10 @@ impl Db {
 
         if let Some(vec_of_ts_cameras) = state.plate_road_timestamp_camera.clone().get(plate_road) {
             if vec_of_ts_cameras.len() < 2 {
-                warn!(
-                    "{:?} has fewer than 2 elements in {:?}, no ticket.",
-                    plate_road, vec_of_ts_cameras
-                );
+                // warn!(
+                //     "{:?} has fewer than 2 elements in {:?}, no ticket.",
+                //     plate_road, vec_of_ts_cameras
+                // );
                 return None;
             }
 
@@ -201,10 +201,10 @@ impl Db {
                     // check the current second day against every day we've issued tickets before
                     for day in days.iter() {
                         if *day == day1 || *day == day2 {
-                            warn!(
-                                "{:?} was previously issued tickets on day {:?}, no ticket.",
-                                plate_road, day
-                            );
+                            // warn!(
+                            //     "{:?} was previously issued tickets on day {:?}, no ticket.",
+                            //     plate_road, day
+                            // );
                             // there will be no ticket issued
                             issue_ticket = false;
                         }

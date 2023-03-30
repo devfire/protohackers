@@ -92,7 +92,7 @@ async fn process(
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
-            // info!("Writer manager: sending {:?} to {}", msg, addr);
+            info!("Writer manager: sending {:?} to {}", msg, addr);
 
             client_writer.send(msg).await?
         }
@@ -193,6 +193,7 @@ async fn process(
                     Ok(_) => {}
                     Err(_) => {
                         let err_message = String::from("Duplicate IAmCamera message");
+                        error!("{} from {:?}", err_message, addr);
                         let tx_error = tx.clone();
                         handle_error(err_message, tx_error)?;
                     }
@@ -202,12 +203,13 @@ async fn process(
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 // info!("Dispatcher detected at address {}", addr);
                 match handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone()).await {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(_) => {
                         let err_message = String::from("Duplicate IAmDispatcher message");
+                        error!("{} from {:?}", err_message, addr);
                         let tx_error = tx.clone();
                         handle_error(err_message, tx_error)?;
-                    },
+                    }
                 }
             }
             Err(_) => {
