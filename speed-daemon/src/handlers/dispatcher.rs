@@ -14,6 +14,15 @@ pub async fn handle_i_am_dispatcher(
 ) -> anyhow::Result<(), SpeedDaemonError> {
     // info!("Adding a dispatcher for roads {:?}", roads);
 
+    // make sure this client hasn't identified itself as a camera before
+    if let Some(existing_camera) = shared_db.get_current_camera(client_addr).await {
+        error!(
+            "{:?} sent a duplicate camera message {:?}",
+            client_addr, existing_camera
+        );
+        return Err(SpeedDaemonError::DuplicateClient);
+    }
+
     for road in roads.iter() {
         if let Some(existing_dispatcher) = shared_db.get_ticket_dispatcher(road).await {
             error!(

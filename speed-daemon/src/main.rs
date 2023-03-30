@@ -191,11 +191,11 @@ async fn process(
                 let new_camera = InboundMessageType::IAmCamera { road, mile, limit };
                 match handle_i_am_camera(&addr, new_camera, shared_db.clone()).await {
                     Ok(_) => {}
-                    Err(_) => {
-                        let err_message = String::from("Duplicate IAmCamera message");
-                        error!("{} from {:?}", err_message, addr);
+                    Err(e) => {
+                        // let err_message = String::from("Duplicate IAmCamera message");
+                        error!("{} from {:?}", e, addr);
                         let tx_error = tx.clone();
-                        handle_error(err_message, tx_error)?;
+                        handle_error(e.to_string(), tx_error)?;
                     }
                 }
             }
@@ -204,19 +204,19 @@ async fn process(
                 // info!("Dispatcher detected at address {}", addr);
                 match handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone()).await {
                     Ok(_) => {}
-                    Err(_) => {
-                        let err_message = String::from("Duplicate IAmDispatcher message");
-                        error!("{} from {:?}", err_message, addr);
+                    Err(e) => {
+                        // let err_message = String::from("Duplicate IAmDispatcher message");
+                        error!("{} from {:?}", e, addr);
                         let tx_error = tx.clone();
-                        handle_error(err_message, tx_error)?;
+                        handle_error(e.to_string(), tx_error)?;
                     }
                 }
             }
-            Err(_) => {
-                let err_message = String::from("Unknown message detected");
+            Err(e) => {
+                // let err_message = String::from("Unknown message detected");
                 // error!("{}", err_message);
                 let tx_error = tx.clone();
-                handle_error(err_message, tx_error)?;
+                handle_error(e.to_string(), tx_error)?;
             }
         }
     }

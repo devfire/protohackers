@@ -38,7 +38,7 @@ pub async fn handle_plate(
             camera: current_camera,
         };
 
-        info!("Adding {:?} {:?}", new_plate_road, new_ts_camera);
+        // info!("Adding {:?} {:?}", new_plate_road, new_ts_camera);
 
         // add the newly observed plate:road combo to the shared db
         shared_db
