@@ -7,9 +7,9 @@ pub enum SpeedDaemonError {
     #[error("Unable to parse message")]
     ParseFailure,
 
-    /// Nom parser was unable to parse the in-bound message
-    #[error("Duplicate camera detected")]
-    DuplicateCamera,
+    /// Duplicate client
+    #[error("Duplicate client detected")]
+    DuplicateClient,
 
     #[error("Client disconnected")]
     DisconnectedClient,

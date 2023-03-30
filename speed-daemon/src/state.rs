@@ -296,14 +296,10 @@ impl Db {
         state.current_camera.insert(addr, new_camera);
     }
 
-    pub async fn get_current_camera(&self, addr: &SocketAddr) -> InboundMessageType {
+    pub async fn get_current_camera(&self, addr: &SocketAddr) -> Option<InboundMessageType> {
         let state = self.shared.state.lock().await;
 
-        let camera = state
-            .current_camera
-            .get(addr)
-            .expect("Unable to locate camera");
-        camera.clone()
+        state.current_camera.get(addr).cloned()
     }
 
     pub async fn add_ticket_dispatcher(

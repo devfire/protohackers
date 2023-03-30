@@ -176,10 +176,6 @@ async fn process(
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {
-                // info!(
-                //     "Client {} requested a heartbeat every {} deciseconds.",
-                //     addr, interval
-                // );
                 // if interal is 0 then no heartbeat
                 if interval == 0 {
                     // info!("Interval is 0, no heartbeat.")
@@ -200,7 +196,6 @@ async fn process(
 
             Ok(InboundMessageType::IAmDispatcher { roads }) => {
                 // info!("Dispatcher detected at address {}", addr);
-
                 handle_i_am_dispatcher(roads, &addr, &tx, shared_db.clone())
                     .await
                     .expect("Unable to handle dispatcher");
