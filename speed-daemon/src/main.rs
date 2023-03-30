@@ -92,8 +92,7 @@ async fn process(
         // Start receiving messages from the channel by calling the recv method of the Receiver endpoint.
         // This method blocks until a message is received.
         while let Some(msg) = rx.recv().await {
-            
-            // info!("Writer manager: sending {:?} to {}", msg, addr);
+            info!("Writer manager: sending {msg:?} to {addr}");
 
             client_writer.send(msg).await?
         }
@@ -233,7 +232,11 @@ async fn process(
         error!("Error from the tx manager: {}", e)
     }
 
-    if plate_manager.await.expect("Unable to await msg manager").is_err() {
+    if plate_manager
+        .await
+        .expect("Unable to await msg manager")
+        .is_err()
+    {
         // error!("Error from the tx manager: {}", e)
     }
 
