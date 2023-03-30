@@ -1,3 +1,4 @@
+use log::info;
 use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::{Buf, BufMut, BytesMut};
@@ -68,6 +69,7 @@ impl Encoder<OutboundMessageType> for MessageCodec {
 
                 dst.put_u8(0x10);
                 dst.put(err_msg.as_bytes());
+                info!("Encoded error message: {dst:?}")
             }
 
             OutboundMessageType::Ticket {
