@@ -170,9 +170,16 @@ async fn process(
 
         match message {
             Ok(InboundMessageType::Plate { plate, timestamp }) => {
-                handle_plate(&addr, plate, timestamp, plate_tx.clone(), shared_db.clone())
+                match handle_plate(&addr, plate, timestamp, plate_tx.clone(), shared_db.clone())
                     .await
-                    .expect("unable to handle plates");
+                {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("{} from {:?}", e, addr);
+                        let tx_error = tx.clone();
+                        handle_error(e.to_string(), tx_error)?;
+                    }
+                }
             }
 
             Ok(InboundMessageType::WantHeartbeat { interval }) => {

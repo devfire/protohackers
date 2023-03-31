@@ -1,5 +1,6 @@
-use log::info;
+use log::{error, info};
 use speed_daemon::{
+    errors::SpeedDaemonError,
     message::InboundMessageType,
     state::Db,
     types::{Plate, PlateRoadStruct, Timestamp, TimestampCameraStruct},
@@ -14,7 +15,7 @@ pub async fn handle_plate(
     new_timestamp: Timestamp,
     plate_tx: mpsc::Sender<PlateRoadStruct>,
     shared_db: Db,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(), SpeedDaemonError> {
     // Get the camera that reported this plate
     if let Some(current_camera) = shared_db.get_current_camera(client_addr).await {
         // Init an empty struct
@@ -46,7 +47,14 @@ pub async fn handle_plate(
             .await;
 
         // send it off to the ticket_manager for processing
-        plate_tx.send(new_plate_road).await?;
+        plate_tx
+            .send(new_plate_road)
+            .await
+            .expect("Unable to send new plate");
+    } else {
+        // It wasn't a camera that reported the plate!
+        error!("Plate message did not come from camera {client_addr}");
+        return Err(SpeedDaemonError::WrongMessageClient);
     }
 
     Ok(())

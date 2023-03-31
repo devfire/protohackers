@@ -7,6 +7,10 @@ pub enum SpeedDaemonError {
     #[error("Unable to parse message")]
     ParseFailure,
 
+    /// Either camera sends a dispatch msg or a dispatcher sends a plate
+    #[error("Message type does not match client type")]
+    WrongMessageClient,
+
     /// Duplicate client
     #[error("Duplicate camera detected")]
     DuplicateCamera,
