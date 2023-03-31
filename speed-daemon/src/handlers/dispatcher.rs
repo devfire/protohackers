@@ -20,24 +20,24 @@ pub async fn handle_i_am_dispatcher(
             "{client_addr} previously identified as a camera: {:?}",
             existing_camera
         );
-        return Err(SpeedDaemonError::DuplicateCamera);
+        return Err(SpeedDaemonError::DuplicateDispatcher);
+    }
+
+    if shared_db
+        .ticket_dispatcher_already_exists(client_addr)
+        .await
+    {
+        error!("{client_addr} previously identified as a dispatcher already.");
+        return Err(SpeedDaemonError::DuplicateDispatcher);
     }
 
     for road in roads.iter() {
-        if shared_db
-            .ticket_dispatcher_already_exists(road, client_addr)
+        // for every road this dispatcher is responsible for, add the corresponding tx reference
+        // info!("Adding dispatcher {} for road {}", client_addr, road);
+        let tx = tx.clone();
+        shared_db
+            .add_ticket_dispatcher(*road, *client_addr, tx)
             .await
-        {
-            error!("Road {road} already has a dispatcher for {client_addr}");
-            return Err(SpeedDaemonError::DuplicateDispatcher);
-        } else {
-            // for every road this dispatcher is responsible for, add the corresponding tx reference
-            // info!("Adding dispatcher {} for road {}", client_addr, road);
-            let tx = tx.clone();
-            shared_db
-                .add_ticket_dispatcher(*road, *client_addr, tx)
-                .await
-        }
     }
     Ok(())
 }
