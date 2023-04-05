@@ -4,6 +4,7 @@ type Session = u32;
 type Pos = u32;
 type Length = u32;
 
+#[derive(Clone, Debug)]
 pub enum MessageType {
     Connect { session: Session },
     Ack(AckStruct),
@@ -11,13 +12,15 @@ pub enum MessageType {
     Close { session: Session },
 }
 
+#[derive(Clone, Debug)]
 pub struct AckStruct {
-    session: Session,
-    length: Length,
+    pub session: Session,
+    pub length: Length,
 }
+#[derive(Clone, Debug)]
 
 pub struct DataStruct {
-    session: Session,
-    pos: Pos,
-    data: Bytes,
+    pub session: Session,
+    pub pos: Pos,
+    pub data: Bytes,
 }
