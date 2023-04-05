@@ -21,18 +21,21 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Listening on {}", socket.local_addr()?);
 
     let mut socket = UdpFramed::new(socket, MessageCodec::new());
-    process(&mut socket).await?;
-
-    Ok(())
-}
-
-async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
-    // let timeout = Duration::from_millis(20000);
-
     while let Some(Ok((message, addr))) = socket.next().await {
-    // while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
+        // while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
         info!("[b] recv: {:?} from {:?}", message, addr);
     }
 
     Ok(())
 }
+
+// async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
+//     // let timeout = Duration::from_millis(20000);
+
+//     while let Some(Ok((message, addr))) = socket.next().await {
+//         // while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
+//         info!("[b] recv: {:?} from {:?}", message, addr);
+//     }
+
+//     Ok(())
+// }
