@@ -27,7 +27,7 @@ async fn main() -> Result<(), anyhow::Error> {
 }
 
 async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
-    let timeout = Duration::from_millis(200);
+    let timeout = Duration::from_millis(20000);
 
     while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
         info!("[b] recv: {:?} from {:?}", message, addr);
