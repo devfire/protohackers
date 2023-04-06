@@ -1,3 +1,4 @@
+use log::info;
 use nom::{
     branch::alt,
     bytes::streaming::{tag, take},
@@ -6,12 +7,13 @@ use nom::{
     IResult,
 };
 
-// use hex;
-// use log::info;
+use hex;
+
 
 use crate::message::MessageType;
 
 fn parse_connect(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
+    // info!("Parsing {:?}", input);
     // Connect: /connect/SESSION/
     // Grab the first /
     let (input, _) = tag("/")(input)?;
@@ -24,6 +26,7 @@ fn parse_connect(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
 
     let (input, _) = tag("/")(input)?;
 
+    info!("parse_connect session: {session}");
     // Return the plate and the timestamp
     Ok((input, MessageType::Connect { session }))
 }
@@ -34,10 +37,8 @@ fn parse_connect(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
 /// This function will return an error if none of the parsers match.
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], MessageType> {
     // let hex_string = hex::encode(input);
-    // info!("Parsing {}", hex_string);
-    let (input, message) = alt((
-        parse_connect,
-    ))(input)?;
-    // info!("Parser finished, inbound message: {:?}", message);
+    // info!("Parsing {}", input);
+    let (input, message) = alt((parse_connect,))(input)?;
+    info!("Parser finished, inbound message: {:?}", message);
     Ok((input, message))
 }

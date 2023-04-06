@@ -1,12 +1,17 @@
-use bytes::Bytes;
 use env_logger::Env;
-use futures::{FutureExt, SinkExt, StreamExt};
-use line_reversal::codec::MessageCodec;
-use log::info;
 use std::time::Duration;
+
+use line_reversal::codec::MessageCodec;
+use socket2::{Domain, Protocol, SockAddr, Socket, Type};
+
+use log::info;
+use std::net::SocketAddrV4;
 use tokio::net::UdpSocket;
-use tokio::{io, time};
+use tokio_stream::StreamExt;
 use tokio_util::udp::UdpFramed;
+
+//IP constant
+const IP_ANY: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -17,27 +22,35 @@ async fn main() -> Result<(), anyhow::Error> {
 
     env_logger::init_from_env(env);
 
-    let socket = UdpSocket::bind("0.0.0.0:8080").await?;
-    info!("Listening on {}", socket.local_addr()?);
+    //Create a udp ip4 socket
+    let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
 
-    let mut socket = UdpFramed::new(socket, MessageCodec::new());
+    //Allow this port to be reused by other sockets
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(false)?;
+
+    //Create IPV4 any adress
+    let address = SocketAddrV4::new(IP_ANY.into(), 8080);
+    socket.bind(&SockAddr::from(address))?;
+
+    //Convert to tokio udp socket
+    let udp_socket = UdpSocket::from_std(socket.into())?;
+
+    info!(
+        "Created a UDP Socket at {}, {}",
+        address.ip().to_string(),
+        address.port().to_string()
+    );
+
+    let mut framed = UdpFramed::new(udp_socket, MessageCodec::new());
+
     loop {
-        while let Some(Ok((message, addr))) = socket.next().await {
-            // while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
-            info!("recv: {:?} from {:?}", message, addr);
-        }
+        info!("Waiting for incoming messages");
+
+        let result = framed.next();
+
+        info!("{result:?}")
     }
 
-    Ok(())
+    // Ok(())
 }
-
-// async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
-//     // let timeout = Duration::from_millis(20000);
-
-//     while let Some(Ok((message, addr))) = socket.next().await {
-//         // while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
-//         info!("[b] recv: {:?} from {:?}", message, addr);
-//     }
-
-//     Ok(())
-// }

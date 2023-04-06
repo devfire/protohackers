@@ -1,7 +1,7 @@
 use std::io;
 
 use anyhow::Error;
-use log::info;
+use log::{error, info};
 use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::{Buf, BufMut, BytesMut};
@@ -33,6 +33,7 @@ impl Decoder for MessageCodec {
         if src.is_empty() {
             return Ok(None);
         }
+        info!("Decoding {:?}", src);
 
         match parse_message(src) {
             Ok((remaining_bytes, parsed_message)) => {
@@ -40,17 +41,18 @@ impl Decoder for MessageCodec {
                 // and what we parsed
                 src.advance(src.len() - remaining_bytes.len());
 
+                info!("parse_message: {parsed_message:?}");
+
                 // return the parsed message
                 Ok(Some(parsed_message))
             }
             Err(Err::Incomplete(Needed::Size(_))) => Ok(None),
 
-            Err(nom::Err::Incomplete(_)) => {
-                return Ok(None);
-            }
-            
+            Err(nom::Err::Incomplete(_)) => Ok(None),
+
             Err(nom::Err::Error(nom::error::Error { code, .. }))
             | Err(nom::Err::Failure(nom::error::Error { code, .. })) => {
+                error!("Parse error {src:?}");
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
                     format!("{code:?} during parsing of {src:?}"),
@@ -64,6 +66,7 @@ impl Encoder<MessageType> for MessageCodec {
     type Error = io::Error;
 
     fn encode(&mut self, item: MessageType, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        info!("Encoding {item:?}");
         Ok(())
     }
 }
