@@ -13,7 +13,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let env = Env::default()
         .filter_or("LOG_LEVEL", "info")
         .write_style_or("LOG_STYLE", "always");
-
+    
     env_logger::init_from_env(env);
 
     let socket = UdpSocket::bind("0.0.0.0:8080").await?;
@@ -21,13 +21,13 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut framed = UdpFramed::new(socket, MessageCodec::new());
 
-    // loop {
+    loop {
         tokio::select! {
             Some(message) = framed.next() => {info!("{message:?}")},
-            // else => break,
+            else => break,
 
         }
-    // }
+    }
 
 
     // process(&mut socket).await?;

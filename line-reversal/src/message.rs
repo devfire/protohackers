@@ -6,21 +6,19 @@ type Length = u32;
 
 #[derive(Clone, Debug)]
 pub enum MessageType {
-    Connect { session: Session },
-    Ack(AckStruct),
-    Data(DataStruct),
-    Close { session: Session },
-}
-
-#[derive(Clone, Debug)]
-pub struct AckStruct {
-    pub session: Session,
-    pub length: Length,
-}
-#[derive(Clone, Debug)]
-
-pub struct DataStruct {
-    pub session: Session,
-    pub pos: Pos,
-    pub data: Bytes,
+    Connect {
+        session: Session,
+    },
+    Ack {
+        session: Session,
+        length: Length,
+    },
+    Data {
+        session: Session,
+        pos: Pos,
+        data: Bytes,
+    },
+    Close {
+        session: Session,
+    },
 }
