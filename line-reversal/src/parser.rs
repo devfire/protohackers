@@ -2,13 +2,12 @@ use log::info;
 use nom::{
     branch::alt,
     bytes::{streaming::{tag}, complete::is_not},
-    multi::{many1, many0},
-    number::streaming::{ be_u32},
-    IResult, sequence::{terminated, delimited}, combinator::{recognize, map_res}, character::streaming::{one_of,char}
+
+    IResult, sequence::delimited, combinator::map_res
     
 };
 
-use hex;
+// use hex;
 
 
 use crate::message::MessageType;
@@ -60,7 +59,7 @@ fn parse_connect(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     let (input, session) = parse_number_u32(input)?;
 
     info!("parse_connect session: {session}");
-    
+
     // Return the plate and the timestamp
     Ok((input, MessageType::Connect { session }))
 }
