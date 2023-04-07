@@ -1,17 +1,11 @@
 use env_logger::Env;
-use std::time::Duration;
-
+use futures::{FutureExt, SinkExt, StreamExt};
 use line_reversal::codec::MessageCodec;
-use socket2::{Domain, Protocol, SockAddr, Socket, Type};
-
 use log::info;
-use std::net::SocketAddrV4;
+use std::time::Duration;
 use tokio::net::UdpSocket;
-use tokio_stream::StreamExt;
+use tokio::{io, time};
 use tokio_util::udp::UdpFramed;
-
-//IP constant
-const IP_ANY: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -22,35 +16,31 @@ async fn main() -> Result<(), anyhow::Error> {
 
     env_logger::init_from_env(env);
 
-    //Create a udp ip4 socket
-    let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
+    let socket = UdpSocket::bind("0.0.0.0:8080").await?;
+    info!("Listening on {}", socket.local_addr()?);
 
-    //Allow this port to be reused by other sockets
-    socket.set_reuse_address(true)?;
-    socket.set_nonblocking(false)?;
+    let mut framed = UdpFramed::new(socket, MessageCodec::new());
 
-    //Create IPV4 any adress
-    let address = SocketAddrV4::new(IP_ANY.into(), 8080);
-    socket.bind(&SockAddr::from(address))?;
+    // loop {
+        tokio::select! {
+            Some(message) = framed.next() => {info!("{message:?}")},
+            // else => break,
 
-    //Convert to tokio udp socket
-    let udp_socket = UdpSocket::from_std(socket.into())?;
+        }
+    // }
 
-    info!(
-        "Created a UDP Socket at {}, {}",
-        address.ip().to_string(),
-        address.port().to_string()
-    );
 
-    let mut framed = UdpFramed::new(udp_socket, MessageCodec::new());
+    // process(&mut socket).await?;
 
-    loop {
-        info!("Waiting for incoming messages");
+    Ok(())
+}
 
-        let result = framed.next();
+async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
+    let timeout = Duration::from_millis(200);
 
-        info!("{result:?}")
+    while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
+        info!("[b] recv: {:?} from {:?}", message, addr);
     }
 
-    // Ok(())
+    Ok(())
 }
