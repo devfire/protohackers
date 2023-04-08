@@ -1,10 +1,12 @@
 use env_logger::Env;
-use futures::{FutureExt, SinkExt, StreamExt};
+// use futures::{FutureExt, SinkExt, StreamExt};
+use futures::StreamExt;
 use line_reversal::codec::MessageCodec;
-use log::info;
-use std::time::Duration;
+use line_reversal::message::MessageType;
+use log::{error, info};
+// use std::time::Duration;
 use tokio::net::UdpSocket;
-use tokio::{io, time};
+
 use tokio_util::udp::UdpFramed;
 
 #[tokio::main]
@@ -21,22 +23,36 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut framed = UdpFramed::new(socket, MessageCodec::new());
 
-    tokio::select! {
-        Some(message) = framed.next() => {info!("{message:?}")},
+    while let Some(message) = framed.next().await {
+        match message {
+            Ok((MessageType::Connect { session }, address)) => {
+                info!("Got a connect msg session {session} from {address}")
+            }
+            Ok((MessageType::Ack { session, length }, address)) => {
+                info!("Got an ack msg session {session} length {length} from {address}")
+            }
 
+            Ok((MessageType::Data { session, pos, data }, address)) => {
+                info!("Got an data msg session {session} pos {pos} data {data:?} from {address}")
+            }
+            Ok((MessageType::Close { session }, address)) => {
+                info!("Got a close msg session {session} from {address}")
+            }
+
+            Err(e) => error!("Error: {e}"),
+        }
     }
-
-    // process(&mut socket).await?;
-
     Ok(())
 }
 
-async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
-    let timeout = Duration::from_millis(200);
+// process(&mut socket).await?;
 
-    while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
-        info!("[b] recv: {:?} from {:?}", message, addr);
-    }
+// async fn process(socket: &mut UdpFramed<MessageCodec>) -> Result<(), io::Error> {
+//     let timeout = Duration::from_millis(200);
 
-    Ok(())
-}
+//     while let Ok(Some(Ok((message, addr)))) = time::timeout(timeout, socket.next()).await {
+//         info!("[b] recv: {:?} from {:?}", message, addr);
+//     }
+
+//     Ok(())
+// }

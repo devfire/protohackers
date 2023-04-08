@@ -7,7 +7,7 @@ use tokio_util::codec::{Decoder, Encoder};
 use bytes::{Buf, BufMut, BytesMut};
 use nom::{Err, Needed};
 
-use crate::{message::MessageType, parser::parse_message};
+use crate::{errors::LRCPError, message::MessageType, parser::parse_message};
 
 #[derive(Clone, Debug, Hash)]
 pub struct MessageCodec {}
@@ -27,37 +27,37 @@ impl Default for MessageCodec {
 
 impl Decoder for MessageCodec {
     type Item = MessageType;
-    type Error = io::Error;
+    type Error = LRCPError;
 
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, io::Error> {
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, LRCPError> {
         if src.is_empty() {
             return Ok(None);
         }
         info!("Decoding {:?}", src);
 
         match parse_message(src) {
-            Ok((remaining_bytes, parsed_message)) => {
+            Ok((_remaining_bytes, parsed_message)) => {
                 // advance the cursor by the difference between what we read
                 // and what we parsed
-                src.advance(src.len() - remaining_bytes.len());
+                // src.advance(src.len() - remaining_bytes.len());
 
                 info!("parse_message: {parsed_message:?}");
+                src.clear();
 
                 // return the parsed message
                 Ok(Some(parsed_message))
             }
-            Err(Err::Incomplete(Needed::Size(_))) => Ok(None),
-
-            Err(nom::Err::Incomplete(_)) => Ok(None),
-
-            Err(nom::Err::Error(nom::error::Error { code, .. }))
-            | Err(nom::Err::Failure(nom::error::Error { code, .. })) => {
-                error!("Parse error {src:?}");
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("{code:?} during parsing of {src:?}"),
-                ));
+            Err(Err::Incomplete(Needed::Size(_))) => {
+                src.clear();
+                Ok(None)
             }
+
+            Err(nom::Err::Incomplete(_)) => {
+                src.clear();
+                Ok(None)
+            }
+
+            Err(_) => Err(LRCPError::ParseFailure),
         }
     }
 }
