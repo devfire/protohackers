@@ -9,6 +9,10 @@ use tokio::net::UdpSocket;
 
 use tokio_util::udp::UdpFramed;
 
+use crate::handlers::connect::handle_connect;
+
+mod handlers;
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     // Setup the logging framework
@@ -25,8 +29,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     while let Some(message) = framed.next().await {
         match message {
-            Ok((MessageType::Connect { session }, address)) => {
-                info!("Got a connect msg session {session} from {address}")
+            Ok((MessageType::Connect { session }, client_address)) => {
+                info!("Got a connect msg session {session} from {client_address}");
+                handle_connect(session, &client_address)?;
             }
             Ok((MessageType::Ack { session, length }, address)) => {
                 info!("Got an ack msg session {session} length {length} from {address}")

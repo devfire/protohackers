@@ -1,8 +1,6 @@
 use bytes::Bytes;
 
-type Session = u32;
-type Pos = u32;
-type Length = u32;
+use crate::types::{Session, Length, Pos};
 
 #[derive(Clone, Debug)]
 pub enum MessageType {

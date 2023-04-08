@@ -1,6 +1,6 @@
 use std::io;
 
-use anyhow::Error;
+// use anyhow::Error;
 use log::{error, info};
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -39,6 +39,7 @@ impl Decoder for MessageCodec {
             Ok((_remaining_bytes, parsed_message)) => {
                 // advance the cursor by the difference between what we read
                 // and what we parsed
+                // Whatever we get is all we get, clear the buffer post parsing.
                 // src.advance(src.len() - remaining_bytes.len());
 
                 info!("parse_message: {parsed_message:?}");
@@ -57,7 +58,10 @@ impl Decoder for MessageCodec {
                 Ok(None)
             }
 
-            Err(_) => Err(LRCPError::ParseFailure),
+            Err(_) => {
+                src.clear();
+                Err(LRCPError::ParseFailure)
+            }
         }
     }
 }
