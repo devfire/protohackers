@@ -57,8 +57,6 @@ fn parse_connect(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     // this parses and extracts the u32 SESSION between a pair of forward slashes
     let (input, session) = parse_number_u32("/", input, "/")?;
 
-    info!("parse_connect session: {session}");
-
     // Return the plate and the timestamp
     Ok((input, MessageType::Connect { session }))
 }
@@ -71,11 +69,8 @@ fn parse_ack(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     // this parses and extracts the u32 SESSION between a pair of forward slashes
     let (input, session) = parse_number_u32("/", input, "/")?;
 
-    //let mut chain = b"hello "[..].chain(&b"world"[..]);
-    // at this point, we have LENGTH/ left
+    // at this point, we have LENGTH/ left, so leading string is empty
     let (input, length) = parse_number_u32("", input, "/")?;
-
-    info!("parse_ack session: {session}");
 
     Ok((input, MessageType::Ack { session, length }))
 }
