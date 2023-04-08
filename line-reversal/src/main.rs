@@ -1,7 +1,7 @@
 use env_logger::Env;
 // use futures::{FutureExt, SinkExt, StreamExt};
 use futures::StreamExt;
-use line_reversal::codec::MessageCodec;
+use line_reversal::{codec::MessageCodec, state::Db};
 use line_reversal::message::MessageType;
 use log::{error, info};
 // use std::time::Duration;
@@ -27,11 +27,13 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut framed = UdpFramed::new(socket, MessageCodec::new());
 
+    let shared_db = Db::new();
+    
     while let Some(message) = framed.next().await {
         match message {
             Ok((MessageType::Connect { session }, client_address)) => {
                 info!("Got a connect msg session {session} from {client_address}");
-                handle_connect(session, &client_address)?;
+                handle_connect(session, &client_address, shared_db.clone())?;
             }
             Ok((MessageType::Ack { session, length }, address)) => {
                 info!("Got an ack msg session {session} length {length} from {address}")

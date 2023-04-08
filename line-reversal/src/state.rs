@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc};
+use std::{sync::{Mutex, Arc}, collections::HashMap};
 
 use crate::types::SocketAddrSessionDb;
 
@@ -9,6 +9,7 @@ pub struct Db {
     /// `Arc<Shared>`.
     shared: Arc<Shared>,
 }
+
 
 #[derive(Debug)]
 struct Shared {
@@ -32,3 +33,13 @@ struct State {
     sessions: SocketAddrSessionDb,
 }
 
+impl Db {
+    pub fn new() -> Db {
+        let shared = Arc::new(Shared {
+            state: Mutex::new(State {
+                sessions: HashMap::new(),
+            }),
+        });
+        Db { shared }
+    }
+}
