@@ -11,3 +11,4 @@ pub enum LRCPError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 }
+

@@ -1,13 +1,19 @@
 use std::net::SocketAddr;
 
-use line_reversal::{errors::LRCPError, state::Db, types::Session};
+use bytes::BytesMut;
+use line_reversal::{
+    errors::LRCPError,
+    state::Db,
+    types::{PosDataStruct, Session},
+};
 
-pub fn handle_connect(
+pub async fn handle_connect(
     session: Session,
-    client_addr: &SocketAddr,
+    addr: SocketAddr,
     shared_db: Db,
 ) -> anyhow::Result<(), LRCPError> {
-
-    
+    let data = BytesMut::new();
+    let pos_data = PosDataStruct::new(0, data);
+    shared_db.add_session(addr, session, pos_data).await;
     Ok(())
 }

@@ -1,6 +1,4 @@
-use bytes::Bytes;
-
-use crate::types::{Session, Length, Pos};
+use crate::types::{Length, PosDataStruct, Session};
 
 #[derive(Clone, Debug)]
 pub enum MessageType {
@@ -13,8 +11,7 @@ pub enum MessageType {
     },
     Data {
         session: Session,
-        pos: Pos,
-        data: Bytes,
+        pos_data: PosDataStruct,
     },
     Close {
         session: Session,

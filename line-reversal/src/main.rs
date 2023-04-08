@@ -33,14 +33,14 @@ async fn main() -> Result<(), anyhow::Error> {
         match message {
             Ok((MessageType::Connect { session }, client_address)) => {
                 info!("Got a connect msg session {session} from {client_address}");
-                handle_connect(session, &client_address, shared_db.clone())?;
+                handle_connect(session, client_address, shared_db.clone())?;
             }
             Ok((MessageType::Ack { session, length }, address)) => {
                 info!("Got an ack msg session {session} length {length} from {address}")
             }
 
-            Ok((MessageType::Data { session, pos, data }, address)) => {
-                info!("Got an data msg session {session} pos {pos} data {data:?} from {address}")
+            Ok((MessageType::Data { session, pos_data }, address)) => {
+                info!("Got a data msg session {session} from {address}")
             }
             Ok((MessageType::Close { session }, address)) => {
                 info!("Got a close msg session {session} from {address}")
