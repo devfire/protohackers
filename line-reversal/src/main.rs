@@ -1,6 +1,7 @@
 use env_logger::Env;
 // use futures::{FutureExt, SinkExt, StreamExt};
 use futures::StreamExt;
+use line_reversal::errors::LRCPError;
 use line_reversal::{codec::MessageCodec, state::Db};
 use line_reversal::message::MessageType;
 use log::{error, info};
@@ -14,7 +15,7 @@ use crate::handlers::connect::handle_connect;
 mod handlers;
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> Result<(), LRCPError> {
     // Setup the logging framework
     let env = Env::default()
         .filter_or("LOG_LEVEL", "info")
@@ -33,7 +34,7 @@ async fn main() -> Result<(), anyhow::Error> {
         match message {
             Ok((MessageType::Connect { session }, client_address)) => {
                 info!("Got a connect msg session {session} from {client_address}");
-                handle_connect(session, client_address, shared_db.clone())?;
+                handle_connect(session, client_address, shared_db.clone()).await?;
             }
             Ok((MessageType::Ack { session, length }, address)) => {
                 info!("Got an ack msg session {session} length {length} from {address}")
@@ -42,6 +43,7 @@ async fn main() -> Result<(), anyhow::Error> {
             Ok((MessageType::Data { session, pos_data }, address)) => {
                 info!("Got a data msg session {session} from {address}")
             }
+
             Ok((MessageType::Close { session }, address)) => {
                 info!("Got a close msg session {session} from {address}")
             }

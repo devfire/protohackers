@@ -1,8 +1,8 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{async_iter, collections::HashMap, net::SocketAddr, sync::Arc};
 
 use crate::{
     errors::LRCPError,
-    types::{PosDataStruct, Session, SocketAddrSessionDb},
+    types::{Session, SessionPosDataStruct, SocketAddrSessionDb},
 };
 
 use tokio::sync::Mutex;
@@ -57,14 +57,21 @@ impl Db {
         Db { shared }
     }
 
-    pub async fn add_session(&self, addr: SocketAddr, session: Session, pos_data: PosDataStruct) {
+    /// Add a new session from the connect handler
+    pub async fn add_session(&self, addr: SocketAddr, session_pos_data: SessionPosDataStruct) {
         let mut state = self.shared.state.lock().await;
 
-        //NOTE: the entry API is used here
-        state
-            .sessions
-            .entry(addr)
-            .or_default()
-            .insert(session, pos_data);
+        //Store the new session
+        state.sessions.insert(addr, session_pos_data);
+    }
+
+    pub async fn get_session(&self, addr: SocketAddr) -> Option<Session> {
+        let state = self.shared.state.lock().await;
+
+        if let Some(session_pos_data) = state.sessions.get(&addr) {
+            Some(session_pos_data.session)
+        } else {
+            None
+        }
     }
 }

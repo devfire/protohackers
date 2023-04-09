@@ -6,18 +6,18 @@ pub type Session = u32;
 pub type Pos = u32;
 pub type Length = u32;
 
-#[derive(Debug, Clone)]
-pub struct PosDataStruct {
-    pos: Pos,
-    data: BytesMut,
+#[derive(Default, Debug, Clone)]
+pub struct SessionPosDataStruct {
+    pub session: Session,
+    pub pos: Pos,
+    pub data: BytesMut,
 }
 
-impl PosDataStruct {
-    /// Creates a new [`PosDataStruct`].
-    pub fn new(pos: Pos, data: BytesMut) -> Self {
-        Self { pos, data }
+impl SessionPosDataStruct {
+    /// Creates a new [`SessionPosDataStruct`].
+    pub fn new(session: Session, pos: Pos, data: BytesMut) -> Self {
+        Self { session, pos, data }
     }
 }
 
-
-pub type SocketAddrSessionDb = HashMap<SocketAddr, HashMap<Session, PosDataStruct>>;
+pub type SocketAddrSessionDb = HashMap<SocketAddr, SessionPosDataStruct>;
