@@ -1,9 +1,12 @@
 // use log::info;
 use nom::{
     branch::alt,
-    bytes::streaming::{is_not, tag},
+    bytes::{
+        complete::take_while1,
+        streaming::{is_not, tag},
+    },
     combinator::map_res,
-    sequence::delimited,
+    sequence::{delimited, preceded},
     IResult,
 };
 
@@ -73,6 +76,23 @@ fn parse_ack(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     let (input, length) = parse_number_u32("", input, "/")?;
 
     Ok((input, MessageType::Ack { session, length }))
+}
+
+fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
+    // /data/SESSION/POS/DATA/
+    // NOTE: trailing / is not here, it is parsed immediately below
+    let (input, _) = tag("/data")(input)?;
+
+    // this parses and extracts the u32 SESSION between a pair of forward slashes
+    let (input, session) = parse_number_u32("/", input, "/")?;
+
+    // at this point, we have POS/ left, so leading string is empty
+    let (input, length) = parse_number_u32("", input, "/")?;
+
+    // DATA is the string to be reversed.
+
+    Ok(())
+
 }
 
 ///

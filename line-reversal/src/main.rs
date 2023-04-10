@@ -47,6 +47,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut framed_read = UdpFramed::new(s, MessageCodec::new());
     let mut framed_write = UdpFramed::new(r, MessageCodec::new());
 
+    // This reads from the main channel and writes a Framed message to the UDP socket.
     tokio::spawn(async move {
         while let Some((msg, addr)) = rx.recv().await {
             info!("Sending {msg:?} to {addr}");
