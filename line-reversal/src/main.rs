@@ -49,8 +49,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     tokio::spawn(async move {
         while let Some((msg, addr)) = rx.recv().await {
-            let len = framed_write.send((msg, addr));
-            info!("{:?} bytes sent", len);
+            info!("Sending {msg:?} to {addr}");
+            framed_write.send((msg, addr)).await.expect("Unable to send msg");
         }
     });
 
