@@ -1,4 +1,4 @@
-use log::info;
+// use log::info;
 use nom::{
     branch::alt,
     bytes::streaming::{is_not, tag},
@@ -83,6 +83,6 @@ pub fn parse_message(input: &[u8]) -> IResult<&[u8], MessageType> {
     // let hex_string = hex::encode(input);
     // info!("Parsing {}", input);
     let (input, message) = alt((parse_connect, parse_ack))(input)?;
-    info!("Parser finished, inbound message: {:?}", message);
+    // info!("Parser finished, inbound message: {:?}", message);
     Ok((input, message))
 }
