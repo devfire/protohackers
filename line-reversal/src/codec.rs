@@ -33,7 +33,7 @@ impl Decoder for MessageCodec {
         if src.is_empty() {
             return Ok(None);
         }
-        // info!("Decoding {:?}", src);
+        info!("Decoding {src:?}");
 
         match parse_message(src) {
             Ok((_remaining_bytes, parsed_message)) => {

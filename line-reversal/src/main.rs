@@ -55,7 +55,6 @@ async fn main() -> Result<(), anyhow::Error> {
     });
 
     while let Some(message) = framed_read.next().await {
-        info!("Received {message:?}");
         match message {
             Ok((MessageType::Connect { session }, client_address)) => {
                 info!("Got a connect msg session {session} from {client_address}");
