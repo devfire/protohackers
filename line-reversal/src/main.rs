@@ -36,13 +36,14 @@ async fn main() -> Result<(), anyhow::Error> {
     // This is because all of the methods take &self instead of &mut self.
     // Once you have wrapped it in an Arc, you can call .clone() on the Arc<UdpSocket>
     // to get multiple shared handles to the same socket.
-    let socket = UdpSocket::bind("0.0.0.0:8080".parse::<SocketAddr>().unwrap()).await?;
+    let socket = UdpSocket::bind("0.0.0.0:8080").await?;
 
     info!("Listening on {}", socket.local_addr()?);
     let r = Arc::new(socket);
     let s = r.clone();
     let (tx, mut rx) = mpsc::channel::<(MessageType, SocketAddr)>(1_000);
 
+    //
     let mut framed_read = UdpFramed::new(s, MessageCodec::new());
     let mut framed_write = UdpFramed::new(r, MessageCodec::new());
 
