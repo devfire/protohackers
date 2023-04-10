@@ -82,10 +82,13 @@ impl Encoder<MessageType> for MessageCodec {
 
                 dst.reserve(buffer_size);
 
+                let session_str = session.to_string();
+                let length_str = length.to_string();
+
                 dst.extend_from_slice(prefix);
-                dst.put_u32(session);
+                dst.put(session_str.as_bytes());
                 dst.put("/".as_bytes());
-                dst.put_u32(length);
+                dst.put(length_str.as_bytes());
                 dst.put("/".as_bytes());
             }
             MessageType::Data { session, pos_data } => todo!(),
