@@ -67,8 +67,8 @@ async fn main() -> Result<(), anyhow::Error> {
                 info!("Got an ack msg session {session} length {length} from {address}")
             }
 
-            Ok((MessageType::Data { session, pos_data }, address)) => {
-                info!("Got a data msg session {session} from {address}")
+            Ok((MessageType::Data { session_pos_data }, address)) => {
+                info!("Got a data msg {session_pos_data:?} from {address}")
             }
 
             Ok((MessageType::Close { session }, address)) => {

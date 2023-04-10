@@ -10,8 +10,7 @@ pub enum MessageType {
         length: Length,
     },
     Data {
-        session: Session,
-        pos_data: SessionPosDataStruct,
+        session_pos_data: SessionPosDataStruct,
     },
     Close {
         session: Session,

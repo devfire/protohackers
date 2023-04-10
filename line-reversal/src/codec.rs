@@ -91,7 +91,7 @@ impl Encoder<MessageType> for MessageCodec {
                 dst.put(length_str.as_bytes());
                 dst.put("/".as_bytes());
             }
-            MessageType::Data { session, pos_data } => todo!(),
+            MessageType::Data { session_pos_data } => todo!(),
             MessageType::Close { session } => todo!(),
         }
         Ok(())

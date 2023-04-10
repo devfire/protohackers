@@ -2,17 +2,18 @@
 use nom::{
     branch::alt,
     bytes::{
-        complete::take_while1,
+        complete::{escaped_transform, take_until, take_while, take_while1},
         streaming::{is_not, tag},
     },
-    combinator::map_res,
+    character::complete::alpha1,
+    combinator::{map_res, value},
     sequence::{delimited, preceded},
     IResult,
 };
 
 // use hex;
 
-use crate::message::MessageType;
+use crate::{message::MessageType, types::SessionPosDataStruct};
 
 fn parse_number_u32<'a>(
     first: &'a str,
@@ -78,6 +79,18 @@ fn parse_ack(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     Ok((input, MessageType::Ack { session, length }))
 }
 
+fn parse_data_string(input: &str) -> IResult<&str, String> {
+    escaped_transform(
+        alpha1,
+        '\\',
+        alt((
+            value("\\", tag("\\")),
+            value("\"", tag("\"")),
+            value("\n", tag("n")),
+        )),
+    )(input)
+}
+
 fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     // /data/SESSION/POS/DATA/
     // NOTE: trailing / is not here, it is parsed immediately below
@@ -87,12 +100,21 @@ fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     let (input, session) = parse_number_u32("/", input, "/")?;
 
     // at this point, we have POS/ left, so leading string is empty
-    let (input, length) = parse_number_u32("", input, "/")?;
+    let (input, pos) = parse_number_u32("", input, "/")?;
+
+    let (input, data) = take_until("/")(input)?;
+
+    let data_string =
+        String::from_utf8(data.to_vec()).expect("failed conversion from data to string");
 
     // DATA is the string to be reversed.
+    // let (input, data) =
+    //     parse_data_string(std::str::from_utf8(input).expect("Unable to convert [u8] to str"))
+    //         .expect("Unable to parse data string");
 
-    Ok(())
+    let session_pos_data = SessionPosDataStruct::new(session, pos, data_string);
 
+    Ok((input, MessageType::Data { session_pos_data }))
 }
 
 ///
@@ -102,7 +124,7 @@ fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
 pub fn parse_message(input: &[u8]) -> IResult<&[u8], MessageType> {
     // let hex_string = hex::encode(input);
     // info!("Parsing {}", input);
-    let (input, message) = alt((parse_connect, parse_ack))(input)?;
+    let (input, message) = alt((parse_connect, parse_ack, parse_data))(input)?;
     // info!("Parser finished, inbound message: {:?}", message);
     Ok((input, message))
 }
