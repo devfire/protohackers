@@ -7,6 +7,10 @@ pub enum LRCPError {
     #[error("Unable to parse message")]
     ParseFailure,
 
+    /// Session not found
+    #[error("Session not found")]
+    SessionNotFound,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
