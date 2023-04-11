@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 use tokio_util::udp::UdpFramed;
 
 use crate::handlers::connect::handle_connect;
+use crate::handlers::data::handle_data;
 
 mod handlers;
 
@@ -36,7 +37,7 @@ async fn main() -> Result<(), anyhow::Error> {
     // This is because all of the methods take &self instead of &mut self.
     // Once you have wrapped it in an Arc, you can call .clone() on the Arc<UdpSocket>
     // to get multiple shared handles to the same socket.
-    let socket = UdpSocket::bind("0.0.0.0:8080").await?;
+    let socket = UdpSocket::bind("127.0.0.1:8080").await?;
 
     info!("Listening on {}", socket.local_addr()?);
     let r = Arc::new(socket);
@@ -51,7 +52,10 @@ async fn main() -> Result<(), anyhow::Error> {
     tokio::spawn(async move {
         while let Some((msg, addr)) = rx.recv().await {
             info!("Sending {msg:?} to {addr}");
-            framed_write.send((msg, addr)).await.expect("Unable to send msg");
+            framed_write
+                .send((msg, addr))
+                .await
+                .expect("Unable to send msg");
         }
     });
 
@@ -67,8 +71,9 @@ async fn main() -> Result<(), anyhow::Error> {
                 info!("Got an ack msg session {session} length {length} from {address}")
             }
 
-            Ok((MessageType::Data { session_pos_data }, address)) => {
-                info!("Got a data msg {session_pos_data:?} from {address}")
+            Ok((MessageType::Data { session_pos_data }, client_address)) => {
+                info!("Got a data msg {session_pos_data:?} from {client_address}");
+                handle_data(session_pos_data, &client_address, tx.clone(), shared_db.clone()).await?;
             }
 
             Ok((MessageType::Close { session }, address)) => {

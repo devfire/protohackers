@@ -86,16 +86,28 @@ impl Encoder<MessageType> for MessageCodec {
                 let length_str = length.to_string();
 
                 dst.extend_from_slice(prefix);
-                dst.put(session_str.as_bytes());
-                dst.put("/".as_bytes());
-                dst.put(length_str.as_bytes());
-                dst.put("/".as_bytes());
+                dst.extend_from_slice(session_str.as_bytes());
+                dst.extend_from_slice("/".as_bytes());
+                dst.extend_from_slice(length_str.as_bytes());
+                dst.extend_from_slice("/".as_bytes());
             }
             MessageType::Data { session_pos_data } => todo!(),
             MessageType::Close { session } => {
                 // /close/SESSION/
                 let prefix = "/close/".as_bytes();
-            },
+                // forward slash, ack, forward slash, session, forward slash, length, forward slash
+                let buffer_size = 1;
+
+                dst.reserve(buffer_size);
+
+                let session_str = session.to_string();
+
+                dst.extend_from_slice(prefix);
+                dst.extend_from_slice(session_str.as_bytes());
+                dst.extend_from_slice("/".as_bytes());
+
+
+            }
         }
         Ok(())
     }
