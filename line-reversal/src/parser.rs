@@ -2,12 +2,12 @@
 use nom::{
     branch::alt,
     bytes::{
-        complete::{escaped_transform, take_until, take_while, take_while1},
+        complete::{escaped_transform, take_until},
         streaming::{is_not, tag},
     },
     character::complete::alpha1,
     combinator::{map_res, value},
-    sequence::{delimited, preceded},
+    sequence::delimited,
     IResult,
 };
 
@@ -38,12 +38,9 @@ fn parse_number_u32<'a>(
             // ending delimiter, which should be
             // the number itself.
             is_not(third),
-            // Since our bytes here aren't the raw
-            // number but rather a string of the
-            // number (for instance, not the byte
-            // 0x04 itself but 0x34, which is the
-            // ASCII for "4") we must parse it
-            // into one.
+            // Since our bytes here aren't the raw number but rather a string of the
+            // number (for instance, not the byte 0x04 itself but 0x34, which is the
+            // ASCII for "4") we must parse it into one.
             |bytes| String::from_utf8_lossy(bytes).parse::<u32>(),
         ),
         tag("/"),
@@ -79,17 +76,17 @@ fn parse_ack(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     Ok((input, MessageType::Ack { session, length }))
 }
 
-fn parse_data_string(input: &str) -> IResult<&str, String> {
-    escaped_transform(
-        alpha1,
-        '\\',
-        alt((
-            value("\\", tag("\\")),
-            value("\"", tag("\"")),
-            value("\n", tag("n")),
-        )),
-    )(input)
-}
+// fn parse_data_string(input: &str) -> IResult<&str, String> {
+//     escaped_transform(
+//         alpha1,
+//         '\\',
+//         alt((
+//             value("\\", tag("\\")),
+//             value("\"", tag("\"")),
+//             value("\n", tag("n")),
+//         )),
+//     )(input)
+// }
 
 fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     // /data/SESSION/POS/DATA/
