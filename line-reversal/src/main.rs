@@ -15,8 +15,7 @@ use tokio::sync::mpsc;
 
 use tokio_util::udp::UdpFramed;
 
-use crate::handlers::connect::handle_connect;
-use crate::handlers::data::handle_data;
+use crate::handlers::{connect::handle_connect, data::handle_data};
 
 mod handlers;
 

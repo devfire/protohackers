@@ -71,4 +71,10 @@ impl Db {
             .get(&addr)
             .map(|session_pos_data| session_pos_data.session)
     }
+
+    // pub async fn get_pos(&self, session: &Session) -> Option<Session> {
+    //     let state = self.shared.state.lock().await;
+
+    //     if let Some(pos) = state.sessions.get(session).
+    // }
 }

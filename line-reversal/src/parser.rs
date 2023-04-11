@@ -76,18 +76,6 @@ fn parse_ack(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     Ok((input, MessageType::Ack { session, length }))
 }
 
-// fn parse_data_string(input: &str) -> IResult<&str, String> {
-//     escaped_transform(
-//         alpha1,
-//         '\\',
-//         alt((
-//             value("\\", tag("\\")),
-//             value("\"", tag("\"")),
-//             value("\n", tag("n")),
-//         )),
-//     )(input)
-// }
-
 fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     // /data/SESSION/POS/DATA/
     // NOTE: trailing / is not here, it is parsed immediately below
@@ -104,12 +92,14 @@ fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
     let data_string =
         String::from_utf8(data.to_vec()).expect("failed conversion from data to string");
 
-    // DATA is the string to be reversed.
+    // // DATA is the string to be reversed.
     // let (input, data) =
     //     parse_data_string(std::str::from_utf8(input).expect("Unable to convert [u8] to str"))
     //         .expect("Unable to parse data string");
 
     let session_pos_data = SessionPosDataStruct::new(session, pos, data_string);
+
+    // let input = input.as_bytes(); // back to byte array
 
     Ok((input, MessageType::Data { session_pos_data }))
 }
