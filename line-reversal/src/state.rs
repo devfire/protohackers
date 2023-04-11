@@ -62,7 +62,7 @@ impl Db {
         state.sessions.insert(addr, session_pos_data);
     }
 
-    pub async fn get_session(&self, addr: SocketAddr) -> Option<Session> {
+    pub async fn get_session(&self, addr: &SocketAddr) -> Option<Session> {
         let state = self.shared.state.lock().await;
 
         // https://rust-lang.github.io/rust-clippy/master/index.html#manual_map
