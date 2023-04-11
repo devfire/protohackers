@@ -78,7 +78,7 @@ impl Encoder<MessageType> for MessageCodec {
                 let prefix = "/ack/".as_bytes();
 
                 // forward slash, ack, forward slash, session, forward slash, length, forward slash
-                let buffer_size = 1 + 3 + 1 + 4 + 1 + 4 + 1;
+                let buffer_size = 1;
 
                 dst.reserve(buffer_size);
 
@@ -92,7 +92,10 @@ impl Encoder<MessageType> for MessageCodec {
                 dst.put("/".as_bytes());
             }
             MessageType::Data { session_pos_data } => todo!(),
-            MessageType::Close { session } => todo!(),
+            MessageType::Close { session } => {
+                // /close/SESSION/
+                let prefix = "/close/".as_bytes();
+            },
         }
         Ok(())
     }
