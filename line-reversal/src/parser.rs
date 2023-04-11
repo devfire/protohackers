@@ -38,12 +38,9 @@ fn parse_number_u32<'a>(
             // ending delimiter, which should be
             // the number itself.
             is_not(third),
-            // Since our bytes here aren't the raw
-            // number but rather a string of the
-            // number (for instance, not the byte
-            // 0x04 itself but 0x34, which is the
-            // ASCII for "4") we must parse it
-            // into one.
+            // Since our bytes here aren't the raw number but rather a string of the
+            // number (for instance, not the byte 0x04 itself but 0x34, which is the
+            // ASCII for "4") we must parse it into one.
             |bytes| String::from_utf8_lossy(bytes).parse::<u32>(),
         ),
         tag("/"),
