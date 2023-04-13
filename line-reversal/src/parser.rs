@@ -89,6 +89,7 @@ fn parse_data(input: &[u8]) -> nom::IResult<&[u8], MessageType> {
 
     let (input, data) = take_until("/")(input)?;
 
+    // this contains the original escaped string
     let data_string =
         String::from_utf8(data.to_vec()).expect("failed conversion from data to string");
 

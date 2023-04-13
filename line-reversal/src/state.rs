@@ -68,7 +68,7 @@ impl Db {
         // https://rust-lang.github.io/rust-clippy/master/index.html#manual_map
         state
             .sessions
-            .get(&addr)
+            .get(addr)
             .map(|session_pos_data| session_pos_data.session)
     }
 

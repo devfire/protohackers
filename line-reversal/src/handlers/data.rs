@@ -4,25 +4,32 @@ use line_reversal::{
     errors::LRCPError, message::MessageType, state::Db, types::SessionPosDataStruct,
 };
 use log::{error, info};
-use nom::{
-    branch::alt,
-    bytes::complete::{escaped_transform, tag},
-    character::complete::alpha1,
-    combinator::value,
-    IResult,
-};
+
 use tokio::sync::mpsc::Sender;
 
-fn parse_data_string(input: &str) -> IResult<&str, String> {
-    escaped_transform(
-        alpha1,
-        '\\',
-        alt((
-            value("\\", tag("\\")),
-            value("\"", tag("\"")),
-            value("\n", tag("n")),
-        )),
-    )(input)
+fn unescape_string(s: &str) -> String {
+    let mut result = String::new();
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('n') => result.push('\n'),
+                Some('r') => result.push('\r'),
+                Some('t') => result.push('\t'),
+                Some('\\') => result.push('\\'),
+                Some('"') => result.push('"'),
+                Some('\'') => result.push('\''),
+                Some(c) => {
+                    result.push('\\');
+                    result.push(c);
+                }
+                None => result.push('\\'),
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 pub async fn handle_data(
@@ -33,6 +40,7 @@ pub async fn handle_data(
 ) -> anyhow::Result<(), anyhow::Error> {
     // let's first see if the session has been established previously
     let session = session_pos_data.session;
+    let pos = session_pos_data.pos;
 
     if let Some(session) = shared_db.get_session(addr).await {
         info!("found {session}, proceeding ");
@@ -42,9 +50,12 @@ pub async fn handle_data(
         tx.send((no_session_reply, *addr)).await?;
     }
 
-    // Session ok let's unescape the characters
-    let data_string = parse_data_string(&session_pos_data.data);
+    
 
+    // Session ok let's unescape the characters
+    let data_string = unescape_string(&session_pos_data.data);
+
+    let data_string_length = data_string.len();
     
     Ok(())
 }
