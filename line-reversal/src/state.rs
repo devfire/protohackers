@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
-use crate::types::{Session, SessionPosDataStruct, SocketAddrSessionDb};
+use crate::types::{Pos, Session, SessionPosDataStruct, SocketAddrSessionDb};
 
 use tokio::sync::Mutex;
 
@@ -72,9 +72,13 @@ impl Db {
             .map(|session_pos_data| session_pos_data.session)
     }
 
-    // pub async fn get_pos(&self, session: &Session) -> Option<Session> {
-    //     let state = self.shared.state.lock().await;
+    pub async fn get_pos(&self, addr: &SocketAddr) -> Option<Pos> {
+        let state = self.shared.state.lock().await;
 
-    //     if let Some(pos) = state.sessions.get(session).
-    // }
+        // https://rust-lang.github.io/rust-clippy/master/index.html#manual_map
+        state
+            .sessions
+            .get(addr)
+            .map(|session_pos_data| session_pos_data.pos)
+    }
 }
