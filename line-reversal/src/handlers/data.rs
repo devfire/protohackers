@@ -47,7 +47,7 @@ pub async fn handle_data(
     addr: &SocketAddr,
     tx: Sender<(MessageType, SocketAddr)>,
     shared_db: Db,
-) -> anyhow::Result<(), anyhow::Error> {
+) -> anyhow::Result<String, anyhow::Error> {
     // let's first see if the session has been established previously
     let session = session_pos_data.session;
     let new_pos: Pos = session_pos_data.pos;
@@ -63,6 +63,7 @@ pub async fn handle_data(
         error!("{}", LRCPError::SessionNotFound);
         let no_session_reply = MessageType::Close { session };
         tx.send((no_session_reply, *addr)).await?;
+        return Err(LRCPError::SessionNotFound.into());
     }
 
     // Session ok let's unescape the characters
@@ -72,12 +73,25 @@ pub async fn handle_data(
 
     // Behaviour is undefined if a peer sends payload data that overlaps with payload data you've already received, but differs from it.
     // So we just overwrite the previous value and move on.
-    if new_pos <= old_pos {
-        warn!("New pos {new_pos} overlaps with old pos {old_pos}, overwriting data");
+    if new_pos - 1 > old_pos {
+        error!("New pos {new_pos} is greater than old pos {old_pos}, missing data.");
         //  Ok(data_string.chars().rev().collect::<String>())
-    // uh oh missing acks for previously 
-    } else if new_pos.abs_diff(old_pos) == 1 {
+        // uh oh missing acks or data
+        return Err(LRCPError::DataMissing.into());
+
+        let missing_data_msg = MessageType::Ack { session, length: old_pos };
+        tx.send((ack_msg, client_address)).await?;
+
+
+    } else {
+        let new_session = SessionPosDataStruct {
+            session,
+            pos: data_string_length as Pos,
+            data: data_string.clone(),
+        };
+
+        shared_db.add_session(*addr, new_session).await;
     }
 
-    Ok(())
+    Ok(data_string)
 }

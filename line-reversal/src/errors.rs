@@ -11,8 +11,11 @@ pub enum LRCPError {
     #[error("Session not found")]
     SessionNotFound,
 
+    /// Missing data
+    #[error("Data or ack missing")]
+    DataMissing,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 }
-
