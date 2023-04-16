@@ -77,12 +77,13 @@ pub async fn handle_data(
         error!("New pos {new_pos} is greater than old pos {old_pos}, missing data.");
         //  Ok(data_string.chars().rev().collect::<String>())
         // uh oh missing acks or data
-        return Err(LRCPError::DataMissing.into());
 
-        let missing_data_msg = MessageType::Ack { session, length: old_pos };
-        tx.send((ack_msg, client_address)).await?;
-
-
+        let missing_data_msg = MessageType::Ack {
+            session,
+            length: old_pos,
+        };
+        tx.send((missing_data_msg, *addr)).await?;
+        return Err(LRCPError::DataMissing.into()); 
     } else {
         let new_session = SessionPosDataStruct {
             session,
