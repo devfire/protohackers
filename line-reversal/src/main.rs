@@ -6,6 +6,7 @@ use env_logger::Env;
 use futures::{SinkExt, StreamExt};
 
 use line_reversal::message::MessageType;
+use line_reversal::types::{SessionPosDataStruct, Pos};
 use line_reversal::{codec::MessageCodec, state::Db};
 use log::{error, info};
 // use std::time::Duration;
@@ -72,9 +73,25 @@ async fn main() -> Result<(), anyhow::Error> {
 
             Ok((MessageType::Data { session_pos_data }, client_address)) => {
                 info!("Got a data msg {session_pos_data:?} from {client_address}");
-                handle_data(session_pos_data, &client_address, tx.clone(), shared_db.clone()).await?;
-            }
+                let reversed_data_string: String = handle_data(
+                    &session_pos_data,
+                    &client_address,
+                    tx.clone(),
+                    shared_db.clone(),
+                )
+                .await?
+                .chars()
+                .rev()
+                .collect();
 
+                let reversed_string_len = reversed_data_string.len();
+
+                let reversed_session_pos_data = SessionPosDataStruct {
+                    data: reversed_data_string,
+                    session: session_pos_data.session,
+                    pos: reversed_string_len as Pos,
+                };
+            }
             Ok((MessageType::Close { session }, address)) => {
                 info!("Got a close msg session {session} from {address}")
             }

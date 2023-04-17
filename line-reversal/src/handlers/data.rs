@@ -43,7 +43,7 @@ fn unescape_string(s: &str) -> String {
 /// If you have not received everything up to POS: send a duplicate of your previous ack (or /ack/SESSION/0/ if none),
 /// saying how much you have received, to provoke the other side to retransmit whatever you're missing.
 pub async fn handle_data(
-    session_pos_data: SessionPosDataStruct,
+    session_pos_data: &SessionPosDataStruct,
     addr: &SocketAddr,
     tx: Sender<(MessageType, SocketAddr)>,
     shared_db: Db,
@@ -83,7 +83,7 @@ pub async fn handle_data(
             length: old_pos,
         };
         tx.send((missing_data_msg, *addr)).await?;
-        return Err(LRCPError::DataMissing.into()); 
+        return Err(LRCPError::DataMissing.into())
     } else {
         let new_session = SessionPosDataStruct {
             session,
