@@ -6,7 +6,7 @@ use env_logger::Env;
 use futures::{SinkExt, StreamExt};
 
 use line_reversal::message::MessageType;
-use line_reversal::types::{SessionPosDataStruct, Pos};
+use line_reversal::types::{Length, Pos, SessionPosDataStruct};
 use line_reversal::{codec::MessageCodec, state::Db};
 use log::{error, info};
 // use std::time::Duration;
@@ -37,7 +37,7 @@ async fn main() -> Result<(), anyhow::Error> {
     // This is because all of the methods take &self instead of &mut self.
     // Once you have wrapped it in an Arc, you can call .clone() on the Arc<UdpSocket>
     // to get multiple shared handles to the same socket.
-    let socket = UdpSocket::bind("127.0.0.1:8080").await?;
+    let socket = UdpSocket::bind("0.0.0.0:8080").await?;
 
     info!("Listening on {}", socket.local_addr()?);
     let r = Arc::new(socket);
@@ -91,6 +91,18 @@ async fn main() -> Result<(), anyhow::Error> {
                     session: session_pos_data.session,
                     pos: reversed_string_len as Pos,
                 };
+
+                let data_reply_msg = MessageType::Data {
+                    session_pos_data: reversed_session_pos_data.clone(),
+                };
+                tx.send((data_reply_msg, client_address)).await?;
+
+                let ack_msg = MessageType::Ack {
+                    session: reversed_session_pos_data.session,
+                    length: reversed_string_len as Length,
+                };
+
+                tx.send((ack_msg, client_address)).await?;
             }
             Ok((MessageType::Close { session }, address)) => {
                 info!("Got a close msg session {session} from {address}")

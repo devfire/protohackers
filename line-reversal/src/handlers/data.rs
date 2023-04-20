@@ -35,7 +35,7 @@ fn unescape_string(s: &str) -> String {
     result
 }
 
-/// When you receive a data message
+/// When you receive a data message 
 /// If the session is not open: send /close/SESSION/ and stop.
 /// If you've already received everything up to POS: unescape "\\" and "\/",
 /// find the total LENGTH of unescaped data that you've already received (including the data in this message, if any),
@@ -74,7 +74,7 @@ pub async fn handle_data(
     // Behaviour is undefined if a peer sends payload data that overlaps with payload data you've already received, but differs from it.
     // So we just overwrite the previous value and move on.
     if new_pos - 1 > old_pos {
-        error!("New pos {new_pos} is greater than old pos {old_pos}, missing data.");
+        warn!("New pos {new_pos} is greater than old pos {old_pos}, missing data.");
         //  Ok(data_string.chars().rev().collect::<String>())
         // uh oh missing acks or data
 
@@ -83,7 +83,7 @@ pub async fn handle_data(
             length: old_pos,
         };
         tx.send((missing_data_msg, *addr)).await?;
-        return Err(LRCPError::DataMissing.into())
+        // return Err(LRCPError::DataMissing.into())
     } else {
         let new_session = SessionPosDataStruct {
             session,
