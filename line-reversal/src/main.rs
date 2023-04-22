@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 
 use tokio_util::udp::UdpFramed;
 
+use crate::handlers::ack::handle_ack;
 use crate::handlers::{connect::handle_connect, data::handle_data};
 
 mod handlers;
@@ -67,8 +68,9 @@ async fn main() -> Result<(), anyhow::Error> {
                 let ack_msg = MessageType::Ack { session, length: 0 };
                 tx.send((ack_msg, client_address)).await?;
             }
-            Ok((MessageType::Ack { session, length }, address)) => {
-                info!("Got an ack msg session {session} length {length} from {address}")
+            Ok((MessageType::Ack { session, length }, client_address)) => {
+                info!("Got an ack msg session {session} length {length} from {client_address}");
+                handle_ack(session, &client_address, tx.clone(), shared_db.clone()).await?;
             }
 
             Ok((MessageType::Data { session_pos_data }, client_address)) => {
