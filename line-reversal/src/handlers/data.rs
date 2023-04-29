@@ -87,13 +87,13 @@ pub async fn handle_data(
             Ok(data_string)
         } else {
             error!("Session found but no pos located--very bad!");
-            return Err(LRCPError::SessionNotFound.into());
+            Err(LRCPError::SessionNotFound.into())
         }
     } else {
         // uh-oh, you are sending data but we've never seen this session before, bail.
         error!("{}", LRCPError::SessionNotFound);
         let no_session_reply = MessageType::Close { session };
         tx.send((no_session_reply, *addr)).await?;
-        return Err(LRCPError::SessionNotFound.into());
+        Err(LRCPError::SessionNotFound.into())
     }
 }

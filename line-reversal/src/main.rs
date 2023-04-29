@@ -75,6 +75,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
             Ok((MessageType::Data { session_pos_data }, client_address)) => {
                 info!("Got a data msg {session_pos_data:?} from {client_address}");
+
+                // Process and reverse the received string
                 let reversed_data_string: String = handle_data(
                     &session_pos_data,
                     &client_address,
@@ -86,6 +88,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 .rev()
                 .collect();
 
+                // We need to know how long the received string was
                 let reversed_string_len = reversed_data_string.len();
 
                 let reversed_session_pos_data = SessionPosDataStruct {
