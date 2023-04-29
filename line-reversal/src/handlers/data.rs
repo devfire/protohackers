@@ -49,8 +49,6 @@ pub async fn handle_data(
     shared_db: Db,
 ) -> anyhow::Result<String, anyhow::Error> {
     // let's first see if the session has been established previously
-    let session = session_pos_data.session;
-
     if let Some(old_session) = shared_db.get_session(addr).await {
         if let Some(old_pos) = shared_db.get_pos(addr).await {
             info!("Found existing session {old_session} existing pos {old_pos}");
@@ -69,15 +67,15 @@ pub async fn handle_data(
                 // uh oh missing acks or data
 
                 let missing_data_msg = MessageType::Ack {
-                    session,
+                    session: session_pos_data.session,
                     length: old_pos,
                 };
-                info!("found {session}, proceeding ");
+                
                 tx.send((missing_data_msg, *addr)).await?;
                 // return Err(LRCPError::DataMissing.into())
             } else {
                 let new_session = SessionPosDataStruct {
-                    session,
+                    session: session_pos_data.session,
                     pos: data_string_length as Pos,
                     data: data_string.clone(),
                 };
@@ -92,7 +90,7 @@ pub async fn handle_data(
     } else {
         // uh-oh, you are sending data but we've never seen this session before, bail.
         error!("{}", LRCPError::SessionNotFound);
-        let no_session_reply = MessageType::Close { session };
+        let no_session_reply = MessageType::Close { session: session_pos_data.session };
         tx.send((no_session_reply, *addr)).await?;
         Err(LRCPError::SessionNotFound.into())
     }
