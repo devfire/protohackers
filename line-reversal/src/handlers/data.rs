@@ -87,7 +87,7 @@ pub async fn handle_data(
             error!("Session found but no pos located--very bad!");
             Err(LRCPError::SessionNotFound.into())
         }
-    } else {
+    } else { // if let Some(old_session) = shared_db.get_session(addr).await
         // uh-oh, you are sending data but we've never seen this session before, bail.
         error!("{}", LRCPError::SessionNotFound);
         let no_session_reply = MessageType::Close { session: session_pos_data.session };
