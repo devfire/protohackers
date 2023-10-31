@@ -1,2 +1,2 @@
 # protohackers
-implementing protohackers https://protohackers.com/
+Implementing protohackers https://protohackers.com/
